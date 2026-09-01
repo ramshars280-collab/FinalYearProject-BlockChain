@@ -1,13 +1,7 @@
 import { BatchRecord, IdentityBindingRecord, W3CCredentialPayload, ConsortiumInstitution, StudentDegreeData } from "../types";
 import { buildBatchMerkleTree, createW3CCredential, hashCredentialSubject } from "./crypto";
 
-const STORAGE_KEYS = {
-  BATCHES: "mgm_blockchain_batches_v2",
-  IDENTITIES: "mgm_blockchain_identities_v2",
-  STUDENT_VAULT: "mgm_blockchain_student_vault_v2",
-  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v2",
-  SELECTED_INSTITUTION: "mgm_blockchain_selected_institution_v2",
-};
+
 
 export const CONSORTIUM_UNIVERSITIES: ConsortiumInstitution[] = [
   {
@@ -169,16 +163,49 @@ export const INITIAL_STUDENTS_SPPU: StudentDegreeData[] = [
 
 export const INITIAL_STUDENTS = INITIAL_STUDENTS_MGM;
 
+const STORAGE_KEYS = {
+  BATCHES: "mgm_blockchain_batches_v2",
+  IDENTITIES: "mgm_blockchain_identities_v2",
+  STUDENT_VAULT: "mgm_blockchain_student_vault_v2",
+  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v2",
+  CUSTOM_UNIVERSITIES: "mgm_blockchain_custom_universities_v2",
+};
+
 export function getConsortiumInstitutions(): ConsortiumInstitution[] {
-  return CONSORTIUM_UNIVERSITIES;
+  if (typeof window === "undefined") return CONSORTIUM_UNIVERSITIES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_UNIVERSITIES);
+    const custom: ConsortiumInstitution[] = raw ? JSON.parse(raw) : [];
+    const all = [...CONSORTIUM_UNIVERSITIES];
+    custom.forEach((c) => {
+      if (!all.some((u) => u.id === c.id || u.code.toLowerCase() === c.code.toLowerCase())) {
+        all.push(c);
+      }
+    });
+    return all;
+  } catch (e) {
+    return CONSORTIUM_UNIVERSITIES;
+  }
+}
+
+export function registerNewInstitution(institution: ConsortiumInstitution) {
+  if (typeof window === "undefined") return;
+  const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_UNIVERSITIES);
+  const custom: ConsortiumInstitution[] = raw ? JSON.parse(raw) : [];
+  if (!custom.some((u) => u.id === institution.id || u.code.toLowerCase() === institution.code.toLowerCase())) {
+    custom.push(institution);
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_UNIVERSITIES, JSON.stringify(custom));
+  }
 }
 
 export function getInstitutionByCode(code: string): ConsortiumInstitution | undefined {
-  return CONSORTIUM_UNIVERSITIES.find((u) => u.code.toLowerCase() === code.toLowerCase());
+  const all = getConsortiumInstitutions();
+  return all.find((u) => u.code.toLowerCase() === code.toLowerCase());
 }
 
 export function getInstitutionByAddress(address: string): ConsortiumInstitution | undefined {
-  return CONSORTIUM_UNIVERSITIES.find((u) => u.address.toLowerCase() === address.toLowerCase());
+  const all = getConsortiumInstitutions();
+  return all.find((u) => u.address.toLowerCase() === address.toLowerCase());
 }
 
 export function getStoredBatches(): BatchRecord[] {

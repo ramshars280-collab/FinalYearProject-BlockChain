@@ -259,48 +259,35 @@ export default function Navbar() {
                 </button>
 
                 {isLoginDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">
-                      Choose Your Portal
-                    </div>
-
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1">
                     <button
                       onClick={() => handleRoleLoginClick("STUDENT")}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
                     >
-                      <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                      <div className="p-1 rounded-lg bg-blue-100 text-blue-700">
                         <GraduationCap className="h-4 w-4" />
                       </div>
-                      <div>
-                        <div>Student Portal Login</div>
-                        <p className="text-[10px] text-slate-500 font-normal">PRN &bull; Degree Vault &bull; ZK Proofs</p>
-                      </div>
+                      <span>Student Portal Login</span>
                     </button>
 
                     <button
                       onClick={() => handleRoleLoginClick("EXAM_ADMIN")}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-amber-50 transition-colors text-xs font-bold text-slate-800 hover:text-amber-900"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-amber-50 transition-colors text-xs font-bold text-slate-800 hover:text-amber-900"
                     >
-                      <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                      <div className="p-1 rounded-lg bg-amber-100 text-amber-800">
                         <Shield className="h-4 w-4" />
                       </div>
-                      <div>
-                        <div>Exam Cell Admin Login</div>
-                        <p className="text-[10px] text-slate-500 font-normal">Controller of Exams &bull; Merkle Minting</p>
-                      </div>
+                      <span>Exam Cell Admin Login</span>
                     </button>
 
                     <button
                       onClick={() => handleRoleLoginClick("UNIVERSITY_STAFF")}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
                     >
-                      <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                      <div className="p-1 rounded-lg bg-blue-100 text-blue-700">
                         <Briefcase className="h-4 w-4" />
                       </div>
-                      <div>
-                        <div>Institutional Staff Login</div>
-                        <p className="text-[10px] text-slate-500 font-normal">Admissions &bull; NEP ABC &bull; Placement</p>
-                      </div>
+                      <span>Institutional Staff Login</span>
                     </button>
                   </div>
                 )}

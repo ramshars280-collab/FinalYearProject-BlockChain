@@ -24,6 +24,7 @@ import {
   Shield,
   Lock,
   Building2,
+  PlusCircle,
 } from "lucide-react";
 import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
@@ -32,13 +33,14 @@ import {
   getStoredBatches,
   saveStoredBatches,
   getSepoliaConfig,
-  CONSORTIUM_UNIVERSITIES,
+  getConsortiumInstitutions,
   INITIAL_STUDENTS_MGM,
   INITIAL_STUDENTS_SPPU,
 } from "../../lib/storage";
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
+import RegisterUniversityModal from "../../components/RegisterUniversityModal";
 import AuthGuard from "../../components/AuthGuard";
 import { useAuth } from "../../context/AuthContext";
 
@@ -56,7 +58,10 @@ export default function IssuerDashboardPage() {
 
 function IssuerDashboardContent() {
   const { user, logout } = useAuth();
-  const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution>(CONSORTIUM_UNIVERSITIES[0]);
+  const [institutions, setInstitutions] = useState<ConsortiumInstitution[]>([]);
+  const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution | null>(null);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+
   const [batches, setBatches] = useState<BatchRecord[]>([]);
   const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS_MGM);
   const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH02");
@@ -69,9 +74,18 @@ function IssuerDashboardContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    loadInstitutions();
     loadBatches();
     recalculateTree(INITIAL_STUDENTS_MGM);
   }, []);
+
+  const loadInstitutions = () => {
+    const list = getConsortiumInstitutions();
+    setInstitutions(list);
+    if (!selectedInstitution && list.length > 0) {
+      setSelectedInstitution(list[0]);
+    }
+  };
 
   const loadBatches = () => {
     const stored = getStoredBatches();
@@ -85,7 +99,8 @@ function IssuerDashboardContent() {
   };
 
   const handleInstitutionChange = (instId: string) => {
-    const inst = CONSORTIUM_UNIVERSITIES.find((u) => u.id === instId) || CONSORTIUM_UNIVERSITIES[0];
+    const inst = institutions.find((u) => u.id === instId) || institutions[0];
+    if (!inst) return;
     setSelectedInstitution(inst);
     
     // Choose sample students for selected university
@@ -97,11 +112,53 @@ function IssuerDashboardContent() {
 
     setCurrentStudents(studentsToLoad);
     recalculateTree(studentsToLoad);
-    setBatchId(`${inst.shortName.replace(/\s+/g, '')}-2024-BATCH-${Date.now().toString().slice(-4)}`);
+    setBatchId(`${inst.shortName.replace(/[^a-zA-Z0-9]/g, '')}-2024-BATCH-${Date.now().toString().slice(-4)}`);
+    setAnchorSuccess(null);
+  };
+
+  const handleNewUniversityRegistered = (newInst: ConsortiumInstitution) => {
+    loadInstitutions();
+    setSelectedInstitution(newInst);
+
+    const defaultStudents: StudentDegreeData[] = [
+      {
+        prn: `${newInst.shortName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}202401`,
+        fullName: "Aryan Verma",
+        degree: "Bachelor of Technology",
+        branch: "Computer Science & Engineering",
+        cgpa: 9.10,
+        graduationYear: 2024,
+        issueDate: "2024-06-25",
+        nheqfCredits: 160,
+        nheqfLevel: 6.0,
+        university: newInst.name,
+        institutionCode: newInst.code,
+        division: "First Class with Distinction",
+      },
+      {
+        prn: `${newInst.shortName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}202402`,
+        fullName: "Meera Nair",
+        degree: "Bachelor of Technology",
+        branch: "Artificial Intelligence",
+        cgpa: 8.92,
+        graduationYear: 2024,
+        issueDate: "2024-06-25",
+        nheqfCredits: 160,
+        nheqfLevel: 6.0,
+        university: newInst.name,
+        institutionCode: newInst.code,
+        division: "First Class with Distinction",
+      },
+    ];
+
+    setCurrentStudents(defaultStudents);
+    recalculateTree(defaultStudents);
+    setBatchId(`${newInst.shortName.replace(/[^a-zA-Z0-9]/g, '')}-2024-BATCH-${Date.now().toString().slice(-4)}`);
     setAnchorSuccess(null);
   };
 
   const handleCsvUpload = (file: File) => {
+    if (!selectedInstitution) return;
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -125,7 +182,7 @@ function IssuerDashboardContent() {
           if (parsedStudents.length > 0) {
             setCurrentStudents(parsedStudents);
             recalculateTree(parsedStudents);
-            setBatchId(`${selectedInstitution.shortName.replace(/\s+/g, '')}-${parsedStudents[0].graduationYear}-BATCH-${Date.now().toString().slice(-4)}`);
+            setBatchId(`${selectedInstitution.shortName.replace(/[^a-zA-Z0-9]/g, '')}-${parsedStudents[0].graduationYear}-BATCH-${Date.now().toString().slice(-4)}`);
             setAnchorSuccess(null);
           }
         } catch (e: any) {
@@ -136,7 +193,7 @@ function IssuerDashboardContent() {
   };
 
   const handleAnchorToSepolia = async () => {
-    if (!computedTreeData) return;
+    if (!computedTreeData || !selectedInstitution) return;
 
     setIsAnchoring(true);
     setAnchorSuccess(null);
@@ -187,7 +244,7 @@ function IssuerDashboardContent() {
   };
 
   const handleDownloadZip = async () => {
-    if (!computedTreeData) return;
+    if (!computedTreeData || !selectedInstitution) return;
     setIsZipping(true);
 
     try {
@@ -229,6 +286,8 @@ function IssuerDashboardContent() {
       });
   };
 
+  const activeInst = selectedInstitution || institutions[0];
+
   return (
     <div className="space-y-8 py-2">
       {/* Header */}
@@ -255,7 +314,7 @@ function IssuerDashboardContent() {
         </button>
       </div>
 
-      {/* Consortium Institution Selection Bar */}
+      {/* Consortium Institution Selection Bar with Option to Register New University */}
       <div className="bg-white p-6 rounded-3xl border border-blue-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
@@ -265,30 +324,43 @@ function IssuerDashboardContent() {
                 Active Issuing University / Consortium Partner
               </h3>
               <p className="text-[11px] text-slate-500">
-                Select which consortium member institution is issuing degrees in this batch
+                Select an issuing university or register an external institution to join the consortium
               </p>
             </div>
           </div>
 
-          <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
-            Code: {selectedInstitution.code}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsRegisterModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>+ Register New University</span>
+            </button>
+
+            {activeInst && (
+              <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
+                Code: {activeInst.code}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          {CONSORTIUM_UNIVERSITIES.map((inst) => (
+        {/* Institution Cards Carousel / Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {institutions.map((inst) => (
             <div
               key={inst.id}
               onClick={() => handleInstitutionChange(inst.id)}
               className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                selectedInstitution.id === inst.id
+                activeInst?.id === inst.id
                   ? "bg-blue-50 border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
                   : "bg-slate-50 border-slate-200 hover:border-blue-300 hover:bg-slate-100"
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-black text-slate-900">{inst.shortName}</span>
-                {selectedInstitution.id === inst.id && (
+                {activeInst?.id === inst.id && (
                   <CheckCircle2 className="h-4 w-4 text-blue-600" />
                 )}
               </div>
@@ -319,7 +391,7 @@ function IssuerDashboardContent() {
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Consortium Registry</span>
             <div className="text-lg font-black text-blue-900">Multi-Org Smart Contract</div>
-            <p className="text-[10px] text-blue-700 font-medium">{selectedInstitution.name}</p>
+            <p className="text-[10px] text-blue-700 font-medium">{activeInst?.name || "Consortium Node"}</p>
           </div>
         </div>
 
@@ -375,7 +447,7 @@ function IssuerDashboardContent() {
                 Click to upload Graduation CSV Batch
               </p>
               <p className="text-[11px] text-slate-400">
-                Institution: {selectedInstitution.name}
+                Institution: {activeInst?.name}
               </p>
             </div>
 
@@ -394,7 +466,7 @@ function IssuerDashboardContent() {
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-500">Issuing University:</span>
-                <span className="font-bold text-slate-900">{selectedInstitution.shortName}</span>
+                <span className="font-bold text-slate-900">{activeInst?.shortName}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Records Ingested:</span>
@@ -416,7 +488,7 @@ function IssuerDashboardContent() {
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <ShieldCheck className="h-4 w-4" />
-                <span>{isAnchoring ? "Broadcasting to Sepolia..." : `Anchor Batch for ${selectedInstitution.shortName}`}</span>
+                <span>{isAnchoring ? "Broadcasting to Sepolia..." : `Anchor Batch for ${activeInst?.shortName}`}</span>
               </button>
 
               <button
@@ -524,6 +596,13 @@ function IssuerDashboardContent() {
           }}
         />
       )}
+
+      {/* Modal: Register New University */}
+      <RegisterUniversityModal
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        onRegistered={handleNewUniversityRegistered}
+      />
     </div>
   );
 }
