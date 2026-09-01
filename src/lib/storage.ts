@@ -1,12 +1,64 @@
-import { BatchRecord, IdentityBindingRecord, W3CCredentialPayload } from "../types";
+import { BatchRecord, IdentityBindingRecord, W3CCredentialPayload, ConsortiumInstitution, StudentDegreeData } from "../types";
 import { buildBatchMerkleTree, createW3CCredential, hashCredentialSubject } from "./crypto";
 
 const STORAGE_KEYS = {
-  BATCHES: "mgm_blockchain_batches_v1",
-  IDENTITIES: "mgm_blockchain_identities_v1",
-  STUDENT_VAULT: "mgm_blockchain_student_vault_v1",
-  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v1",
+  BATCHES: "mgm_blockchain_batches_v2",
+  IDENTITIES: "mgm_blockchain_identities_v2",
+  STUDENT_VAULT: "mgm_blockchain_student_vault_v2",
+  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v2",
+  SELECTED_INSTITUTION: "mgm_blockchain_selected_institution_v2",
 };
+
+export const CONSORTIUM_UNIVERSITIES: ConsortiumInstitution[] = [
+  {
+    id: "mgmu",
+    name: "MGM University",
+    shortName: "MGMU",
+    code: "MGMU-ENG-01",
+    address: "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+    city: "Chhatrapati Sambhajinagar",
+    state: "Maharashtra, India",
+    establishedAct: "Established under Maharashtra Act No. XXVI of 2019",
+    website: "https://mgmu.ac.in",
+    crestColor: "blue",
+  },
+  {
+    id: "sppu",
+    name: "Savitribai Phule Pune University",
+    shortName: "SPPU Pune",
+    code: "SPPU-ENG-02",
+    address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    city: "Pune",
+    state: "Maharashtra, India",
+    establishedAct: "Established under Poona University Act 1949 & Maharashtra Public Universities Act 2016",
+    website: "http://www.unipune.ac.in",
+    crestColor: "indigo",
+  },
+  {
+    id: "mu",
+    name: "University of Mumbai",
+    shortName: "Mumbai University",
+    code: "MU-ENG-03",
+    address: "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    city: "Mumbai",
+    state: "Maharashtra, India",
+    establishedAct: "Established on 18th July 1857 & Maharashtra Public Universities Act 2016",
+    website: "https://mu.ac.in",
+    crestColor: "amber",
+  },
+  {
+    id: "coep",
+    name: "COEP Technological University",
+    shortName: "COEP Tech",
+    code: "COEP-TECH-04",
+    address: "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
+    city: "Pune",
+    state: "Maharashtra, India",
+    establishedAct: "Established under Maharashtra Act No. XXXV of 2022 (Estd. 1854)",
+    website: "https://www.coep.org.in",
+    crestColor: "emerald",
+  },
+];
 
 export interface SepoliaConfig {
   credentialRegistryAddress: string;
@@ -24,8 +76,8 @@ export const DEFAULT_SEPOLIA_CONFIG: SepoliaConfig = {
   isSimulatedNetwork: false,
 };
 
-// Initial Graduation Batch for demo
-export const INITIAL_STUDENTS = [
+// Initial Graduation Batches for Consortium Demo
+export const INITIAL_STUDENTS_MGM: StudentDegreeData[] = [
   {
     prn: "PRN20200101",
     fullName: "Aarav Sharma",
@@ -84,13 +136,58 @@ export const INITIAL_STUDENTS = [
   },
 ];
 
+export const INITIAL_STUDENTS_SPPU: StudentDegreeData[] = [
+  {
+    prn: "SPPU20205819",
+    fullName: "Sneha Jagtap",
+    degree: "Bachelor of Engineering",
+    branch: "Computer Engineering",
+    cgpa: 9.15,
+    graduationYear: 2024,
+    issueDate: "2024-06-20",
+    nheqfCredits: 168,
+    nheqfLevel: 6.0,
+    university: "Savitribai Phule Pune University",
+    institutionCode: "SPPU-ENG-02",
+    division: "First Class with Distinction",
+  },
+  {
+    prn: "SPPU20205820",
+    fullName: "Vikram Shinde",
+    degree: "Bachelor of Engineering",
+    branch: "Information Technology",
+    cgpa: 8.60,
+    graduationYear: 2024,
+    issueDate: "2024-06-20",
+    nheqfCredits: 164,
+    nheqfLevel: 6.0,
+    university: "Savitribai Phule Pune University",
+    institutionCode: "SPPU-ENG-02",
+    division: "First Class with Distinction",
+  },
+];
+
+export const INITIAL_STUDENTS = INITIAL_STUDENTS_MGM;
+
+export function getConsortiumInstitutions(): ConsortiumInstitution[] {
+  return CONSORTIUM_UNIVERSITIES;
+}
+
+export function getInstitutionByCode(code: string): ConsortiumInstitution | undefined {
+  return CONSORTIUM_UNIVERSITIES.find((u) => u.code.toLowerCase() === code.toLowerCase());
+}
+
+export function getInstitutionByAddress(address: string): ConsortiumInstitution | undefined {
+  return CONSORTIUM_UNIVERSITIES.find((u) => u.address.toLowerCase() === address.toLowerCase());
+}
+
 export function getStoredBatches(): BatchRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.BATCHES);
     if (!raw) {
-      const initial = initializeDefaultBatch();
-      return [initial];
+      const initial = initializeDefaultBatches();
+      return initial;
     }
     return JSON.parse(raw);
   } catch (e) {
@@ -104,26 +201,46 @@ export function saveStoredBatches(batches: BatchRecord[]) {
   localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(batches));
 }
 
-export function initializeDefaultBatch(): BatchRecord {
-  const { rootHex, proofs } = buildBatchMerkleTree(INITIAL_STUDENTS);
-  const batchId = "MGM-2024-BTECH-BATCH01";
+export function initializeDefaultBatches(): BatchRecord[] {
+  const { rootHex: mgmRoot } = buildBatchMerkleTree(INITIAL_STUDENTS_MGM);
+  const mgmBatchId = "MGM-2024-BTECH-BATCH01";
   
-  const defaultBatch: BatchRecord = {
-    batchId,
-    merkleRoot: rootHex,
+  const mgmBatch: BatchRecord = {
+    batchId: mgmBatchId,
+    merkleRoot: mgmRoot,
     ipfsCid: "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco",
-    timestamp: 1718438400, // June 15, 2024
+    timestamp: 1718438400,
     issuer: "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
-    totalCredentials: INITIAL_STUDENTS.length,
-    revokedIndices: [], // initially 0 revoked
-    records: INITIAL_STUDENTS,
+    institutionName: "MGM University, Chhatrapati Sambhajinagar",
+    institutionCode: "MGMU-ENG-01",
+    totalCredentials: INITIAL_STUDENTS_MGM.length,
+    revokedIndices: [],
+    records: INITIAL_STUDENTS_MGM,
   };
 
+  const { rootHex: sppuRoot } = buildBatchMerkleTree(INITIAL_STUDENTS_SPPU);
+  const sppuBatchId = "SPPU-2024-BE-BATCH01";
+
+  const sppuBatch: BatchRecord = {
+    batchId: sppuBatchId,
+    merkleRoot: sppuRoot,
+    ipfsCid: "QmZtmD2qt8fJpq3CLDH8TFZiakrirkqqn3D24ghj34h89",
+    timestamp: 1718870400,
+    issuer: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    institutionName: "Savitribai Phule Pune University",
+    institutionCode: "SPPU-ENG-02",
+    totalCredentials: INITIAL_STUDENTS_SPPU.length,
+    revokedIndices: [],
+    records: INITIAL_STUDENTS_SPPU,
+  };
+
+  const defaultBatches = [mgmBatch, sppuBatch];
+
   if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify([defaultBatch]));
+    localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(defaultBatches));
   }
 
-  return defaultBatch;
+  return defaultBatches;
 }
 
 export function getStoredIdentities(): Record<string, IdentityBindingRecord> {

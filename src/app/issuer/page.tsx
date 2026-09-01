@@ -23,15 +23,18 @@ import {
   LogOut,
   Shield,
   Lock,
+  Building2,
 } from "lucide-react";
-import { StudentDegreeData, BatchRecord, W3CCredentialPayload } from "../../types";
+import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
 import { generateCredentialsZip, downloadFile } from "../../lib/zipHelper";
 import {
   getStoredBatches,
   saveStoredBatches,
   getSepoliaConfig,
-  INITIAL_STUDENTS,
+  CONSORTIUM_UNIVERSITIES,
+  INITIAL_STUDENTS_MGM,
+  INITIAL_STUDENTS_SPPU,
 } from "../../lib/storage";
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
@@ -53,8 +56,9 @@ export default function IssuerDashboardPage() {
 
 function IssuerDashboardContent() {
   const { user, logout } = useAuth();
+  const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution>(CONSORTIUM_UNIVERSITIES[0]);
   const [batches, setBatches] = useState<BatchRecord[]>([]);
-  const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS);
+  const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS_MGM);
   const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH02");
   const [computedTreeData, setComputedTreeData] = useState<any>(null);
   const [isAnchoring, setIsAnchoring] = useState(false);
@@ -66,7 +70,7 @@ function IssuerDashboardContent() {
 
   useEffect(() => {
     loadBatches();
-    recalculateTree(INITIAL_STUDENTS);
+    recalculateTree(INITIAL_STUDENTS_MGM);
   }, []);
 
   const loadBatches = () => {
@@ -80,6 +84,23 @@ function IssuerDashboardContent() {
     setComputedTreeData(treeData);
   };
 
+  const handleInstitutionChange = (instId: string) => {
+    const inst = CONSORTIUM_UNIVERSITIES.find((u) => u.id === instId) || CONSORTIUM_UNIVERSITIES[0];
+    setSelectedInstitution(inst);
+    
+    // Choose sample students for selected university
+    const studentsToLoad = inst.id === "sppu" ? INITIAL_STUDENTS_SPPU : INITIAL_STUDENTS_MGM.map(s => ({
+      ...s,
+      university: inst.name,
+      institutionCode: inst.code,
+    }));
+
+    setCurrentStudents(studentsToLoad);
+    recalculateTree(studentsToLoad);
+    setBatchId(`${inst.shortName.replace(/\s+/g, '')}-2024-BATCH-${Date.now().toString().slice(-4)}`);
+    setAnchorSuccess(null);
+  };
+
   const handleCsvUpload = (file: File) => {
     Papa.parse(file, {
       header: true,
@@ -87,7 +108,7 @@ function IssuerDashboardContent() {
       complete: (results) => {
         try {
           const parsedStudents: StudentDegreeData[] = results.data.map((row: any, i: number) => ({
-            prn: (row.PRN || row.prn || `PRN2024${i + 1}`).trim().toUpperCase(),
+            prn: (row.PRN || row.prn || `${selectedInstitution.shortName.toUpperCase()}2024${i + 1}`).trim().toUpperCase(),
             fullName: (row.FullName || row.fullName || row.Name || "Student").trim(),
             degree: (row.Degree || row.degree || "Bachelor of Technology").trim(),
             branch: (row.Branch || row.branch || "Computer Science & Engineering").trim(),
@@ -96,15 +117,15 @@ function IssuerDashboardContent() {
             issueDate: row.IssueDate || row.issueDate || "2024-06-15",
             nheqfCredits: parseInt(row.Credits || row.credits || "160", 10),
             nheqfLevel: parseFloat(row.Level || row.level || "6.0"),
-            university: row.University || "MGM University, Chhatrapati Sambhajinagar",
-            institutionCode: "MGMU-ENG-01",
+            university: row.University || selectedInstitution.name,
+            institutionCode: row.InstitutionCode || selectedInstitution.code,
             division: "First Class with Distinction",
           }));
 
           if (parsedStudents.length > 0) {
             setCurrentStudents(parsedStudents);
             recalculateTree(parsedStudents);
-            setBatchId(`MGM-${parsedStudents[0].graduationYear}-BATCH-${Date.now().toString().slice(-4)}`);
+            setBatchId(`${selectedInstitution.shortName.replace(/\s+/g, '')}-${parsedStudents[0].graduationYear}-BATCH-${Date.now().toString().slice(-4)}`);
             setAnchorSuccess(null);
           }
         } catch (e: any) {
@@ -140,7 +161,9 @@ function IssuerDashboardContent() {
         merkleRoot: computedTreeData.rootHex,
         ipfsCid,
         timestamp: Math.floor(Date.now() / 1000),
-        issuer: signer ? await signer.getAddress() : "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+        issuer: selectedInstitution.address,
+        institutionName: selectedInstitution.name,
+        institutionCode: selectedInstitution.code,
         totalCredentials: currentStudents.length,
         revokedIndices: [],
         records: currentStudents,
@@ -153,6 +176,7 @@ function IssuerDashboardContent() {
         txHash: res.txHash,
         batchId,
         merkleRoot: computedTreeData.rootHex,
+        institutionName: selectedInstitution.name,
       });
     } catch (e: any) {
       console.error("Anchoring failed:", e);
@@ -181,7 +205,9 @@ function IssuerDashboardContent() {
             network: "sepolia",
             chainId: 11155111,
           },
-          "0x71C56538b15294500B73f8472B4fE963D4e58bEf"
+          selectedInstitution.address,
+          selectedInstitution.name,
+          selectedInstitution.code
         );
       });
 
@@ -210,13 +236,13 @@ function IssuerDashboardContent() {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
             <Shield className="h-3.5 w-3.5 text-blue-600" />
-            <span>Authorized Administrator &bull; {user?.fullName}</span>
+            <span>Inter-University Consortium Authority &bull; {user?.fullName}</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Exam Cell Batch Minting &amp; Dynamic Revocation
+            Exam Cell Multi-University Minting &amp; Dynamic Revocation
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Upload graduation batches, calculate Keccak256 binary Merkle Trees on-the-fly, and anchor 1,000+ degrees in a single O(1) Sepolia transaction.
+            Anchor cryptographic Merkle roots for any consortium institution and manage dynamic 256-bit bitmap revocations on Ethereum Sepolia.
           </p>
         </div>
 
@@ -227,6 +253,50 @@ function IssuerDashboardContent() {
           <LogOut className="h-3.5 w-3.5" />
           <span>Sign Out</span>
         </button>
+      </div>
+
+      {/* Consortium Institution Selection Bar */}
+      <div className="bg-white p-6 rounded-3xl border border-blue-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Active Issuing University / Consortium Partner
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Select which consortium member institution is issuing degrees in this batch
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
+            Code: {selectedInstitution.code}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          {CONSORTIUM_UNIVERSITIES.map((inst) => (
+            <div
+              key={inst.id}
+              onClick={() => handleInstitutionChange(inst.id)}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                selectedInstitution.id === inst.id
+                  ? "bg-blue-50 border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
+                  : "bg-slate-50 border-slate-200 hover:border-blue-300 hover:bg-slate-100"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-black text-slate-900">{inst.shortName}</span>
+                {selectedInstitution.id === inst.id && (
+                  <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                )}
+              </div>
+              <div className="text-[11px] font-medium text-slate-700 leading-snug">{inst.name}</div>
+              <div className="text-[10px] text-slate-500 mt-1">{inst.city}, {inst.state}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Gas Optimization Metrics Banner */}
@@ -247,9 +317,9 @@ function IssuerDashboardContent() {
             <Cpu className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Merkle Algorithm</span>
-            <div className="text-lg font-black text-blue-900">Keccak-256 Binary Tree</div>
-            <p className="text-[10px] text-blue-700 font-medium">Deterministic OpenCerts Standard</p>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Consortium Registry</span>
+            <div className="text-lg font-black text-blue-900">Multi-Org Smart Contract</div>
+            <p className="text-[10px] text-blue-700 font-medium">{selectedInstitution.name}</p>
           </div>
         </div>
 
@@ -305,7 +375,7 @@ function IssuerDashboardContent() {
                 Click to upload Graduation CSV Batch
               </p>
               <p className="text-[11px] text-slate-400">
-                Columns: PRN, FullName, Degree, Branch, CGPA, Year
+                Institution: {selectedInstitution.name}
               </p>
             </div>
 
@@ -322,6 +392,10 @@ function IssuerDashboardContent() {
 
             {/* Ingested Records Summary */}
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Issuing University:</span>
+                <span className="font-bold text-slate-900">{selectedInstitution.shortName}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Records Ingested:</span>
                 <span className="font-bold text-slate-900">{currentStudents.length} Candidates</span>
@@ -342,7 +416,7 @@ function IssuerDashboardContent() {
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <ShieldCheck className="h-4 w-4" />
-                <span>{isAnchoring ? "Broadcasting to Sepolia..." : "Anchor Batch Merkle Root to Sepolia"}</span>
+                <span>{isAnchoring ? "Broadcasting to Sepolia..." : `Anchor Batch for ${selectedInstitution.shortName}`}</span>
               </button>
 
               <button
@@ -361,8 +435,8 @@ function IssuerDashboardContent() {
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <span>Batch Anchored to Ethereum Sepolia!</span>
                 </div>
-                <p className="font-mono text-[11px] text-emerald-800 font-semibold">
-                  Status: Batch Root Anchored On-Chain
+                <p className="text-[11px] text-emerald-800 font-semibold">
+                  Issuing University: {anchorSuccess.institutionName}
                 </p>
                 <p className="text-[10px] text-emerald-700">
                   32-byte Merkle root committed to CredentialRegistry.sol
@@ -387,10 +461,10 @@ function IssuerDashboardContent() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  Anchored Batches &amp; Dynamic Revocation Switchboard
+                  Consortium Batches &amp; Dynamic Revocation Switchboard
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Manage on-chain Merkle roots and invalidate credentials via 256-bit dynamic bitmaps
+                  Manage on-chain Merkle roots across consortium institutions and invalidate credentials via 256-bit bitmaps
                 </p>
               </div>
             </div>
@@ -402,11 +476,14 @@ function IssuerDashboardContent() {
                   className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono font-bold text-xs text-slate-900">
                         {b.batchId}
                       </span>
-                      <span className="text-[10px] bg-blue-50 text-blue-800 border border-blue-200 font-bold px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] bg-blue-100 text-blue-900 border border-blue-200 font-bold px-2 py-0.5 rounded-full">
+                        {b.institutionName || "Consortium University"}
+                      </span>
+                      <span className="text-[10px] bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-full">
                         {b.totalCredentials} Degrees
                       </span>
                       {b.revokedIndices?.length > 0 && (

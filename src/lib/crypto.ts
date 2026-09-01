@@ -151,21 +151,26 @@ export function createW3CCredential(
   subject: StudentDegreeData,
   merkleProof: MerkleProofData,
   issuerAddress: string = "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
-  issuerName: string = "MGM University - Examination Authority"
+  issuerName?: string,
+  institutionCode?: string
 ): W3CCredentialPayload {
+  const resolvedName = issuerName || subject.university || "Authorized Consortium University";
+  const resolvedCode = institutionCode || subject.institutionCode || "MGMU-ENG-01";
+
   return {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
       "https://schema.org",
       "https://w3id.org/security/suites/ed25519-2020/v1",
     ],
-    id: `urn:uuid:mgm-cert-${subject.prn.toLowerCase()}-${subject.graduationYear}`,
+    id: `urn:uuid:degree-cert-${subject.prn.toLowerCase()}-${subject.graduationYear}`,
     type: ["VerifiableCredential", "UniversityDegreeCredential"],
     issuer: {
       id: `did:ethr:11155111:${issuerAddress}`,
-      name: issuerName,
-      url: "https://mgmu.ac.in/academics/verify",
+      name: resolvedName,
+      url: "https://blockchain.trust-registry.ac.in/verify",
       ethereumAddress: issuerAddress,
+      institutionCode: resolvedCode,
     },
     issuanceDate: new Date().toISOString(),
     credentialSubject: {

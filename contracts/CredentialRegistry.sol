@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
  * @title CredentialRegistry
  * @dev Anchors 32-byte Merkle roots of academic degree batches to Ethereum
  * and maintains dynamic O(1) bitmap revocation states without recomputing trees.
+ * Extended with Multi-University Consortium Issuer tracking.
  */
 contract CredentialRegistry {
     struct BatchMetadata {
@@ -17,6 +18,10 @@ contract CredentialRegistry {
 
     address public owner;
     mapping(address => bool) public authorizedIssuers;
+
+    // Multi-University Consortium Mappings
+    mapping(address => string) public institutionNames;
+    mapping(bytes32 => address) public batchToIssuerAddress;
 
     // batchId hash -> BatchMetadata
     mapping(bytes32 => BatchMetadata) private _batches;
@@ -33,7 +38,8 @@ contract CredentialRegistry {
         bytes32 merkleRoot,
         string ipfsCid,
         uint256 timestamp,
-        address indexed issuer
+        address indexed issuer,
+        string institutionName
     );
 
     event CredentialRevoked(
@@ -44,6 +50,7 @@ contract CredentialRegistry {
         address indexed revoker
     );
 
+    event InstitutionRegistered(address indexed issuerAddress, string name);
     event IssuerStatusUpdated(address indexed issuer, bool isAuthorized);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -63,6 +70,18 @@ contract CredentialRegistry {
     constructor() {
         owner = msg.sender;
         authorizedIssuers[msg.sender] = true;
+        institutionNames[msg.sender] = "MGM University, Chhatrapati Sambhajinagar";
+    }
+
+    /**
+     * @notice Registers or updates a consortium university institution.
+     */
+    function registerInstitution(address issuerAddress, string calldata name) external onlyOwner {
+        require(issuerAddress != address(0), "CredentialRegistry: zero address");
+        institutionNames[issuerAddress] = name;
+        authorizedIssuers[issuerAddress] = true;
+        emit InstitutionRegistered(issuerAddress, name);
+        emit IssuerStatusUpdated(issuerAddress, true);
     }
 
     /**
@@ -88,7 +107,13 @@ contract CredentialRegistry {
             exists: true
         });
 
-        emit BatchAnchored(batchId, batchId, merkleRoot, ipfsCid, block.timestamp, msg.sender);
+        batchToIssuerAddress[bHash] = msg.sender;
+
+        string memory instName = bytes(institutionNames[msg.sender]).length > 0 
+            ? institutionNames[msg.sender] 
+            : "Authorized Consortium University";
+
+        emit BatchAnchored(batchId, batchId, merkleRoot, ipfsCid, block.timestamp, msg.sender, instName);
     }
 
     /**
@@ -153,18 +178,22 @@ contract CredentialRegistry {
     }
 
     /**
-     * @notice Returns batch metadata and anchored root.
+     * @notice Returns batch metadata, issuing university name, and anchored root.
      */
     function getBatchInfo(string calldata batchId) external view returns (
         bytes32 merkleRoot,
         string memory ipfsCid,
         uint256 timestamp,
         address issuer,
+        string memory institutionName,
         bool exists
     ) {
         bytes32 bHash = keccak256(bytes(batchId));
         BatchMetadata memory b = _batches[bHash];
-        return (b.merkleRoot, b.ipfsCid, b.timestamp, b.issuer, b.exists);
+        string memory instName = bytes(institutionNames[b.issuer]).length > 0 
+            ? institutionNames[b.issuer] 
+            : "Authorized Consortium University";
+        return (b.merkleRoot, b.ipfsCid, b.timestamp, b.issuer, instName, b.exists);
     }
 
     /**

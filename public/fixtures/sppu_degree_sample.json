@@ -1,0 +1,52 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://schema.org",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "id": "urn:uuid:degree-cert-sppu20205819-2024",
+  "type": [
+    "VerifiableCredential",
+    "UniversityDegreeCredential"
+  ],
+  "issuer": {
+    "id": "did:ethr:11155111:0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    "name": "Savitribai Phule Pune University",
+    "url": "http://www.unipune.ac.in",
+    "ethereumAddress": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    "institutionCode": "SPPU-ENG-02"
+  },
+  "issuanceDate": "2024-06-20T10:00:00.000Z",
+  "credentialSubject": {
+    "prn": "SPPU20205819",
+    "fullName": "Sneha Jagtap",
+    "degree": "Bachelor of Engineering",
+    "branch": "Computer Engineering",
+    "cgpa": 9.15,
+    "graduationYear": 2024,
+    "issueDate": "2024-06-20",
+    "nheqfCredits": 168,
+    "nheqfLevel": 6.0,
+    "university": "Savitribai Phule Pune University",
+    "institutionCode": "SPPU-ENG-02",
+    "division": "First Class with Distinction",
+    "id": "did:pkh:eip155:11155111:student-sppu20205819"
+  },
+  "proof": {
+    "type": "EthereumMerkleProof2024",
+    "created": "2024-06-20T10:00:00.000Z",
+    "verificationMethod": "did:ethr:11155111:0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7#merkleRoot",
+    "merkleProof": {
+      "batchId": "SPPU-2024-BE-BATCH01",
+      "leafIndex": 0,
+      "leafHash": "0xd358f2762a450ea13b1f5fe042db5ee5ae389650ee99e6ca3a07ce01168fcfb5",
+      "rootHash": "0xd8619ebf32b85e0fa0c1bf6299b9cf9b3353b34b159f8a3791016629be23d72a",
+      "proof": [
+        "0xf218c50c05769748bfa2e9a7e0965e8a5b98a0d922099388df6714f2dc34df03"
+      ],
+      "contractAddress": "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+      "network": "sepolia",
+      "chainId": 11155111
+    }
+  }
+}

@@ -158,16 +158,16 @@ export default function DegreeCertificate({
 
               <div>
                 <h1 className="text-2xl sm:text-4xl font-serif font-black text-blue-950 uppercase tracking-widest pt-2">
-                  {subject.university || "MGM University"}
+                  {subject.university || credential.issuer?.name || "MGM University"}
                 </h1>
                 <p className="text-xs sm:text-sm font-serif italic text-slate-600 tracking-wide mt-1">
-                  Chhatrapati Sambhajinagar, Maharashtra, India &bull; Established under Maharashtra Act No. XXVI
+                  Maharashtra, India &bull; Established under Maharashtra Universities Act &bull; Consortium Node
                 </p>
               </div>
 
               <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-900 px-5 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-xs">
                 <ShieldCheck className="h-3.5 w-3.5 text-blue-700" />
-                <span>Certified On Ethereum Sepolia Blockchain</span>
+                <span>Inter-University Consortium Anchor &bull; Sepolia Testnet</span>
               </div>
             </div>
 

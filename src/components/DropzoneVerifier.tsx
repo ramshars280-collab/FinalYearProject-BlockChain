@@ -19,6 +19,8 @@ import {
   Cpu,
   ArrowRight,
   Fingerprint,
+  Building2,
+  Award,
 } from "lucide-react";
 import { W3CCredentialPayload, VerificationResult } from "../types";
 import { hashCredentialSubject } from "../lib/crypto";
@@ -72,6 +74,8 @@ export default function DropzoneVerifier() {
           credential: data,
           verifiedAt: new Date().toLocaleTimeString(),
           isZkSelectiveProof: true,
+          issuingInstitutionName: data.issuer?.name || data.credentialSubject?.university || "MGM University",
+          issuingInstitutionAddress: data.issuer?.ethereumAddress,
         };
         setResult(res);
         if (zkValidation.isValid) triggerConfetti();
@@ -108,11 +112,12 @@ export default function DropzoneVerifier() {
           isValid: false,
           isRevoked: false,
           tamperDetected: true,
-          tamperReason: `Data Tampered! Calculated leaf hash (${computedLeaf.slice(0, 12)}...) differs from certificate proof leaf (${claimedLeaf.slice(0, 12)}...).`,
+          tamperReason: `Data Tampered! Calculated leaf hash (${computedLeaf.slice(0, 10)}••••) differs from certificate proof leaf (${claimedLeaf.slice(0, 10)}••••).`,
           computedLeaf,
           batchId: proofData.batchId,
           credential: data,
           verifiedAt: new Date().toLocaleTimeString(),
+          issuingInstitutionName: data.issuer?.name || subject.university,
         });
         setIsVerifying(false);
         return;
@@ -137,7 +142,7 @@ export default function DropzoneVerifier() {
         isRevoked: onChainCheck.isRevoked,
         tamperDetected: !onChainCheck.isValid,
         tamperReason: onChainCheck.isRevoked
-          ? "This academic degree credential was REVOKED by the University Examination Cell."
+          ? "This academic degree credential was REVOKED by the University Examination Authority."
           : !onChainCheck.isValid
           ? "Merkle proof mismatch: Credential is not anchored in the Sepolia batch registry."
           : undefined,
@@ -148,6 +153,8 @@ export default function DropzoneVerifier() {
         credential: data,
         network: "Ethereum Sepolia (11155111)",
         verifiedAt: new Date().toLocaleTimeString(),
+        issuingInstitutionName: onChainCheck.issuingInstitutionName || data.issuer?.name || subject.university,
+        issuingInstitutionAddress: onChainCheck.issuingInstitutionAddress || data.issuer?.ethereumAddress,
       };
 
       setResult(res);
@@ -247,7 +254,7 @@ export default function DropzoneVerifier() {
               Drag &amp; Drop Academic Degree Credential
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              OpenCerts 2.0 &bull; W3C JSON-LD &bull; Sepolia Smart Contract &bull; DPDP Zero-PII
+              Consortium Inter-University Verification &bull; W3C JSON-LD &bull; Sepolia Smart Contract &bull; Zero-PII
             </p>
           </div>
 
@@ -270,20 +277,34 @@ export default function DropzoneVerifier() {
 
           {/* Quick Demo Pre-Anchored Fixtures */}
           <div className="pt-5 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="text-slate-500 font-bold mr-1">Demo Fixtures:</span>
+            <span className="text-slate-500 font-bold mr-1">Demo Consortium Fixtures:</span>
             <button
               onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
-              className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
             >
               <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-              <span>Valid Degree Sample</span>
+              <span>MGM University</span>
+            </button>
+            <button
+              onClick={() => loadFixture("/fixtures/sppu_degree_sample.json")}
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+            >
+              <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+              <span>SPPU Pune</span>
+            </button>
+            <button
+              onClick={() => loadFixture("/fixtures/mu_degree_sample.json")}
+              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+            >
+              <Award className="h-3.5 w-3.5 text-amber-700" />
+              <span>Mumbai University</span>
             </button>
             <button
               onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}
-              className="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
             >
               <XCircle className="h-3.5 w-3.5 text-red-600" />
-              <span>Tampered Degree Sample</span>
+              <span>Tampered Sample</span>
             </button>
           </div>
         </div>
@@ -295,7 +316,7 @@ export default function DropzoneVerifier() {
           <div className="flex items-center gap-3">
             <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
             <h4 className="text-sm font-bold text-slate-900">
-              Evaluating Cryptographic Proof Against Ethereum Sepolia...
+              Evaluating Cryptographic Proof Against Ethereum Sepolia Consortium...
             </h4>
           </div>
 
@@ -323,30 +344,55 @@ export default function DropzoneVerifier() {
       {/* Result Status Banners */}
       {result && !isVerifying && (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-          {/* SUCCESS STATE */}
+          {/* SUCCESS STATE WITH EXPLICIT ISSUING UNIVERSITY BADGE */}
           {result.isValid && !result.isRevoked && (
-            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-md">
-                  <ShieldCheck className="h-7 w-7" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-lg font-extrabold text-emerald-950">
-                      100% Authentic &amp; Tamper-Proof
-                    </h4>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
-                      Verified On-Chain
-                    </span>
+            <div className="bg-emerald-50 border border-emerald-300 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-md">
+                    <ShieldCheck className="h-7 w-7" />
                   </div>
-                  <p className="text-xs text-emerald-800 mt-1">
-                    Merkle root verified on Sepolia at {result.verifiedAt}. Leaf integrity and dynamic bitmap checks passed.
-                  </p>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-lg font-extrabold text-emerald-950">
+                        100% Authentic &amp; Tamper-Proof
+                      </h4>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                        Verified On-Chain
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-800 mt-1">
+                      Merkle root verified on Sepolia at {result.verifiedAt}. Leaf integrity and dynamic bitmap checks passed.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-emerald-900 font-mono bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shrink-0 font-bold">
+                  Leaf Index: #{result.leafIndex ?? 0} &bull; Sepolia
                 </div>
               </div>
 
-              <div className="text-xs text-emerald-900 font-mono bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shrink-0 font-bold">
-                Leaf Index: #{result.leafIndex ?? 0} &bull; Sepolia
+              {/* Explicit Issuing University & Consortium Attribution Badge */}
+              <div className="pt-3 border-t border-emerald-200/70 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-white/80 p-3 rounded-xl border border-emerald-200 space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+                    Verified Issuing Institution:
+                  </span>
+                  <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-blue-700" />
+                    <span>{result.issuingInstitutionName || credential?.credentialSubject.university || "MGM University"}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/80 p-3 rounded-xl border border-emerald-200 space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+                    Consortium On-Chain Authority:
+                  </span>
+                  <div className="text-xs font-mono font-bold text-emerald-950 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>Authenticated Inter-University Trust Registry</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -367,7 +413,7 @@ export default function DropzoneVerifier() {
                   </span>
                 </div>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by the university examination authority.
+                  This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by {result.issuingInstitutionName || "the issuing university"}.
                 </p>
               </div>
             </div>

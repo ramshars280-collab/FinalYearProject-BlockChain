@@ -11,13 +11,17 @@ export const IDENTITY_REGISTRY_ABI = [
 ];
 
 export const CREDENTIAL_REGISTRY_ABI = [
+  "function registerInstitution(address issuerAddress, string calldata name) external",
+  "function institutionNames(address) external view returns (string memory)",
+  "function batchToIssuerAddress(bytes32) external view returns (address)",
   "function anchorMerkleRoot(string calldata batchId, bytes32 merkleRoot, string calldata ipfsCid) external",
   "function revokeCredential(string calldata batchId, uint256 leafIndex) external",
   "function isCredentialRevoked(string calldata batchId, uint256 leafIndex) public view returns (bool)",
   "function verifyCredential(string calldata batchId, bytes32 leaf, bytes32[] calldata proof, uint256 leafIndex) external view returns (bool isValid, bool isRevoked)",
-  "function getBatchInfo(string calldata batchId) external view returns (bytes32 merkleRoot, string memory ipfsCid, uint256 timestamp, address issuer, bool exists)",
-  "event BatchAnchored(string indexed batchIdIndexed, string batchId, bytes32 merkleRoot, string ipfsCid, uint256 timestamp, address indexed issuer)",
+  "function getBatchInfo(string calldata batchId) external view returns (bytes32 merkleRoot, string memory ipfsCid, uint256 timestamp, address issuer, string memory institutionName, bool exists)",
+  "event BatchAnchored(string indexed batchIdIndexed, string batchId, bytes32 merkleRoot, string ipfsCid, uint256 timestamp, address indexed issuer, string institutionName)",
   "event CredentialRevoked(string indexed batchIdIndexed, string batchId, uint256 leafIndex, uint256 timestamp, address indexed revoker)",
+  "event InstitutionRegistered(address indexed issuerAddress, string name)",
 ];
 
 export function getProvider(customRpc?: string): ethers.JsonRpcProvider {
@@ -41,6 +45,8 @@ export async function verifyCredentialOnChain(
   isRevoked: boolean;
   rootHash: string;
   source: "SEPOLIA_RPC" | "STORAGE_REGISTRY";
+  issuingInstitutionName?: string;
+  issuingInstitutionAddress?: string;
 }> {
   const config = getSepoliaConfig();
   const targetAddress = contractAddress || config.credentialRegistryAddress;
@@ -64,6 +70,8 @@ export async function verifyCredentialOnChain(
         isRevoked: Boolean(isRevoked),
         rootHash: batchInfo.merkleRoot,
         source: "SEPOLIA_RPC",
+        issuingInstitutionName: batchInfo.institutionName || "Consortium University",
+        issuingInstitutionAddress: batchInfo.issuer,
       };
     }
   } catch (error) {
@@ -93,6 +101,8 @@ export async function verifyCredentialOnChain(
     isRevoked,
     rootHash: batch.merkleRoot,
     source: "STORAGE_REGISTRY",
+    issuingInstitutionName: batch.institutionName || "MGM University, Chhatrapati Sambhajinagar",
+    issuingInstitutionAddress: batch.issuer,
   };
 }
 

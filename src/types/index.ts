@@ -1,3 +1,16 @@
+export interface ConsortiumInstitution {
+  id: string;
+  name: string;
+  shortName: string;
+  code: string;
+  address: string;
+  city: string;
+  state: string;
+  establishedAct: string;
+  website: string;
+  crestColor: string;
+}
+
 export interface StudentDegreeData {
   prn: string;
   fullName: string;
@@ -34,6 +47,7 @@ export interface W3CCredentialPayload {
     name: string;
     url: string;
     ethereumAddress: string;
+    institutionCode?: string;
   };
   issuanceDate: string;
   credentialSubject: StudentDegreeData & {
@@ -68,6 +82,8 @@ export interface BatchRecord {
   ipfsCid: string;
   timestamp: number;
   issuer: string;
+  institutionName?: string;
+  institutionCode?: string;
   totalCredentials: number;
   revokedIndices: number[];
   records: StudentDegreeData[];
@@ -118,4 +134,6 @@ export interface VerificationResult {
   txHash?: string;
   verifiedAt: string;
   isZkSelectiveProof?: boolean;
+  issuingInstitutionName?: string;
+  issuingInstitutionAddress?: string;
 }

@@ -1,0 +1,50 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://schema.org",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "id": "urn:uuid:degree-cert-mu20209412-2024",
+  "type": [
+    "VerifiableCredential",
+    "UniversityDegreeCredential"
+  ],
+  "issuer": {
+    "id": "did:ethr:11155111:0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    "name": "University of Mumbai",
+    "url": "https://mu.ac.in",
+    "ethereumAddress": "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    "institutionCode": "MU-ENG-03"
+  },
+  "issuanceDate": "2024-06-22T11:00:00.000Z",
+  "credentialSubject": {
+    "prn": "MU20209412",
+    "fullName": "Siddharth Mehta",
+    "degree": "Bachelor of Technology",
+    "branch": "Mechanical Engineering",
+    "cgpa": 8.72,
+    "graduationYear": 2024,
+    "issueDate": "2024-06-22",
+    "nheqfCredits": 160,
+    "nheqfLevel": 6.0,
+    "university": "University of Mumbai",
+    "institutionCode": "MU-ENG-03",
+    "division": "First Class with Distinction",
+    "id": "did:pkh:eip155:11155111:student-mu20209412"
+  },
+  "proof": {
+    "type": "EthereumMerkleProof2024",
+    "created": "2024-06-22T11:00:00.000Z",
+    "verificationMethod": "did:ethr:11155111:0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7#merkleRoot",
+    "merkleProof": {
+      "batchId": "MU-2024-BTECH-BATCH01",
+      "leafIndex": 0,
+      "leafHash": "0x4b78912e737190d6350d753232128795c37894a21074bc9342790cbfa2718ef1",
+      "rootHash": "0x4b78912e737190d6350d753232128795c37894a21074bc9342790cbfa2718ef1",
+      "proof": [],
+      "contractAddress": "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+      "network": "sepolia",
+      "chainId": 11155111
+    }
+  }
+}

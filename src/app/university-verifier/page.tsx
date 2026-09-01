@@ -24,6 +24,7 @@ import {
   LogOut,
   Briefcase,
   User,
+  Award,
 } from "lucide-react";
 import {
   CourseCreditRecord,
@@ -34,7 +35,7 @@ import {
 import { calculateAcademicBankOfCredits, NHEQF_LEVEL_MAP } from "../../lib/nep2020";
 import { hashCredentialSubject } from "../../lib/crypto";
 import { verifyCredentialOnChain } from "../../lib/contracts";
-import { getStoredBatches } from "../../lib/storage";
+import { getStoredBatches, CONSORTIUM_UNIVERSITIES } from "../../lib/storage";
 import { downloadFile } from "../../lib/zipHelper";
 import DegreeCertificate from "../../components/DegreeCertificate";
 import AuthGuard from "../../components/AuthGuard";
@@ -122,6 +123,8 @@ function InstitutionalDeskContent() {
             leafIndex: proofData.leafIndex,
             credential: parsed,
             verifiedAt: new Date().toLocaleTimeString(),
+            issuingInstitutionName: onChain.issuingInstitutionName || parsed.issuer?.name || subject.university,
+            issuingInstitutionAddress: onChain.issuingInstitutionAddress || parsed.issuer?.ethereumAddress,
           });
         }
       } catch (err) {
@@ -133,8 +136,8 @@ function InstitutionalDeskContent() {
     reader.readAsText(file);
   };
 
-  const loadAdmissionsSample = () => {
-    fetch("/fixtures/valid_degree_sample.json")
+  const loadAdmissionsFixture = (fixturePath: string) => {
+    fetch(fixturePath)
       .then((r) => r.json())
       .then((data) => {
         const file = new File([JSON.stringify(data)], "sample.json", { type: "application/json" });
@@ -267,7 +270,7 @@ function InstitutionalDeskContent() {
             University Institutional Verification Suite
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Tailored desks for PG Admissions, NEP 2020 Academic Bank of Credits (ABC), and Placement Cell (T&amp;P) batch audits.
+            Consortium cross-verification desks for PG Admissions, NEP 2020 Academic Bank of Credits (ABC), and Placement Cell audits.
           </p>
         </div>
 
@@ -326,19 +329,38 @@ function InstitutionalDeskContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Prerequisite Accreditation &amp; Degree Authenticator
+                  Consortium Prerequisite Accreditation &amp; Degree Authenticator
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Verify external candidate degree authenticity and eligibility in &lt;140ms
+                  Cross-verify external applicant degrees issued by any Consortium Partner University in &lt;140ms
                 </p>
               </div>
 
-              <button
-                onClick={loadAdmissionsSample}
-                className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-bold transition-all hover:scale-102"
-              >
-                Load Sample Candidate Credential
-              </button>
+              {/* Sample Loading Buttons for Multiple Universities */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-slate-500 font-bold">Simulate Applicant:</span>
+                <button
+                  onClick={() => loadAdmissionsFixture("/fixtures/sppu_degree_sample.json")}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-all hover:scale-102 flex items-center gap-1.5"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                  <span>SPPU Pune Degree</span>
+                </button>
+                <button
+                  onClick={() => loadAdmissionsFixture("/fixtures/mu_degree_sample.json")}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition-all hover:scale-102 flex items-center gap-1.5"
+                >
+                  <Award className="h-3.5 w-3.5 text-amber-700" />
+                  <span>Mumbai Univ. Degree</span>
+                </button>
+                <button
+                  onClick={() => loadAdmissionsFixture("/fixtures/valid_degree_sample.json")}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-bold transition-all hover:scale-102 flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+                  <span>MGM Univ. Degree</span>
+                </button>
+              </div>
             </div>
 
             <input
@@ -358,14 +380,14 @@ function InstitutionalDeskContent() {
                 Drop Candidate Academic Degree JSON here
               </p>
               <p className="text-xs text-slate-400">
-                Instant cryptographical proof evaluation against Ethereum Sepolia
+                Instant cryptographical proof evaluation against Ethereum Sepolia Consortium Registry
               </p>
             </div>
 
             {admissionsResult && (
               <div className="space-y-6 pt-4 animate-in fade-in duration-300">
                 <div
-                  className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                  className={`p-6 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                     admissionsResult.isValid
                       ? "bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs"
                       : "bg-red-50 border-red-300 text-red-950"
@@ -373,26 +395,31 @@ function InstitutionalDeskContent() {
                 >
                   <div className="flex items-center gap-3.5">
                     {admissionsResult.isValid ? (
-                      <CheckCircle2 className="h-7 w-7 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
                     ) : (
-                      <XCircle className="h-7 w-7 text-red-600 shrink-0" />
+                      <XCircle className="h-8 w-8 text-red-600 shrink-0" />
                     )}
                     <div>
-                      <h4 className="text-base font-extrabold">
-                        {admissionsResult.isValid
-                          ? "Admissions Verification: 100% Eligible & Authentic"
-                          : "Admissions Verification: Ineligible / Tampered"}
-                      </h4>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        Candidate: {admissionsCredential?.credentialSubject.fullName} &bull; Degree:{" "}
-                        {admissionsCredential?.credentialSubject.degree} (CGPA:{" "}
-                        {admissionsCredential?.credentialSubject.cgpa})
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-base font-extrabold">
+                          {admissionsResult.isValid
+                            ? "Consortium Verification: 100% Eligible & Authentic"
+                            : "Admissions Verification: Ineligible / Tampered"}
+                        </h4>
+                        <span className="text-[10px] bg-emerald-200 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                          Cross-University Verified
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-700 mt-1">
+                        Candidate: <span className="font-bold text-slate-900">{admissionsCredential?.credentialSubject.fullName}</span> &bull; 
+                        Degree: <span className="font-bold text-slate-900">{admissionsCredential?.credentialSubject.degree}</span> &bull; 
+                        Issuing Institution: <span className="font-bold text-blue-900">{admissionsResult.issuingInstitutionName || admissionsCredential?.credentialSubject.university}</span> (CGPA: {admissionsCredential?.credentialSubject.cgpa})
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono font-bold bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-                    {admissionsResult.isValid ? "VERDICT: CLEARED" : "VERDICT: REJECTED"}
+                  <span className="text-xs font-mono font-bold bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+                    {admissionsResult.isValid ? "VERDICT: ADMISSION CLEARED" : "VERDICT: REJECTED"}
                   </span>
                 </div>
 
@@ -416,10 +443,10 @@ function InstitutionalDeskContent() {
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-purple-600" />
-                  <span>Academic Bank of Credits (ABC) &bull; NHEQF Framework Engine</span>
+                  <span>Academic Bank of Credits (ABC) &bull; Inter-University Credit Aggregator</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Ingests modular multi-institution course credits, aggregates NHEQF units, and evaluates lateral semester mobility.
+                  Ingests modular multi-institution course credits across consortium universities, aggregates NHEQF units, and evaluates lateral semester mobility.
                 </p>
               </div>
 
@@ -444,7 +471,7 @@ function InstitutionalDeskContent() {
                     {abcCalculation.totalCredits}
                   </div>
                   <p className="text-[11px] text-slate-600 font-medium">
-                    {abcCalculation.verifiedCount} Courses Certified On-Chain
+                    {abcCalculation.verifiedCount} Multi-University Courses
                   </p>
                 </div>
 
@@ -490,7 +517,7 @@ function InstitutionalDeskContent() {
             {/* Course Credit Ledger Table */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Verified Multi-Institution Course Ledger
+                Verified Multi-Institution Consortium Course Ledger
               </h4>
 
               <div className="overflow-x-auto border border-slate-200 rounded-2xl">
@@ -515,7 +542,7 @@ function InstitutionalDeskContent() {
                         <td className="p-3.5 font-semibold text-slate-900">
                           {course.courseTitle}
                         </td>
-                        <td className="p-3.5 text-slate-500">{course.offeringUniversity}</td>
+                        <td className="p-3.5 font-bold text-blue-900">{course.offeringUniversity}</td>
                         <td className="p-3.5 font-medium">Level {course.nheqfLevel}</td>
                         <td className="p-3.5 text-center font-bold text-slate-900">{course.creditsEarned}</td>
                         <td className="p-3.5 text-center font-mono font-bold text-blue-700">
