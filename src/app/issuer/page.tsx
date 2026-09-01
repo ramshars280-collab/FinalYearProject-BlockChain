@@ -20,6 +20,9 @@ import {
   Cpu,
   TrendingDown,
   Terminal,
+  LogOut,
+  Shield,
+  Lock,
 } from "lucide-react";
 import { StudentDegreeData, BatchRecord, W3CCredentialPayload } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
@@ -33,8 +36,23 @@ import {
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
+import AuthGuard from "../../components/AuthGuard";
+import { useAuth } from "../../context/AuthContext";
 
 export default function IssuerDashboardPage() {
+  return (
+    <AuthGuard
+      requiredRole="EXAM_ADMIN"
+      title="Exam Cell Authority Gate"
+      description="Restricted to University Controller of Examinations and authorized Exam Cell staff for batch Merkle root anchoring and dynamic 256-bit revocation bitmap management on Ethereum Sepolia."
+    >
+      <IssuerDashboardContent />
+    </AuthGuard>
+  );
+}
+
+function IssuerDashboardContent() {
+  const { user, logout } = useAuth();
   const [batches, setBatches] = useState<BatchRecord[]>([]);
   const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS);
   const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH02");
@@ -43,7 +61,6 @@ export default function IssuerDashboardPage() {
   const [anchorSuccess, setAnchorSuccess] = useState<any>(null);
   const [isZipping, setIsZipping] = useState(false);
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
-  const [searchFilter, setSearchFilter] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -189,17 +206,27 @@ export default function IssuerDashboardPage() {
   return (
     <div className="space-y-8 py-2">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
-          <Layers className="h-3.5 w-3.5 text-blue-600" />
-          <span>University Examination Authority Console</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
+            <Shield className="h-3.5 w-3.5 text-blue-600" />
+            <span>Authorized Administrator &bull; {user?.fullName}</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Exam Cell Batch Minting &amp; Dynamic Revocation
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Upload graduation batches, calculate Keccak256 binary Merkle Trees on-the-fly, and anchor 1,000+ degrees in a single O(1) Sepolia transaction.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Exam Cell Batch Minting &amp; Dynamic Revocation
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500">
-          Upload graduation batches, calculate Keccak256 binary Merkle Trees on-the-fly, and anchor 1,000+ degrees in a single O(1) Sepolia transaction.
-        </p>
+
+        <button
+          onClick={() => logout()}
+          className="self-start sm:self-center px-4 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Sign Out</span>
+        </button>
       </div>
 
       {/* Gas Optimization Metrics Banner */}

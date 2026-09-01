@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ethers } from "ethers";
 import {
   GraduationCap,
@@ -19,22 +19,30 @@ import {
   Copy,
   Check,
   Cpu,
+  LogIn,
+  LogOut,
+  User,
+  Shield,
+  Briefcase,
+  Lock,
 } from "lucide-react";
-import { getSepoliaConfig } from "../lib/storage";
+import { useAuth } from "../context/AuthContext";
+import { UserRole } from "../types/auth";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAuthenticated, logout, openAuthModal } = useAuth();
+
   const [account, setAccount] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSimulated, setIsSimulated] = useState(false);
   const [blockHeight, setBlockHeight] = useState<number>(6294830);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     checkWalletConnection();
 
-    // Simulated block ticker
     const interval = setInterval(() => {
       setBlockHeight((prev) => prev + 1);
     }, 12000);
@@ -95,21 +103,30 @@ export default function Navbar() {
     }
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const navLinks = [
-    { href: "/", label: "Public Verifier", icon: ShieldCheck, badge: "OpenCerts" },
-    { href: "/student", label: "Student Portal", icon: UserCheck, badge: "EIP-712" },
-    { href: "/issuer", label: "Exam Cell Minting", icon: Layers, badge: "Merkle Batch" },
-    { href: "/university-verifier", label: "Institutional Desk", icon: Building2, badge: "NEP 2020 ABC" },
+    { href: "/", label: "Public Verifier", icon: ShieldCheck, requiredRole: null, badge: "Open" },
+    { href: "/student", label: "Student Portal", icon: UserCheck, requiredRole: "STUDENT" as UserRole, badge: "EIP-712" },
+    { href: "/issuer", label: "Exam Cell Minting", icon: Layers, requiredRole: "EXAM_ADMIN" as UserRole, badge: "Admin" },
+    { href: "/university-verifier", label: "Institutional Desk", icon: Building2, requiredRole: "UNIVERSITY_STAFF" as UserRole, badge: "Staff" },
   ];
 
+  const handleNavClick = (e: React.MouseEvent, item: typeof navLinks[0]) => {
+    if (!item.requiredRole) {
+      // Public Verifier is always open
+      return;
+    }
+
+    if (!isAuthenticated) {
+      e.preventDefault();
+      openAuthModal(item.requiredRole);
+    } else if (user && user.role !== item.requiredRole && !(user.role === "EXAM_ADMIN" && item.requiredRole === "UNIVERSITY_STAFF")) {
+      e.preventDefault();
+      openAuthModal(item.requiredRole);
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
       {/* Top micro ticker */}
       <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-1 text-[11px] text-blue-900">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -126,7 +143,7 @@ export default function Navbar() {
 
           <div className="flex items-center gap-3">
             <span className="text-blue-800 font-medium hidden md:inline">
-              Zero-PII On-Chain &bull; DPDP Act Certified
+              Zero-PII On-Chain &bull; DPDP Act Certified &bull; RBAC Protected
             </span>
             <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-200 font-mono font-bold text-[10px]">
               EVM v0.8.20
@@ -163,10 +180,13 @@ export default function Navbar() {
             {navLinks.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
+              const isLocked = item.requiredRole !== null && (!isAuthenticated || (user?.role !== item.requiredRole && !(user?.role === "EXAM_ADMIN" && item.requiredRole === "UNIVERSITY_STAFF")));
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={(e) => handleNavClick(e, item)}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all relative ${
                     isActive
                       ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
@@ -175,6 +195,9 @@ export default function Navbar() {
                 >
                   <Icon className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
                   <span>{item.label}</span>
+                  {isLocked && (
+                    <Lock className="h-3 w-3 text-slate-400" />
+                  )}
                   {isActive && (
                     <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 rounded-full" />
                   )}
@@ -183,27 +206,64 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Actions: Network Status & Wallet Connect */}
-          <div className="flex items-center gap-3">
+          {/* Right Actions: User Role Badge, Sign In/Out & Wallet */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* AUTHENTICATION SESSION BUTTON / BADGE */}
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1.5 pl-3 text-xs shadow-2xs">
+                <div className="flex items-center gap-1.5 font-bold text-blue-950">
+                  {user.role === "STUDENT" && <User className="h-3.5 w-3.5 text-blue-600" />}
+                  {user.role === "EXAM_ADMIN" && <Shield className="h-3.5 w-3.5 text-blue-600" />}
+                  {user.role === "UNIVERSITY_STAFF" && <Briefcase className="h-3.5 w-3.5 text-blue-600" />}
+                  <span className="truncate max-w-[130px] sm:max-w-[180px]">
+                    {user.role === "STUDENT"
+                      ? `${user.fullName} (${(user as any).prn})`
+                      : user.role === "EXAM_ADMIN"
+                      ? "Exam Cell Admin"
+                      : user.fullName}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => logout()}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg text-xs font-bold transition-all"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-3 w-3" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openAuthModal("STUDENT")}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-blue-50 text-blue-900 border border-blue-300 rounded-xl text-xs font-bold shadow-2xs transition-all hover:scale-102"
+              >
+                <LogIn className="h-4 w-4 text-blue-600" />
+                <span>Portal Login</span>
+              </button>
+            )}
+
             {/* Wallet Button */}
             {account ? (
               <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 px-3 text-xs text-slate-800 shadow-xs">
-                <div className="flex items-center gap-2 font-bold text-slate-800">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>MetaMask Connected</span>
+                  <span className="hidden sm:inline">MetaMask Connected</span>
+                  <span className="sm:hidden">Connected</span>
                 </div>
                 <div className="px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-800 rounded text-[10px] font-sans font-bold">
-                  {isSimulated ? "Demo Mode" : "Sepolia"}
+                  {isSimulated ? "Demo" : "Sepolia"}
                 </div>
               </div>
             ) : (
               <button
                 onClick={connectWallet}
                 disabled={isConnecting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <Wallet className="h-4 w-4" />
-                <span>{isConnecting ? "Connecting..." : "Connect MetaMask"}</span>
+                <span className="hidden sm:inline">{isConnecting ? "Connecting..." : "Connect MetaMask"}</span>
+                <span className="sm:hidden">{isConnecting ? "..." : "Connect"}</span>
               </button>
             )}
           </div>
@@ -218,6 +278,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(e) => handleNavClick(e, item)}
                 className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold ${
                   isActive
                     ? "bg-blue-600 text-white"

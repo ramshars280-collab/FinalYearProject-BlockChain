@@ -21,6 +21,9 @@ import {
   XCircle,
   Cpu,
   Fingerprint,
+  LogOut,
+  Briefcase,
+  User,
 } from "lucide-react";
 import {
   CourseCreditRecord,
@@ -34,9 +37,37 @@ import { verifyCredentialOnChain } from "../../lib/contracts";
 import { getStoredBatches } from "../../lib/storage";
 import { downloadFile } from "../../lib/zipHelper";
 import DegreeCertificate from "../../components/DegreeCertificate";
+import AuthGuard from "../../components/AuthGuard";
+import { useAuth } from "../../context/AuthContext";
+import { DepartmentRole } from "../../types/auth";
 
 export default function InstitutionalDeskPage() {
+  return (
+    <AuthGuard
+      requiredRole="UNIVERSITY_STAFF"
+      title="University Departmental Desk Gate"
+      description="Restricted to University verified personnel. Sign in with your Staff ID and Department authorization role to access PG Admissions, NEP 2020 ABC, or Placement Cell (T&amp;P) audit matrix."
+    >
+      <InstitutionalDeskContent />
+    </AuthGuard>
+  );
+}
+
+function InstitutionalDeskContent() {
+  const { user, logout } = useAuth();
+  const staffDept: DepartmentRole = (user as any)?.department || "PG_ADMISSIONS_OFFICER";
+
+  const getInitialTab = (): "admissions" | "nep2020" | "placement" => {
+    if (staffDept === "NEP_ABC_COORDINATOR") return "nep2020";
+    if (staffDept === "PLACEMENT_OFFICER_TNP") return "placement";
+    return "admissions";
+  };
+
   const [activeTab, setActiveTab] = useState<"admissions" | "nep2020" | "placement">("admissions");
+
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [user]);
 
   // Tab 1: PG Admissions State
   const [admissionsCredential, setAdmissionsCredential] = useState<W3CCredentialPayload | null>(null);
@@ -226,17 +257,27 @@ export default function InstitutionalDeskPage() {
   return (
     <div className="space-y-8 py-2">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
-          <Building2 className="h-3.5 w-3.5 text-blue-600" />
-          <span>Dual-Role Institutional Command Suite</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
+            <Briefcase className="h-3.5 w-3.5 text-blue-600" />
+            <span>Authorized Department Staff &bull; {user?.fullName}</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            University Institutional Verification Suite
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Tailored desks for PG Admissions, NEP 2020 Academic Bank of Credits (ABC), and Placement Cell (T&amp;P) batch audits.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          University Institutional Verification Suite
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500">
-          Tailored desks for PG Admissions, NEP 2020 Academic Bank of Credits (ABC), and Placement Cell (T&amp;P) batch audits.
-        </p>
+
+        <button
+          onClick={() => logout()}
+          className="self-start sm:self-center px-4 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Sign Out</span>
+        </button>
       </div>
 
       {/* Modern Navigation Tabs */}
