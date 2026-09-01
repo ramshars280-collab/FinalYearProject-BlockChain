@@ -192,14 +192,14 @@ export default function StudentPortalPage() {
     <div className="space-y-8 py-2">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-500/10 border border-purple-500/30 text-purple-300 rounded-full text-xs font-semibold mb-2">
-          <UserCheck className="h-3.5 w-3.5 text-purple-400" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold mb-2">
+          <UserCheck className="h-3.5 w-3.5 text-blue-600" />
           <span>Student Self-Sovereign Identity (SSI)</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
           Student Portal &amp; Web3 Vault
         </h1>
-        <p className="text-xs sm:text-sm text-slate-400">
+        <p className="text-xs sm:text-sm text-slate-500">
           Bind your university PRN to MetaMask with EIP-712 typed data and access offline W3C credentials.
         </p>
       </div>
@@ -207,16 +207,16 @@ export default function StudentPortalPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* SECTION 1: Identity Handshake Card */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-5 shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-              <div className="p-2.5 bg-blue-600/20 border border-blue-500/30 text-cyan-400 rounded-2xl">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-5 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="p-2.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-2xl">
                 <KeyRound className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-base font-bold text-slate-900">
                   1. EIP-712 Identity Handshake
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Cryptographic PRN-to-Wallet Binding
                 </p>
               </div>
@@ -224,7 +224,7 @@ export default function StudentPortalPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Permanent Registration Number (PRN):
                 </label>
                 <input
@@ -232,52 +232,52 @@ export default function StudentPortalPage() {
                   value={prn}
                   onChange={(e) => setPrn(e.target.value.toUpperCase())}
                   placeholder="e.g. PRN20200101"
-                  className="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono font-bold focus:ring-2 focus:ring-cyan-500 focus:outline-hidden uppercase"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-hidden uppercase"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Default test student: <button type="button" onClick={() => setPrn("PRN20200101")} className="text-cyan-400 font-bold hover:underline">PRN20200101</button>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Default test student: <button type="button" onClick={() => setPrn("PRN20200101")} className="text-blue-600 font-bold hover:underline">PRN20200101</button>
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Connected Web3 Wallet:
                 </label>
-                <div className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-300 font-mono flex items-center justify-between">
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 font-mono flex items-center justify-between font-semibold">
                   <span>
                     {walletAddress
                       ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-6)}`
                       : "0xf39F...2266 (Demo Signer)"}
                   </span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
               </div>
 
               {boundRecord ? (
-                <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl text-emerald-300 text-xs space-y-1.5 shadow-inner">
-                  <div className="flex items-center gap-2 font-bold text-white">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     <span>Identity Cryptographically Bound</span>
                   </div>
-                  <p className="text-[11px] font-mono text-emerald-200/90 truncate">
+                  <p className="text-[11px] font-mono text-emerald-800 truncate font-semibold">
                     Wallet: {boundRecord.walletAddress}
                   </p>
-                  <p className="text-[10px] text-emerald-400">
+                  <p className="text-[10px] text-emerald-700">
                     EIP-712 Signature verified &bull; Domain: &quot;MGM Trust Registry&quot;
                   </p>
                 </div>
               ) : null}
 
               {bindingSuccess && (
-                <div className="p-3 bg-emerald-950/60 border border-emerald-500/60 rounded-xl text-emerald-300 text-xs flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-start gap-2 font-semibold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>{bindingSuccess}</span>
                 </div>
               )}
 
               {bindingError && (
-                <div className="p-3 bg-red-950/60 border border-red-500/60 rounded-xl text-red-300 text-xs flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-start gap-2 font-semibold">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                   <span>{bindingError}</span>
                 </div>
               )}
@@ -285,7 +285,7 @@ export default function StudentPortalPage() {
               <button
                 onClick={handleBindIdentity}
                 disabled={isBinding}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <Wallet className="h-4 w-4" />
                 <span>
@@ -298,32 +298,32 @@ export default function StudentPortalPage() {
 
         {/* SECTION 2: My Credential Vault */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 space-y-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl">
+                <div className="p-2.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-2xl">
                   <Award className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">
+                  <h3 className="text-base font-bold text-slate-900">
                     2. My Credential Vault
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Offline W3C Credentials &amp; Zero-Knowledge Attribute Proofs
                   </p>
                 </div>
               </div>
 
-              <span className="px-3 py-1 bg-slate-900 rounded-xl text-xs font-mono font-bold text-cyan-400 border border-slate-800">
+              <span className="px-3 py-1 bg-blue-50 rounded-xl text-xs font-mono font-bold text-blue-800 border border-blue-200">
                 {studentCredentials.length} Credential(s)
               </span>
             </div>
 
             {studentCredentials.length === 0 ? (
               <div className="text-center py-12 space-y-3 text-slate-400">
-                <FileCheck className="h-12 w-12 mx-auto text-slate-600" />
-                <p className="text-sm font-bold text-slate-300">No credentials found for PRN: {prn}</p>
-                <p className="text-xs text-slate-500">
+                <FileCheck className="h-12 w-12 mx-auto text-slate-300" />
+                <p className="text-sm font-bold text-slate-700">No credentials found for PRN: {prn}</p>
+                <p className="text-xs text-slate-400">
                   Switch to PRN20200101 or mint a graduation batch in the Issuer tab.
                 </p>
               </div>
@@ -334,21 +334,21 @@ export default function StudentPortalPage() {
                   return (
                     <InteractiveHologramCard
                       key={idx}
-                      className="border border-slate-800 rounded-2xl p-6 bg-slate-900/60 hover:border-cyan-500/40 transition-all space-y-5"
+                      className="border border-slate-200 rounded-2xl p-6 bg-white hover:border-blue-500 transition-all space-y-5 shadow-xs"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                         <div>
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-300 bg-cyan-950/80 border border-cyan-800 px-2.5 py-0.5 rounded-full">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
                             Official Degree
                           </span>
-                          <h4 className="text-lg font-bold text-white mt-1.5">
+                          <h4 className="text-lg font-bold text-slate-900 mt-1.5">
                             {s.degree} in {s.branch}
                           </h4>
-                          <p className="text-xs text-slate-400">{s.university}</p>
+                          <p className="text-xs text-slate-500">{s.university}</p>
                         </div>
 
                         <div className="text-left sm:text-right">
-                          <span className="text-sm font-black text-cyan-400 font-mono">
+                          <span className="text-sm font-black text-blue-700 font-mono">
                             CGPA: {s.cgpa} / 10.0
                           </span>
                           <p className="text-[11px] text-slate-500 font-mono">
@@ -361,7 +361,7 @@ export default function StudentPortalPage() {
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <button
                           onClick={() => handleDownloadW3C(cred)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md transition-all hover:scale-102"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102"
                         >
                           <Download className="h-3.5 w-3.5" />
                           <span>Download W3C JSON-LD</span>
@@ -369,25 +369,25 @@ export default function StudentPortalPage() {
 
                         <button
                           onClick={() => handleShowQr(cred)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all hover:scale-102"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold transition-all hover:scale-102 shadow-2xs"
                         >
-                          <QrCode className="h-3.5 w-3.5 text-cyan-400" />
+                          <QrCode className="h-3.5 w-3.5 text-blue-600" />
                           <span>View Shareable QR</span>
                         </button>
 
                         <button
                           onClick={() => setSelectedCredForZk(cred)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-700/80 rounded-xl text-xs font-bold transition-all hover:scale-102"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold transition-all hover:scale-102"
                         >
-                          <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                          <Sparkles className="h-3.5 w-3.5 text-purple-600" />
                           <span>Generate ZK Proof</span>
                         </button>
 
                         <button
                           onClick={() => setSelectedCredForPreview(cred)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-all hover:scale-102 ml-auto"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all hover:scale-102 ml-auto"
                         >
-                          <Eye className="h-3.5 w-3.5 text-cyan-400" />
+                          <Eye className="h-3.5 w-3.5 text-blue-600" />
                           <span>Preview Degree</span>
                         </button>
                       </div>
@@ -402,10 +402,10 @@ export default function StudentPortalPage() {
           {selectedCredForPreview && (
             <div className="space-y-3 animate-in fade-in duration-300">
               <div className="flex items-center justify-between">
-                <h4 className="text-base font-bold text-white">Full Certificate Inspection</h4>
+                <h4 className="text-base font-bold text-slate-900">Full Certificate Inspection</h4>
                 <button
                   onClick={() => setSelectedCredForPreview(null)}
-                  className="text-xs text-slate-400 hover:text-white underline"
+                  className="text-xs text-blue-600 hover:underline font-bold"
                 >
                   Close Inspection
                 </button>
@@ -418,16 +418,16 @@ export default function StudentPortalPage() {
 
       {/* QR Code Display Modal */}
       {activeQrModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="glass-panel rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center border border-slate-800">
-            <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900">
               Shareable Degree QR Code
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-500 mb-4">
               PRN: {activeQrModal.prn} &bull; OpenCerts / W3C Payload
             </p>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-300 inline-block shadow-xl">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 inline-block shadow-md">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={activeQrModal.qrDataUrl}
@@ -436,13 +436,13 @@ export default function StudentPortalPage() {
               />
             </div>
 
-            <p className="text-[11px] text-slate-400 mt-3">
+            <p className="text-[11px] text-slate-500 mt-3">
               Scan with the Public Verifier camera to instantly evaluate cryptographic authenticity.
             </p>
 
             <button
               onClick={() => setActiveQrModal({ isOpen: false, qrDataUrl: "", prn: "" })}
-              className="mt-5 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"
+              className="mt-5 w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
             >
               Close
             </button>
