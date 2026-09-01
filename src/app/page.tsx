@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import DropzoneVerifier from "../components/DropzoneVerifier";
+import RegisterUniversityModal from "../components/RegisterUniversityModal";
 import {
   ShieldCheck,
   Lock,
@@ -16,17 +17,26 @@ import {
   TrendingUp,
   Activity,
   ArrowRight,
+  Building2,
+  PlusCircle,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getConsortiumInstitutions } from "../lib/storage";
 
 export default function PublicVerifierPage() {
+  const router = useRouter();
+  const [isRegisterUniModalOpen, setIsRegisterUniModalOpen] = useState(false);
+  const institutions = getConsortiumInstitutions();
+
   return (
     <div className="space-y-12 py-4">
       {/* Hero Section */}
       <div className="text-center max-w-4xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold shadow-2xs">
           <Sparkles className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
-          <span>OpenCerts 2.0 &bull; Blockcerts Standard &bull; Sepolia Verified</span>
+          <span>OpenCerts 2.0 &bull; Blockcerts Standard &bull; Multi-University Consortium</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-black text-slate-950 tracking-tight leading-tight">
@@ -75,12 +85,12 @@ export default function PublicVerifierPage() {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            Revocation Time
+            Consortium Nodes
           </span>
           <div className="text-2xl font-black text-blue-700 font-mono">
-            Instant O(1)
+            {institutions.length} Active Universities
           </div>
-          <span className="text-[10px] text-amber-700 font-bold">256-Bit Dynamic Bitmap</span>
+          <span className="text-[10px] text-emerald-700 font-bold">Inter-University Trust</span>
         </div>
       </div>
 
@@ -89,8 +99,44 @@ export default function PublicVerifierPage() {
         <DropzoneVerifier />
       </div>
 
+      {/* PROMINENT UNIVERSITY REGISTRATION & CONSORTIUM ONBOARDING BANNER */}
+      <div className="max-w-5xl mx-auto bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-blue-200 border border-white/20">
+              <Building2 className="h-3.5 w-3.5 text-blue-300" />
+              <span>Multi-University Blockchain Consortium</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Are you an Accredited University or Examination Authority?
+            </h2>
+            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+              Join the Ethereum Academic Trust Network. Onboard your institution to anchor graduation batches, eliminate certificate forgery, and enable seamless NEP 2020 cross-university credit verification.
+            </p>
+          </div>
+
+          <div className="shrink-0 flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setIsRegisterUniModalOpen(true)}
+              className="px-6 py-3.5 bg-white hover:bg-blue-50 text-blue-950 font-black rounded-2xl text-xs sm:text-sm shadow-lg hover:scale-103 transition-all flex items-center justify-center gap-2"
+            >
+              <PlusCircle className="h-4 w-4 text-blue-700" />
+              <span>Register Your University</span>
+            </button>
+
+            <Link
+              href="/issuer"
+              className="px-5 py-3.5 bg-blue-700/60 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm border border-white/20 hover:border-white/40 transition-all flex items-center justify-center gap-2"
+            >
+              <Layers className="h-4 w-4" />
+              <span>Exam Cell Desk</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Feature Architecture Cards */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
         <div className="glass-card-interactive p-6 rounded-3xl space-y-3 bg-white">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center">
             <Lock className="h-6 w-6" />
@@ -174,6 +220,16 @@ export default function PublicVerifierPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal: Register University */}
+      <RegisterUniversityModal
+        isOpen={isRegisterUniModalOpen}
+        onClose={() => setIsRegisterUniModalOpen(false)}
+        onRegistered={(newInst) => {
+          setIsRegisterUniModalOpen(false);
+          router.push("/issuer");
+        }}
+      />
     </div>
   );
 }
