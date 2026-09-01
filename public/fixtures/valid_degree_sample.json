@@ -1,0 +1,52 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://schema.org",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "id": "urn:uuid:mgm-cert-prn20200101-2024",
+  "type": [
+    "VerifiableCredential",
+    "UniversityDegreeCredential"
+  ],
+  "issuer": {
+    "id": "did:ethr:11155111:0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+    "name": "MGM University - Examination Authority",
+    "url": "https://mgmu.ac.in/academics/verify",
+    "ethereumAddress": "0x71C56538b15294500B73f8472B4fE963D4e58bEf"
+  },
+  "issuanceDate": "2024-06-15T00:00:00.000Z",
+  "credentialSubject": {
+    "id": "did:pkh:eip155:11155111:student-prn20200101",
+    "prn": "PRN20200101",
+    "fullName": "Aarav Sharma",
+    "degree": "Bachelor of Technology",
+    "branch": "Computer Science & Engineering",
+    "cgpa": 9.24,
+    "graduationYear": 2024,
+    "issueDate": "2024-06-15",
+    "nheqfCredits": 164,
+    "nheqfLevel": 6,
+    "university": "MGM University, Chhatrapati Sambhajinagar",
+    "institutionCode": "MGMU-ENG-01",
+    "division": "First Class with Distinction"
+  },
+  "proof": {
+    "type": "EthereumMerkleProof2024",
+    "created": "2024-06-15T12:00:00.000Z",
+    "verificationMethod": "did:ethr:11155111:0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7#merkleRoot",
+    "merkleProof": {
+      "batchId": "MGM-2024-BTECH-BATCH01",
+      "leafIndex": 0,
+      "leafHash": "0x78cbf7ec4aa8904c81d73ea3330051d6e2c5bb2dcc1423b3d94e4ca5a89036df",
+      "rootHash": "0xde333280396d785f7b5708372a601695a5840c99945e6e168347e0f97744eb33",
+      "proof": [
+        "0x4fdf2a78827d27ea591b49c232a8dd379da74fd1bc8c523daa8dbd81eb46bf6a",
+        "0x51c7363ff2c21772d439d2950062bb3da13f5ad13db76831b6eee8335435ce23"
+      ],
+      "contractAddress": "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+      "network": "sepolia",
+      "chainId": 11155111
+    }
+  }
+}
