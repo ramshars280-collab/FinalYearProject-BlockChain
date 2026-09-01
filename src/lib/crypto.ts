@@ -4,6 +4,21 @@ import keccak256 from "keccak256";
 import { StudentDegreeData, W3CCredentialPayload, MerkleProofData } from "../types";
 
 /**
+ * Masks a blockchain address or hash for UI privacy protection (DPDP compliant)
+ */
+export function maskAddress(address?: string | null): string {
+  if (!address) return "0x****...****";
+  if (address.length < 10) return address;
+  return `${address.slice(0, 6)}••••${address.slice(-4)}`;
+}
+
+export function maskHash(hash?: string | null): string {
+  if (!hash) return "0x••••••••";
+  if (hash.length < 16) return hash;
+  return `${hash.slice(0, 10)}••••••••${hash.slice(-8)}`;
+}
+
+/**
  * Normalizes an object into a canonical JSON string with sorted keys
  * to ensure deterministic cryptographic hashing across all platforms.
  */

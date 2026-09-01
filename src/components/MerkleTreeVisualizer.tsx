@@ -142,8 +142,8 @@ export default function MerkleTreeVisualizer({
                   <span>CGPA: <span className="text-blue-700 font-bold">{rec.cgpa}</span></span>
                 </div>
 
-                <div className="mt-2 font-mono text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 truncate">
-                  {leafHash}
+                <div className="mt-2 font-mono text-[10px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200 truncate">
+                  Leaf: {leafHash.slice(0, 10)}••••••••{leafHash.slice(-8)}
                 </div>
               </div>
             );
@@ -171,7 +171,7 @@ export default function MerkleTreeVisualizer({
                 className="flex items-center justify-between bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-slate-300"
               >
                 <span className="text-blue-400 font-semibold">Sibling Hash #{pIdx + 1}:</span>
-                <span className="truncate max-w-md text-white font-medium">{p}</span>
+                <span className="truncate max-w-md text-white font-medium">{p.slice(0, 12)}••••••••{p.slice(-8)}</span>
               </div>
             ))}
           </div>

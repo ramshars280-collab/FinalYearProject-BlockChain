@@ -119,8 +119,8 @@ export default function Navbar() {
               <span>Sepolia Block #{blockHeight.toLocaleString()}</span>
             </span>
             <span className="hidden sm:inline text-blue-300">&bull;</span>
-            <span className="hidden sm:inline text-blue-700">
-              Contract: <span className="font-mono text-blue-900 font-bold">0x89205A...43e7</span>
+            <span className="hidden sm:inline text-blue-700 font-medium">
+              Ethereum Sepolia &bull; Active Registry
             </span>
           </div>
 

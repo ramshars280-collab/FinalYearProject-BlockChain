@@ -246,8 +246,8 @@ export default function StudentPortalPage() {
                 <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 font-mono flex items-center justify-between font-semibold">
                   <span>
                     {walletAddress
-                      ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-6)}`
-                      : "0xf39F...2266 (Demo Signer)"}
+                      ? `${walletAddress.slice(0, 6)}••••${walletAddress.slice(-4)}`
+                      : "0xf39F••••2266 (Demo Signer)"}
                   </span>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
@@ -260,7 +260,7 @@ export default function StudentPortalPage() {
                     <span>Identity Cryptographically Bound</span>
                   </div>
                   <p className="text-[11px] font-mono text-emerald-800 truncate font-semibold">
-                    Wallet: {boundRecord.walletAddress}
+                    Wallet: {boundRecord.walletAddress.slice(0, 6)}••••{boundRecord.walletAddress.slice(-4)}
                   </p>
                   <p className="text-[10px] text-emerald-700">
                     EIP-712 Signature verified &bull; Domain: &quot;MGM Trust Registry&quot;

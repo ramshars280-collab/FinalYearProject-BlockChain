@@ -389,7 +389,7 @@ export default function IssuerDashboardPage() {
                       )}
                     </div>
                     <p className="font-mono text-[11px] text-slate-500 truncate max-w-sm sm:max-w-md">
-                      Root: {b.merkleRoot}
+                      Anchor Hash: {b.merkleRoot ? `${b.merkleRoot.slice(0, 10)}••••••••${b.merkleRoot.slice(-8)}` : "Verified Root"}
                     </p>
                   </div>
 

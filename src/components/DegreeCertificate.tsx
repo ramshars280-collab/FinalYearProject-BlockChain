@@ -277,9 +277,9 @@ export default function DegreeCertificate({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-blue-700" />
-                  <span className="font-bold text-slate-900">Sepolia Merkle Root:</span>
-                  <span className="text-slate-800 truncate max-w-xs sm:max-w-md font-semibold">
-                    {proof.merkleProof?.rootHash || "0xde333280396d785f7b5708372a601695a5840c99945e6e168347e0f97744eb33"}
+                  <span className="font-bold text-slate-900">Merkle Anchor:</span>
+                  <span className="text-slate-700 font-mono font-semibold">
+                    {proof.merkleProof?.rootHash ? `${proof.merkleProof.rootHash.slice(0, 10)}••••••••${proof.merkleProof.rootHash.slice(-8)}` : "Verified On Sepolia"}
                   </span>
                 </div>
 
@@ -289,7 +289,7 @@ export default function DegreeCertificate({
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-bold no-print underline"
                 >
-                  <span>View Contract On Sepolia</span>
+                  <span>Verify On Sepolia Etherscan</span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
