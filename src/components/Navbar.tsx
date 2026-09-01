@@ -187,22 +187,13 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             {/* Wallet Button */}
             {account ? (
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 pl-3 text-xs text-slate-800 font-mono shadow-xs">
-                <div className="flex items-center gap-1.5 font-bold">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 px-3 text-xs text-slate-800 shadow-xs">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>
-                    {account.slice(0, 6)}...{account.slice(-4)}
-                  </span>
+                  <span>MetaMask Connected</span>
                 </div>
-                <button
-                  onClick={() => handleCopy(account)}
-                  className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                  title="Copy Wallet Address"
-                >
-                  {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                </button>
                 <div className="px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-800 rounded text-[10px] font-sans font-bold">
-                  {isSimulated ? "Demo Signer" : "Sepolia"}
+                  {isSimulated ? "Demo Mode" : "Sepolia"}
                 </div>
               </div>
             ) : (

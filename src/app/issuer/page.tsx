@@ -334,8 +334,8 @@ export default function IssuerDashboardPage() {
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <span>Batch Anchored to Ethereum Sepolia!</span>
                 </div>
-                <p className="font-mono text-[11px] text-emerald-800 truncate font-semibold">
-                  Tx: {anchorSuccess.txHash}
+                <p className="font-mono text-[11px] text-emerald-800 font-semibold">
+                  Status: Batch Root Anchored On-Chain
                 </p>
                 <p className="text-[10px] text-emerald-700">
                   32-byte Merkle root committed to CredentialRegistry.sol

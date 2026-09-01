@@ -447,7 +447,7 @@ export default function DegreeCertificate({
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                The computed hash matches the anchored root on Sepolia smart contract <span className="font-mono text-blue-700 font-bold">0x89205A...43e7</span>. Bit index #{proof.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
+                The computed hash matches the anchored root on the Sepolia smart contract registry. Bit index #{proof.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
               </p>
             </div>
           </div>

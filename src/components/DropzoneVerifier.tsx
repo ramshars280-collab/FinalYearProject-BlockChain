@@ -392,7 +392,7 @@ export default function DropzoneVerifier() {
 
               {result.computedLeaf && (
                 <div className="bg-white p-3 rounded-xl border border-red-200 text-xs font-mono text-red-900 space-y-1">
-                  <div>Computed Hash: <span className="font-bold">{result.computedLeaf}</span></div>
+                  <div>Computed Hash: <span className="font-bold">{result.computedLeaf.slice(0, 10)}••••••••{result.computedLeaf.slice(-8)}</span></div>
                   <div>Status: <span className="text-red-700 font-bold">REJECTED (Does not match certified root)</span></div>
                 </div>
               )}

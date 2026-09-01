@@ -125,8 +125,8 @@ export default function BatchRevocationModal({
               <p className="text-xs text-slate-500 mt-1">
                 Bitmap bit inverted on Sepolia. Any future verification checks will flag this degree as Revoked.
               </p>
-              <p className="font-mono text-[11px] text-slate-600 break-all bg-slate-50 p-2 rounded-lg border border-slate-200 mt-2">
-                Tx: {successTx}
+              <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-2">
+                Status: Invalidation Confirmed On-Chain (Dynamic Bitmap Updated)
               </p>
             </div>
             <button
