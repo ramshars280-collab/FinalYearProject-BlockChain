@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "../components/Navbar";
 import { AuthProvider } from "../context/AuthContext";
-import AuthModal from "../components/AuthModal";
 
 export const metadata: Metadata = {
   title: "MGM Trust Registry | Blockchain Degree Verification",
@@ -23,7 +22,6 @@ export default function RootLayout({
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>
-          <AuthModal />
           <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500 shadow-2xs">
             <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
               <p>
