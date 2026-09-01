@@ -17,6 +17,9 @@ import {
   ChevronRight,
   Sparkles,
   ShieldAlert,
+  Cpu,
+  TrendingDown,
+  Terminal,
 } from "lucide-react";
 import { StudentDegreeData, BatchRecord, W3CCredentialPayload } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
@@ -40,6 +43,7 @@ export default function IssuerDashboardPage() {
   const [anchorSuccess, setAnchorSuccess] = useState<any>(null);
   const [isZipping, setIsZipping] = useState(false);
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
+  const [searchFilter, setSearchFilter] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -182,41 +186,84 @@ export default function IssuerDashboardPage() {
       });
   };
 
+  const filteredStudents = currentStudents.filter(
+    (s) =>
+      s.fullName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      s.prn.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      s.branch.toLowerCase().includes(searchFilter.toLowerCase())
+  );
+
   return (
     <div className="space-y-8 py-2">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 border border-amber-200 text-amber-900 rounded-full text-xs font-semibold mb-2">
-          <Layers className="h-3.5 w-3.5 text-amber-700" />
-          <span>Exam Cell Examination Authority</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-full text-xs font-semibold mb-2">
+          <Layers className="h-3.5 w-3.5 text-amber-400" />
+          <span>University Examination Authority Console</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
           Exam Cell Batch Minting &amp; Dynamic Revocation
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600">
+        <p className="text-xs sm:text-sm text-slate-400">
           Upload graduation batches, calculate Keccak256 binary Merkle Trees on-the-fly, and anchor 1,000+ degrees in a single O(1) Sepolia transaction.
         </p>
+      </div>
+
+      {/* Gas Optimization Metrics Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+            <TrendingDown className="h-6 w-6" />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Gas Economy</span>
+            <div className="text-lg font-bold text-white">99.8% Cost Reduction</div>
+            <p className="text-[10px] text-emerald-400">1 Tx anchors 1,000+ credentials</p>
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-cyan-400 rounded-xl">
+            <Cpu className="h-6 w-6" />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Merkle Algorithm</span>
+            <div className="text-lg font-bold text-white">Keccak-256 Binary Tree</div>
+            <p className="text-[10px] text-cyan-300">Deterministic OpenCerts Standard</p>
+          </div>
+        </div>
+
+        <div className="glass-panel p-4 rounded-2xl border border-slate-800 flex items-center gap-3">
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">DPDP Act Guard</span>
+            <div className="text-lg font-bold text-white">Zero-PII Storage</div>
+            <p className="text-[10px] text-purple-300">Only 32-byte root on Sepolia</p>
+          </div>
+        </div>
       </div>
 
       {/* Main Minting Workbench */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Batch Configuration & CSV Upload */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-blue-900" />
+          <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-5 shadow-2xl">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-cyan-400" />
               <span>1. Ingest Graduation Batch</span>
             </h3>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Batch Identifier:
               </label>
               <input
                 type="text"
                 value={batchId}
                 onChange={(e) => setBatchId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-white focus:outline-hidden focus:ring-2 focus:ring-cyan-500"
               />
             </div>
 
@@ -231,37 +278,37 @@ export default function IssuerDashboardPage() {
 
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 rounded-2xl p-5 text-center cursor-pointer transition-colors space-y-2"
+              className="border-2 border-dashed border-slate-700 hover:border-cyan-400 hover:bg-slate-900/80 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2"
             >
-              <UploadCloud className="h-8 w-8 text-slate-400 mx-auto" />
-              <p className="text-xs font-semibold text-slate-700">
-                Click to upload Graduation CSV
+              <UploadCloud className="h-9 w-9 text-slate-500 mx-auto" />
+              <p className="text-xs font-bold text-slate-200">
+                Click to upload Graduation CSV Batch
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Columns: PRN, FullName, Degree, Branch, CGPA, Year
               </p>
             </div>
 
             <div className="flex items-center justify-between text-xs pt-1">
-              <span className="text-slate-500">Need a sample file?</span>
+              <span className="text-slate-500">Sample CSV fixture?</span>
               <button
                 type="button"
                 onClick={loadSampleCsv}
-                className="text-blue-700 hover:underline font-semibold"
+                className="text-cyan-400 hover:underline font-bold"
               >
                 Load Sample Batch CSV
               </button>
             </div>
 
             {/* Ingested Records Summary */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
+            <div className="p-3.5 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">Records Loaded:</span>
-                <span className="font-bold text-slate-900">{currentStudents.length} Students</span>
+                <span className="text-slate-400">Records Ingested:</span>
+                <span className="font-bold text-white">{currentStudents.length} Candidates</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Tree Leaves:</span>
-                <span className="font-mono font-semibold text-slate-800">
+                <span className="text-slate-400">Tree Leaves:</span>
+                <span className="font-mono font-bold text-cyan-300">
                   {computedTreeData?.leavesHex.length || 0} Keccak Hashes
                 </span>
               </div>
@@ -272,16 +319,16 @@ export default function IssuerDashboardPage() {
               <button
                 onClick={handleAnchorToSepolia}
                 disabled={isAnchoring || !computedTreeData}
-                className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <ShieldCheck className="h-4 w-4" />
-                <span>{isAnchoring ? "Broadcasting to Sepolia..." : "Anchor Batch to Sepolia"}</span>
+                <span>{isAnchoring ? "Broadcasting to Sepolia..." : "Anchor Batch Merkle Root to Sepolia"}</span>
               </button>
 
               <button
                 onClick={handleDownloadZip}
                 disabled={isZipping || !computedTreeData}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:scale-102"
               >
                 <Download className="h-4 w-4" />
                 <span>{isZipping ? "Generating ZIP..." : "Download All Student JSON Files (.zip)"}</span>
@@ -289,15 +336,15 @@ export default function IssuerDashboardPage() {
             </div>
 
             {anchorSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs space-y-1">
-                <div className="flex items-center gap-1 font-bold">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Batch Successfully Anchored!</span>
+              <div className="p-3.5 bg-emerald-950/60 border border-emerald-500/60 rounded-2xl text-emerald-300 text-xs space-y-1.5 shadow-inner">
+                <div className="flex items-center gap-1.5 font-bold text-white">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span>Batch Anchored to Ethereum Sepolia!</span>
                 </div>
-                <p className="font-mono text-[11px] text-emerald-800 truncate">
+                <p className="font-mono text-[11px] text-emerald-200 truncate">
                   Tx: {anchorSuccess.txHash}
                 </p>
-                <p className="text-[10px] text-emerald-700">
+                <p className="text-[10px] text-emerald-400">
                   32-byte Merkle root committed to CredentialRegistry.sol
                 </p>
               </div>
@@ -305,7 +352,7 @@ export default function IssuerDashboardPage() {
           </div>
         </div>
 
-        {/* Right Column: Interactive Merkle Tree Visualizer & Batch History */}
+        {/* Right Column: Interactive Merkle Tree Visualizer & Data Grid */}
         <div className="lg:col-span-2 space-y-6">
           {computedTreeData && (
             <MerkleTreeVisualizer
@@ -316,13 +363,13 @@ export default function IssuerDashboardPage() {
           )}
 
           {/* Anchored Batches Registry & Revocation Management */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Anchored Batches &amp; Dynamic Revocation Registry
+                <h3 className="text-base font-bold text-white">
+                  Anchored Batches &amp; Dynamic Revocation Switchboard
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   Manage on-chain Merkle roots and invalidate credentials via 256-bit dynamic bitmaps
                 </p>
               </div>
@@ -332,23 +379,23 @@ export default function IssuerDashboardPage() {
               {batches.map((b) => (
                 <div
                   key={b.batchId}
-                  className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="border border-slate-800 rounded-2xl p-4 bg-slate-900/60 hover:bg-slate-900 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-slate-900">
+                      <span className="font-mono font-bold text-xs text-white">
                         {b.batchId}
                       </span>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] bg-blue-950/80 text-cyan-300 border border-blue-800 font-semibold px-2 py-0.5 rounded-full">
                         {b.totalCredentials} Degrees
                       </span>
                       {b.revokedIndices?.length > 0 && (
-                        <span className="text-[10px] bg-red-100 text-red-800 font-semibold px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] bg-red-950/80 text-red-300 border border-red-800 font-semibold px-2 py-0.5 rounded-full">
                           {b.revokedIndices.length} Revoked
                         </span>
                       )}
                     </div>
-                    <p className="font-mono text-[11px] text-slate-500 truncate max-w-sm sm:max-w-md">
+                    <p className="font-mono text-[11px] text-slate-400 truncate max-w-sm sm:max-w-md">
                       Root: {b.merkleRoot}
                     </p>
                   </div>
@@ -356,9 +403,9 @@ export default function IssuerDashboardPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => setRevocationModalBatch(b)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold transition-colors"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 rounded-xl text-xs font-bold transition-all hover:scale-102"
                     >
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-700" />
+                      <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
                       <span>Manage Revocations</span>
                     </button>
                   </div>

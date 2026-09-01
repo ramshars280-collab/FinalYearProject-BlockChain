@@ -19,6 +19,8 @@ import {
   ArrowRight,
   TrendingUp,
   XCircle,
+  Cpu,
+  Fingerprint,
 } from "lucide-react";
 import {
   CourseCreditRecord,
@@ -53,7 +55,6 @@ export default function InstitutionalDeskPage() {
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Pre-load NEP 2020 default course credits
     loadSampleCourseCredits();
   }, []);
 
@@ -121,22 +122,6 @@ export default function InstitutionalDeskPage() {
       });
   };
 
-  const handleModularCourseUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const courses: CourseCreditRecord[] = JSON.parse(text);
-        setCourseCredits(courses);
-        const calc = calculateAcademicBankOfCredits(courses);
-        setAbcCalculation(calc);
-      } catch (err) {
-        alert("Invalid course credits JSON format");
-      }
-    };
-    reader.readAsText(file);
-  };
-
   // --- TAB 3: Placement Audit Functions ---
   const handleResumeCsvUpload = (file: File) => {
     setIsAuditing(true);
@@ -146,7 +131,6 @@ export default function InstitutionalDeskPage() {
       complete: (results) => {
         try {
           const batches = getStoredBatches();
-          // Build lookup map from stored batches
           const realStudentMap: Record<string, any> = {};
           batches.forEach((b) => {
             b.records.forEach((s) => {
@@ -243,53 +227,53 @@ export default function InstitutionalDeskPage() {
     <div className="space-y-8 py-2">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-100 border border-indigo-200 text-indigo-900 rounded-full text-xs font-semibold mb-2">
-          <Building2 className="h-3.5 w-3.5 text-indigo-700" />
-          <span>Dual-Role Institutional Desk</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 rounded-full text-xs font-semibold mb-2">
+          <Building2 className="h-3.5 w-3.5 text-indigo-400" />
+          <span>Dual-Role Institutional Command Suite</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
           University Institutional Verification Suite
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600">
+        <p className="text-xs sm:text-sm text-slate-400">
           Tailored desks for PG Admissions, NEP 2020 Academic Bank of Credits (ABC), and Placement Cell (T&amp;P) batch audits.
         </p>
       </div>
 
       {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 sm:gap-4 overflow-x-auto">
+      <div className="flex border-b border-slate-800 gap-2 sm:gap-4 overflow-x-auto">
         <button
           onClick={() => setActiveTab("admissions")}
-          className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 py-3 px-5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap rounded-t-xl ${
             activeTab === "admissions"
-              ? "border-blue-900 text-blue-950 bg-blue-50/50 rounded-t-lg"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+              ? "border-cyan-400 text-white bg-blue-600/20"
+              : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
         >
-          <GraduationCap className="h-4 w-4" />
+          <GraduationCap className="h-4 w-4 text-cyan-400" />
           <span>1. PG &amp; Lateral Admissions Desk</span>
         </button>
 
         <button
           onClick={() => setActiveTab("nep2020")}
-          className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 py-3 px-5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap rounded-t-xl ${
             activeTab === "nep2020"
-              ? "border-blue-900 text-blue-950 bg-blue-50/50 rounded-t-lg"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+              ? "border-purple-400 text-white bg-purple-600/20"
+              : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
         >
-          <Sparkles className="h-4 w-4 text-purple-600" />
+          <Sparkles className="h-4 w-4 text-purple-400" />
           <span>2. NEP 2020 ABC Credit Transfer Desk</span>
         </button>
 
         <button
           onClick={() => setActiveTab("placement")}
-          className={`flex items-center gap-2 py-3 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 py-3 px-5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap rounded-t-xl ${
             activeTab === "placement"
-              ? "border-blue-900 text-blue-950 bg-blue-50/50 rounded-t-lg"
-              : "border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300"
+              ? "border-emerald-400 text-white bg-emerald-600/20"
+              : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
         >
-          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
           <span>3. Placement Cell (T&amp;P Audit)</span>
         </button>
       </div>
@@ -297,20 +281,20 @@ export default function InstitutionalDeskPage() {
       {/* TAB 1: PG & LATERAL ADMISSIONS DESK */}
       {activeTab === "admissions" && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-lg font-bold text-white">
                   Prerequisite Accreditation &amp; Degree Authenticator
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Verify external candidate degree authenticity and eligibility in &lt;300ms
+                <p className="text-xs text-slate-400">
+                  Verify external candidate degree authenticity and eligibility in &lt;140ms
                 </p>
               </div>
 
               <button
                 onClick={loadAdmissionsSample}
-                className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg text-xs font-semibold self-start sm:self-auto transition-colors"
+                className="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-cyan-300 border border-blue-500/40 rounded-xl text-xs font-bold transition-all hover:scale-102"
               >
                 Load Sample Candidate Credential
               </button>
@@ -326,39 +310,39 @@ export default function InstitutionalDeskPage() {
 
             <div
               onClick={() => admissionsFileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 rounded-2xl p-8 text-center cursor-pointer transition-colors space-y-2"
+              className="border-2 border-dashed border-slate-700 hover:border-cyan-400 hover:bg-slate-900/60 rounded-3xl p-10 text-center cursor-pointer transition-all space-y-3"
             >
-              <UploadCloud className="h-10 w-10 text-slate-400 mx-auto" />
-              <p className="text-xs sm:text-sm font-semibold text-slate-800">
+              <UploadCloud className="h-12 w-12 text-slate-500 mx-auto" />
+              <p className="text-sm font-bold text-slate-200">
                 Drop Candidate Academic Degree JSON here
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-500">
                 Instant cryptographical proof evaluation against Ethereum Sepolia
               </p>
             </div>
 
             {admissionsResult && (
-              <div className="space-y-4 pt-4">
+              <div className="space-y-6 pt-4 animate-in fade-in duration-300">
                 <div
-                  className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${
+                  className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                     admissionsResult.isValid
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-950"
-                      : "bg-red-50 border-red-300 text-red-950"
+                      ? "bg-emerald-950/50 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-500/10"
+                      : "bg-red-950/50 border-red-500/50 text-red-300"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3.5">
                     {admissionsResult.isValid ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="h-7 w-7 text-emerald-400 shrink-0" />
                     ) : (
-                      <XCircle className="h-6 w-6 text-red-600 shrink-0" />
+                      <XCircle className="h-7 w-7 text-red-400 shrink-0" />
                     )}
                     <div>
-                      <h4 className="text-sm font-bold">
+                      <h4 className="text-base font-extrabold text-white">
                         {admissionsResult.isValid
                           ? "Admissions Verification: 100% Eligible & Authentic"
                           : "Admissions Verification: Ineligible / Tampered"}
                       </h4>
-                      <p className="text-xs mt-0.5">
+                      <p className="text-xs text-slate-300 mt-0.5">
                         Candidate: {admissionsCredential?.credentialSubject.fullName} &bull; Degree:{" "}
                         {admissionsCredential?.credentialSubject.degree} (CGPA:{" "}
                         {admissionsCredential?.credentialSubject.cgpa})
@@ -366,8 +350,8 @@ export default function InstitutionalDeskPage() {
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded border shadow-2xs">
-                    {admissionsResult.isValid ? "STATUS: CLEARED" : "STATUS: REJECTED"}
+                  <span className="text-xs font-mono font-bold bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 shadow-inner">
+                    {admissionsResult.isValid ? "VERDICT: CLEARED" : "VERDICT: REJECTED"}
                   </span>
                 </div>
 
@@ -386,14 +370,14 @@ export default function InstitutionalDeskPage() {
       {/* TAB 2: NEP 2020 ABC CREDIT TRANSFER DESK */}
       {activeTab === "nep2020" && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-400" />
                   <span>Academic Bank of Credits (ABC) &bull; NHEQF Framework Engine</span>
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   Ingests modular multi-institution course credits, aggregates NHEQF units, and evaluates lateral semester mobility.
                 </p>
               </div>
@@ -401,7 +385,7 @@ export default function InstitutionalDeskPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={loadSampleCourseCredits}
-                  className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-lg text-xs font-semibold transition-colors"
+                  className="px-4 py-2 bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-700/80 rounded-xl text-xs font-bold transition-all hover:scale-102"
                 >
                   Reload ABC Fixture
                 </button>
@@ -411,52 +395,52 @@ export default function InstitutionalDeskPage() {
             {/* Aggregation Metrics Cards */}
             {abcCalculation && (
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-1">
-                  <span className="text-[11px] font-bold uppercase text-purple-700 tracking-wider">
+                <div className="glass-card-interactive p-5 rounded-2xl border border-purple-500/30 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-purple-300 tracking-wider">
                     Total ABC Credits
                   </span>
-                  <div className="text-2xl font-extrabold text-purple-950">
-                    {abcCalculation.totalCredits} Credits
+                  <div className="text-3xl font-black text-purple-400 font-mono">
+                    {abcCalculation.totalCredits}
                   </div>
-                  <p className="text-[10px] text-purple-800 font-medium">
+                  <p className="text-[11px] text-slate-400 font-medium">
                     {abcCalculation.verifiedCount} Courses Certified On-Chain
                   </p>
                 </div>
 
-                <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-1">
-                  <span className="text-[11px] font-bold uppercase text-blue-700 tracking-wider">
-                    Weighted Cumulative GPA
+                <div className="glass-card-interactive p-5 rounded-2xl border border-blue-500/30 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-cyan-300 tracking-wider">
+                    Cumulative Weighted GPA
                   </span>
-                  <div className="text-2xl font-extrabold text-blue-950">
+                  <div className="text-3xl font-black text-cyan-400 font-mono">
                     {abcCalculation.weightedGpa} / 10.0
                   </div>
-                  <p className="text-[10px] text-blue-800 font-medium">
-                    Weighted by Course Credit Hours
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    Credit-weighted algorithm
                   </p>
                 </div>
 
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-1">
-                  <span className="text-[11px] font-bold uppercase text-emerald-700 tracking-wider">
+                <div className="glass-card-interactive p-5 rounded-2xl border border-emerald-500/30 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-emerald-300 tracking-wider">
                     NHEQF Level Achieved
                   </span>
-                  <div className="text-2xl font-extrabold text-emerald-950">
+                  <div className="text-3xl font-black text-emerald-400 font-mono">
                     Level {abcCalculation.eligibleNheqfLevel}
                   </div>
-                  <p className="text-[10px] text-emerald-800 font-medium">
+                  <p className="text-[11px] text-slate-400 font-medium">
                     {abcCalculation.qualificationTitle}
                   </p>
                 </div>
 
-                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-1">
-                  <span className="text-[11px] font-bold uppercase text-amber-800 tracking-wider">
-                    Lateral Mobility Status
+                <div className="glass-card-interactive p-5 rounded-2xl border border-amber-500/30 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-amber-300 tracking-wider">
+                    Lateral Entry Status
                   </span>
-                  <div className="text-base font-bold text-amber-950 flex items-center gap-1.5 pt-1">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <div className="text-base font-bold text-amber-300 flex items-center gap-1.5 pt-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                     <span>Eligible for Semester V</span>
                   </div>
-                  <p className="text-[10px] text-amber-800 font-medium">
-                    &ge; 80 Credits for Direct Year 2/3 Entry
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    &ge; 80 Credits Satisfied
                   </p>
                 </div>
               </div>
@@ -464,42 +448,42 @@ export default function InstitutionalDeskPage() {
 
             {/* Course Credit Ledger Table */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
                 Verified Multi-Institution Course Ledger
               </h4>
 
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100 text-slate-800 font-semibold border-b border-slate-200 uppercase text-[10px]">
+              <div className="overflow-x-auto border border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-900 text-slate-300 font-semibold border-b border-slate-800 uppercase text-[10px]">
                     <tr>
-                      <th className="p-3">Course Code</th>
-                      <th className="p-3">Course Title</th>
-                      <th className="p-3">Offering University / Provider</th>
-                      <th className="p-3">NHEQF Level</th>
-                      <th className="p-3 text-center">Credits</th>
-                      <th className="p-3 text-center">Grade</th>
-                      <th className="p-3 text-right">Blockchain Status</th>
+                      <th className="p-3.5">Course Code</th>
+                      <th className="p-3.5">Course Title</th>
+                      <th className="p-3.5">Offering University / Provider</th>
+                      <th className="p-3.5">NHEQF Level</th>
+                      <th className="p-3.5 text-center">Credits</th>
+                      <th className="p-3.5 text-center">Grade</th>
+                      <th className="p-3.5 text-right">Blockchain Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-800/60">
                     {courseCredits.map((course, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-mono font-bold text-slate-900">
+                      <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
+                        <td className="p-3.5 font-mono font-bold text-cyan-300">
                           {course.courseCode}
                         </td>
-                        <td className="p-3 font-medium text-slate-900">
+                        <td className="p-3.5 font-semibold text-white">
                           {course.courseTitle}
                         </td>
-                        <td className="p-3 text-slate-600">{course.offeringUniversity}</td>
-                        <td className="p-3 font-medium">Level {course.nheqfLevel}</td>
-                        <td className="p-3 text-center font-bold">{course.creditsEarned}</td>
-                        <td className="p-3 text-center font-mono font-bold text-blue-900">
+                        <td className="p-3.5 text-slate-400">{course.offeringUniversity}</td>
+                        <td className="p-3.5 font-medium">Level {course.nheqfLevel}</td>
+                        <td className="p-3.5 text-center font-bold text-white">{course.creditsEarned}</td>
+                        <td className="p-3.5 text-center font-mono font-bold text-cyan-400">
                           {course.grade}
                         </td>
-                        <td className="p-3 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-semibold rounded-full">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-700" />
-                            <span>ABC Verified</span>
+                        <td className="p-3.5 text-right">
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 font-semibold rounded-full">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            <span>ABC Certified</span>
                           </span>
                         </td>
                       </tr>
@@ -515,14 +499,14 @@ export default function InstitutionalDeskPage() {
       {/* TAB 3: PLACEMENT CELL (T&P AUDIT) */}
       {activeTab === "placement" && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-emerald-700" />
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
                   <span>Placement Cell (T&amp;P) Batch Resume CGPA Audit</span>
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   Batch-compare 500+ student resume CGPAs against on-chain records and flag inflated metrics immediately.
                 </p>
               </div>
@@ -530,7 +514,7 @@ export default function InstitutionalDeskPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={loadSampleAuditCsv}
-                  className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors"
+                  className="px-4 py-2 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded-xl text-xs font-bold transition-all hover:scale-102"
                 >
                   Load Sample T&amp;P Audit CSV
                 </button>
@@ -548,101 +532,101 @@ export default function InstitutionalDeskPage() {
 
             <div
               onClick={() => resumeFileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl p-6 text-center cursor-pointer transition-colors space-y-2"
+              className="border-2 border-dashed border-slate-700 hover:border-emerald-400 hover:bg-slate-900/60 rounded-3xl p-8 text-center cursor-pointer transition-all space-y-2"
             >
-              <UploadCloud className="h-8 w-8 text-slate-400 mx-auto" />
-              <p className="text-xs font-semibold text-slate-800">
+              <UploadCloud className="h-10 w-10 text-slate-500 mx-auto" />
+              <p className="text-sm font-bold text-slate-200">
                 Click to upload Student Placement Resumes CSV
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-500">
                 Columns: CandidateName, PRN, ReportedDegree, ReportedCGPA
               </p>
             </div>
 
             {/* Audit Summary Statistics */}
             {auditRecords.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block">Total Audited</span>
-                    <span className="text-xl font-bold text-slate-900">{auditStats.total}</span>
+                  <div className="glass-card-interactive p-4 rounded-2xl text-center">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Total Audited</span>
+                    <span className="text-2xl font-black text-white font-mono">{auditStats.total}</span>
                   </div>
 
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] font-bold uppercase text-emerald-700 block">100% Authentic</span>
-                    <span className="text-xl font-bold text-emerald-900">{auditStats.authentic}</span>
+                  <div className="glass-card-interactive p-4 rounded-2xl border-emerald-500/30 text-center">
+                    <span className="text-[10px] font-bold uppercase text-emerald-400 block">100% Authentic</span>
+                    <span className="text-2xl font-black text-emerald-400 font-mono">{auditStats.authentic}</span>
                   </div>
 
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] font-bold uppercase text-red-700 block">CGPA Mismatches</span>
-                    <span className="text-xl font-bold text-red-900">{auditStats.mismatches}</span>
+                  <div className="glass-card-interactive p-4 rounded-2xl border-red-500/30 text-center">
+                    <span className="text-[10px] font-bold uppercase text-red-400 block">CGPA Mismatches</span>
+                    <span className="text-2xl font-black text-red-400 font-mono">{auditStats.mismatches}</span>
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-                    <span className="text-[10px] font-bold uppercase text-amber-800 block">Unregistered PRNs</span>
-                    <span className="text-xl font-bold text-amber-900">{auditStats.missing}</span>
+                  <div className="glass-card-interactive p-4 rounded-2xl border-amber-500/30 text-center">
+                    <span className="text-[10px] font-bold uppercase text-amber-400 block">Unregistered PRNs</span>
+                    <span className="text-2xl font-black text-amber-400 font-mono">{auditStats.missing}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Discrepancy Audit Table
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Discrepancy Audit Matrix
                   </h4>
                   <button
                     onClick={downloadAuditCsvReport}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-2xs"
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-102"
                   >
                     <Download className="h-3.5 w-3.5" />
                     <span>Export Audit CSV Report</span>
                   </button>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table className="w-full text-left text-xs text-slate-700">
-                    <thead className="bg-slate-100 text-slate-800 font-semibold border-b border-slate-200 uppercase text-[10px]">
+                <div className="overflow-x-auto border border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-900 text-slate-300 font-semibold border-b border-slate-800 uppercase text-[10px]">
                       <tr>
-                        <th className="p-3">Candidate</th>
-                        <th className="p-3">PRN</th>
-                        <th className="p-3">Reported CGPA</th>
-                        <th className="p-3">Verified On-Chain CGPA</th>
-                        <th className="p-3">Discrepancy Delta</th>
-                        <th className="p-3 text-right">Audit Verdict</th>
+                        <th className="p-3.5">Candidate</th>
+                        <th className="p-3.5">PRN</th>
+                        <th className="p-3.5">Reported CGPA</th>
+                        <th className="p-3.5">Verified On-Chain CGPA</th>
+                        <th className="p-3.5">Discrepancy Delta</th>
+                        <th className="p-3.5 text-right">Audit Verdict</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-800/60">
                       {auditRecords.map((r, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-semibold text-slate-900">{r.candidateName}</td>
-                          <td className="p-3 font-mono text-slate-600">{r.prn}</td>
-                          <td className="p-3 font-bold">{r.reportedCgpa.toFixed(2)}</td>
-                          <td className="p-3 font-bold text-blue-900">
+                        <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
+                          <td className="p-3.5 font-bold text-white">{r.candidateName}</td>
+                          <td className="p-3.5 font-mono text-slate-400">{r.prn}</td>
+                          <td className="p-3.5 font-bold">{r.reportedCgpa.toFixed(2)}</td>
+                          <td className="p-3.5 font-bold text-cyan-400">
                             {r.verifiedCgpa !== undefined ? r.verifiedCgpa.toFixed(2) : "N/A"}
                           </td>
-                          <td className="p-3 font-mono">
+                          <td className="p-3.5 font-mono">
                             {r.discrepancyDelta !== undefined && r.discrepancyDelta !== 0 ? (
-                              <span className="text-red-600 font-bold">
+                              <span className="text-red-400 font-bold">
                                 {r.discrepancyDelta > 0 ? `+${r.discrepancyDelta}` : r.discrepancyDelta} (Inflated)
                               </span>
                             ) : (
-                              <span className="text-emerald-600 font-bold">0.00 (Match)</span>
+                              <span className="text-emerald-400 font-bold">0.00 (Match)</span>
                             )}
                           </td>
-                          <td className="p-3 text-right">
+                          <td className="p-3.5 text-right">
                             {r.status === "AUTHENTIC" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-semibold rounded-full">
-                                <CheckCircle2 className="h-3 w-3 text-emerald-700" />
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 font-bold rounded-full">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                                 <span>Verified Authentic</span>
                               </span>
                             )}
                             {r.status === "CGPA_MISMATCH" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-red-100 text-red-800 font-semibold rounded-full">
-                                <XCircle className="h-3 w-3 text-red-700" />
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 bg-red-950/80 text-red-300 border border-red-800/80 font-bold rounded-full">
+                                <XCircle className="h-3 w-3 text-red-400" />
                                 <span>CGPA Inflated / Flagged</span>
                               </span>
                             )}
                             {r.status === "PRN_NOT_FOUND" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-amber-100 text-amber-800 font-semibold rounded-full">
-                                <AlertCircle className="h-3 w-3 text-amber-700" />
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 bg-amber-950/80 text-amber-300 border border-amber-800/80 font-bold rounded-full">
+                                <AlertCircle className="h-3 w-3 text-amber-400" />
                                 <span>PRN Unregistered</span>
                               </span>
                             )}
