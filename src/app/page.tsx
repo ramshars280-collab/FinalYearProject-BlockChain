@@ -28,7 +28,11 @@ import { getConsortiumInstitutions } from "../lib/storage";
 export default function PublicVerifierPage() {
   const router = useRouter();
   const [isRegisterUniModalOpen, setIsRegisterUniModalOpen] = useState(false);
-  const institutions = getConsortiumInstitutions();
+  const [institutionsCount, setInstitutionsCount] = useState(4);
+
+  React.useEffect(() => {
+    setInstitutionsCount(getConsortiumInstitutions().length);
+  }, [isRegisterUniModalOpen]);
 
   return (
     <div className="space-y-12 py-4">
@@ -87,8 +91,8 @@ export default function PublicVerifierPage() {
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
             Consortium Nodes
           </span>
-          <div className="text-2xl font-black text-blue-700 font-mono">
-            {institutions.length} Active Universities
+          <div className="text-2xl font-black text-blue-700 font-mono" suppressHydrationWarning>
+            {institutionsCount} Active Universities
           </div>
           <span className="text-[10px] text-emerald-700 font-bold">Inter-University Trust</span>
         </div>
