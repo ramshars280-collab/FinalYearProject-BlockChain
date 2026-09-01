@@ -8,24 +8,16 @@ import {
   GraduationCap,
   ShieldCheck,
   Building2,
-  UserCheck,
   Wallet,
-  CheckCircle2,
-  ExternalLink,
   ChevronDown,
   Layers,
-  Sparkles,
-  Activity,
-  Copy,
-  Check,
-  Cpu,
   LogIn,
   LogOut,
   User,
   Shield,
   Briefcase,
-  Lock,
   PlusCircle,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { UserRole } from "../types/auth";
@@ -42,9 +34,13 @@ export default function Navbar() {
   const [isSimulated, setIsSimulated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [blockHeight, setBlockHeight] = useState<number>(6294830);
+
   const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false);
+  const [isUniDropdownOpen, setIsUniDropdownOpen] = useState(false);
   const [isRegisterUniModalOpen, setIsRegisterUniModalOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const loginDropdownRef = useRef<HTMLDivElement>(null);
+  const uniDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -64,8 +60,11 @@ export default function Navbar() {
     }
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (loginDropdownRef.current && !loginDropdownRef.current.contains(e.target as Node)) {
         setIsLoginDropdownOpen(false);
+      }
+      if (uniDropdownRef.current && !uniDropdownRef.current.contains(e.target as Node)) {
+        setIsUniDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -120,25 +119,6 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = [
-    { href: "/", label: "Public Verifier", icon: ShieldCheck, requiredRole: null, badge: "Open" },
-    { href: "/student", label: "Student Portal", icon: UserCheck, requiredRole: "STUDENT" as UserRole, badge: "EIP-712" },
-    { href: "/issuer", label: "Exam Cell Minting", icon: Layers, requiredRole: "EXAM_ADMIN" as UserRole, badge: "Admin" },
-    { href: "/university-verifier", label: "Institutional Desk", icon: Building2, requiredRole: "UNIVERSITY_STAFF" as UserRole, badge: "Staff" },
-  ];
-
-  const handleNavClick = (e: React.MouseEvent, item: typeof navLinks[0]) => {
-    if (!item.requiredRole) return;
-
-    if (!isAuthenticated) {
-      e.preventDefault();
-      openAuthModal(item.requiredRole);
-    } else if (user && user.role !== item.requiredRole && !(user.role === "EXAM_ADMIN" && item.requiredRole === "UNIVERSITY_STAFF")) {
-      e.preventDefault();
-      openAuthModal(item.requiredRole);
-    }
-  };
-
   const handleRoleLoginClick = (role: UserRole) => {
     setIsLoginDropdownOpen(false);
     openAuthModal(role);
@@ -147,7 +127,7 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
-        {/* Top micro ticker */}
+        {/* Top Micro Ticker */}
         <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-1 text-[11px] text-blue-900">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -157,13 +137,13 @@ export default function Navbar() {
               </span>
               <span className="hidden sm:inline text-blue-300">&bull;</span>
               <span className="hidden sm:inline text-blue-700 font-medium">
-                Ethereum Sepolia &bull; Active Consortium Registry
+                Ethereum Sepolia &bull; Inter-University Consortium
               </span>
             </div>
 
             <div className="flex items-center gap-3">
               <span className="text-blue-800 font-medium hidden md:inline">
-                Zero-PII On-Chain &bull; DPDP Act Certified &bull; Multi-University Consortium
+                Zero-PII On-Chain &bull; DPDP Act Certified &bull; RBAC Protected
               </span>
               <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-200 font-mono font-bold text-[10px]">
                 EVM v0.8.20
@@ -172,73 +152,129 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Main Navbar */}
+        {/* Main 3-Section Navbar Layout */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Brand Logo */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-700 to-blue-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-all">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 tracking-tight text-lg">
+          <div className="flex h-16 items-center justify-between gap-4">
+            
+            {/* 1. LEFT SECTION: Logo & Branding (No overlapping tag) */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Link href="/" className="flex items-center gap-3 group">
+                <div className="relative h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-700 to-blue-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-all">
+                  <GraduationCap className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">
                     MGM Trust Registry
                   </span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-blue-100 border border-blue-200 text-blue-800 rounded-full">
-                    Consortium
-                  </span>
+                  <p className="text-[11px] text-slate-500 hidden sm:block leading-none mt-0.5">
+                    Academic Credential Verification
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-500 hidden sm:block">
-                  Academic Credential Verification &amp; Dual-Role Desk
-                </p>
+              </Link>
+            </div>
+
+            {/* 2. CENTER SECTION: Simplified Navigation Links */}
+            <nav className="hidden md:flex items-center gap-1.5">
+              {/* Public Verifier */}
+              <Link
+                href="/"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  pathname === "/"
+                    ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
+                    : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
+                }`}
+              >
+                <ShieldCheck className={`h-4 w-4 ${pathname === "/" ? "text-blue-600" : "text-slate-400"}`} />
+                <span>Public Verifier</span>
+              </Link>
+
+              {/* DYNAMIC PORTAL LINK (When Logged In) */}
+              {isAuthenticated && user && (
+                <>
+                  {user.role === "STUDENT" && (
+                    <Link
+                      href="/student"
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                        pathname === "/student"
+                          ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
+                          : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
+                      }`}
+                    >
+                      <GraduationCap className={`h-4 w-4 ${pathname === "/student" ? "text-blue-600" : "text-slate-400"}`} />
+                      <span>My Credentials</span>
+                    </Link>
+                  )}
+
+                  {user.role === "EXAM_ADMIN" && (
+                    <Link
+                      href="/issuer"
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                        pathname === "/issuer"
+                          ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
+                          : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
+                      }`}
+                    >
+                      <Layers className={`h-4 w-4 ${pathname === "/issuer" ? "text-blue-600" : "text-slate-400"}`} />
+                      <span>Exam Cell Console</span>
+                    </Link>
+                  )}
+
+                  {user.role === "UNIVERSITY_STAFF" && (
+                    <Link
+                      href="/university-verifier"
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                        pathname === "/university-verifier"
+                          ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
+                          : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
+                      }`}
+                    >
+                      <Building2 className={`h-4 w-4 ${pathname === "/university-verifier" ? "text-blue-600" : "text-slate-400"}`} />
+                      <span>Institutional Desk</span>
+                    </Link>
+                  )}
+                </>
+              )}
+
+              {/* Universities Dropdown */}
+              <div className="relative" ref={uniDropdownRef}>
+                <button
+                  onClick={() => setIsUniDropdownOpen(!isUniDropdownOpen)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-900 hover:bg-slate-50 transition-all border border-transparent"
+                >
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <span>Universities</span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                </button>
+
+                {isUniDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1">
+                    <Link
+                      href="/#consortium"
+                      onClick={() => setIsUniDropdownOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
+                    >
+                      <Building2 className="h-4 w-4 text-blue-600" />
+                      <span>View Consortium</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        setIsUniDropdownOpen(false);
+                        setIsRegisterUniModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-blue-700 hover:text-blue-800"
+                    >
+                      <PlusCircle className="h-4 w-4 text-blue-600" />
+                      <span>Register University</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            </Link>
-
-            {/* Navigation Items */}
-            <nav className="hidden lg:flex items-center space-x-1">
-              {navLinks.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                const isLocked = item.requiredRole !== null && (!isAuthenticated || (user?.role !== item.requiredRole && !(user?.role === "EXAM_ADMIN" && item.requiredRole === "UNIVERSITY_STAFF")));
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={(e) => handleNavClick(e, item)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all relative ${
-                      isActive
-                        ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
-                        : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
-                    <span>{item.label}</span>
-                    {isLocked && (
-                      <Lock className="h-3 w-3 text-slate-400" />
-                    )}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-blue-600 rounded-full" />
-                    )}
-                  </Link>
-                );
-              })}
             </nav>
 
-            {/* Right Actions: Register University, Login Dropdown, User Badge & Wallet */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Prominent REGISTER UNIVERSITY Button */}
-              <button
-                onClick={() => setIsRegisterUniModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 hover:border-blue-400 rounded-xl text-xs font-bold transition-all shadow-2xs hover:scale-102"
-                title="Register your University to the Consortium"
-              >
-                <PlusCircle className="h-3.5 w-3.5 text-blue-600" />
-                <span>Register University</span>
-              </button>
-
-              {/* AUTHENTICATION SESSION BUTTON / BADGE */}
+            {/* 3. RIGHT SECTION: Portal Sign In / User Badge & MetaMask */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* AUTHENTICATED: User Identity Pill & Sign Out */}
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1.5 pl-3 text-xs shadow-2xs">
                   <div className="flex items-center gap-1.5 font-bold text-blue-950">
@@ -247,7 +283,7 @@ export default function Navbar() {
                     {user.role === "UNIVERSITY_STAFF" && <Briefcase className="h-3.5 w-3.5 text-blue-600" />}
                     <span className="truncate max-w-[120px] sm:max-w-[160px]">
                       {user.role === "STUDENT"
-                        ? `${user.fullName} (${(user as any).prn})`
+                        ? `${(user as any).prn || user.fullName}`
                         : user.role === "EXAM_ADMIN"
                         ? "Exam Cell Admin"
                         : user.fullName}
@@ -264,13 +300,14 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <div className="relative" ref={dropdownRef}>
+                /* UNAUTHENTICATED: Portal Sign In Dropdown */
+                <div className="relative" ref={loginDropdownRef}>
                   <button
                     onClick={() => setIsLoginDropdownOpen(!isLoginDropdownOpen)}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-blue-50 text-blue-900 border border-blue-300 rounded-xl text-xs font-bold shadow-2xs transition-all hover:scale-102"
                   >
                     <LogIn className="h-4 w-4 text-blue-600" />
-                    <span>Portal Login</span>
+                    <span>Portal Sign In</span>
                     <ChevronDown className="h-3 w-3 text-slate-500" />
                   </button>
 
@@ -283,7 +320,7 @@ export default function Navbar() {
                         <div className="p-1 rounded-lg bg-blue-100 text-blue-700">
                           <GraduationCap className="h-4 w-4" />
                         </div>
-                        <span>Student Portal Login</span>
+                        <span>Student Portal Sign In</span>
                       </button>
 
                       <button
@@ -293,7 +330,7 @@ export default function Navbar() {
                         <div className="p-1 rounded-lg bg-amber-100 text-amber-800">
                           <Shield className="h-4 w-4" />
                         </div>
-                        <span>Exam Cell Admin Login</span>
+                        <span>Exam Cell Admin Sign In</span>
                       </button>
 
                       <button
@@ -303,27 +340,14 @@ export default function Navbar() {
                         <div className="p-1 rounded-lg bg-blue-100 text-blue-700">
                           <Briefcase className="h-4 w-4" />
                         </div>
-                        <span>Institutional Staff Login</span>
+                        <span>Institutional Staff Sign In</span>
                       </button>
-
-                      <div className="border-t border-slate-100 my-1 pt-1">
-                        <button
-                          onClick={() => {
-                            setIsLoginDropdownOpen(false);
-                            setIsRegisterUniModalOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left hover:bg-slate-50 transition-colors text-xs font-bold text-blue-700 hover:text-blue-800"
-                        >
-                          <PlusCircle className="h-3.5 w-3.5 text-blue-600" />
-                          <span>+ Register New University</span>
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Wallet Button */}
+              {/* Connect MetaMask Wallet Button */}
               {account ? (
                 <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 px-3 text-xs text-slate-800 shadow-xs">
                   <div className="flex items-center gap-1.5 font-bold text-slate-800">
@@ -349,35 +373,61 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile Navigation row */}
-          <div className="flex lg:hidden border-t border-slate-200 py-2.5 gap-1.5 overflow-x-auto items-center justify-between">
-            <div className="flex gap-1.5">
-              {navLinks.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
+          {/* Mobile Navigation bar */}
+          <div className="flex md:hidden border-t border-slate-200 py-2.5 gap-2 items-center justify-between overflow-x-auto">
+            <Link
+              href="/"
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                pathname === "/" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Public Verifier</span>
+            </Link>
+
+            {isAuthenticated && user && (
+              <>
+                {user.role === "STUDENT" && (
                   <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={(e) => handleNavClick(e, item)}
-                    className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                      isActive
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    href="/student"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                      pathname === "/student" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{item.label}</span>
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    <span>My Credentials</span>
                   </Link>
-                );
-              })}
-            </div>
+                )}
+                {user.role === "EXAM_ADMIN" && (
+                  <Link
+                    href="/issuer"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                      pathname === "/issuer" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    <span>Exam Cell</span>
+                  </Link>
+                )}
+                {user.role === "UNIVERSITY_STAFF" && (
+                  <Link
+                    href="/university-verifier"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                      pathname === "/university-verifier" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span>Desk</span>
+                  </Link>
+                )}
+              </>
+            )}
 
             <button
               onClick={() => setIsRegisterUniModalOpen(true)}
-              className="px-2.5 py-1.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-lg text-xs font-bold"
             >
-              <PlusCircle className="h-3 w-3 text-blue-600" />
+              <PlusCircle className="h-3.5 w-3.5 text-blue-600" />
               <span>Register Uni</span>
             </button>
           </div>

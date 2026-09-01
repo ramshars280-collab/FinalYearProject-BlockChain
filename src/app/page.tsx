@@ -104,7 +104,7 @@ export default function PublicVerifierPage() {
       </div>
 
       {/* PROMINENT UNIVERSITY REGISTRATION & CONSORTIUM ONBOARDING BANNER */}
-      <div className="max-w-5xl mx-auto bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
+      <div id="consortium" className="max-w-5xl mx-auto bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-blue-200 border border-white/20">
