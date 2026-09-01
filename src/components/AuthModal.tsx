@@ -7,13 +7,11 @@ import {
   UserCheck,
   Shield,
   Briefcase,
-  Lock,
-  KeyRound,
   GraduationCap,
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  Fingerprint,
+  KeyRound,
   Building2,
   FileSpreadsheet,
 } from "lucide-react";
@@ -31,7 +29,8 @@ export default function AuthModal() {
     loginStaff,
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<UserRole>(modalInitialRole || "STUDENT");
+  // Active role is strictly locked to modalInitialRole (no cross-role tabs)
+  const role: UserRole = modalInitialRole || "STUDENT";
 
   // Student Form
   const [studentPrn, setStudentPrn] = useState(DEMO_CREDENTIALS.student.prn);
@@ -51,9 +50,8 @@ export default function AuthModal() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (modalInitialRole) {
-      setActiveTab(modalInitialRole);
-    }
+    setErrorMsg(null);
+    setSuccessMsg(null);
   }, [modalInitialRole]);
 
   if (!isAuthModalOpen) return null;
@@ -69,7 +67,7 @@ export default function AuthModal() {
       setTimeout(() => {
         closeAuthModal();
         router.push("/student");
-      }, 500);
+      }, 400);
     } else {
       setErrorMsg(res.error || "Login failed");
     }
@@ -86,7 +84,7 @@ export default function AuthModal() {
       setTimeout(() => {
         closeAuthModal();
         router.push("/issuer");
-      }, 500);
+      }, 400);
     } else {
       setErrorMsg(res.error || "Admin login failed");
     }
@@ -103,7 +101,7 @@ export default function AuthModal() {
       setTimeout(() => {
         closeAuthModal();
         router.push("/university-verifier");
-      }, 500);
+      }, 400);
     } else {
       setErrorMsg(res.error || "Staff login failed");
     }
@@ -111,86 +109,35 @@ export default function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl relative border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-200 overflow-hidden">
         {/* Close Button */}
         <button
           onClick={closeAuthModal}
-          className="absolute top-5 right-5 z-20 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          className="absolute top-4 right-4 z-20 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Modal Header Tab Switcher */}
-        <div className="bg-slate-100 p-3 border-b border-slate-200">
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("STUDENT");
-                setErrorMsg(null);
-              }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all ${
-                activeTab === "STUDENT"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-slate-600 hover:text-blue-900 bg-white/70"
-              }`}
-            >
-              <GraduationCap className="h-4 w-4" />
-              <span>Student SSO</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("EXAM_ADMIN");
-                setErrorMsg(null);
-              }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all ${
-                activeTab === "EXAM_ADMIN"
-                  ? "bg-slate-900 text-amber-300 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 bg-white/70"
-              }`}
-            >
-              <Shield className="h-4 w-4 text-amber-400" />
-              <span>Exam Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("UNIVERSITY_STAFF");
-                setErrorMsg(null);
-              }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all ${
-                activeTab === "UNIVERSITY_STAFF"
-                  ? "bg-blue-900 text-white shadow-xs"
-                  : "text-slate-600 hover:text-blue-900 bg-white/70"
-              }`}
-            >
-              <Briefcase className="h-4 w-4" />
-              <span>Univ. Staff</span>
-            </button>
-          </div>
-        </div>
-
-        {/* TAB 1: STUDENT ERP SSO MODAL CONTENT */}
-        {activeTab === "STUDENT" && (
-          <div className="p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Student ERP &bull; Academic SSO Login
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Access personal encrypted degree vault and offline W3C credentials
-                </p>
+        {/* 1. STRICT STUDENT ONLY LOGIN MODAL */}
+        {role === "STUDENT" && (
+          <div>
+            <div className="bg-gradient-to-r from-blue-700 to-blue-900 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white">
+                  <GraduationCap className="h-7 w-7 text-blue-200" />
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-widest bg-white/20 px-2 py-0.5 rounded-full text-blue-100">
+                    Student Login Only
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    Student ERP &bull; Academic SSO
+                  </h3>
+                </div>
               </div>
             </div>
 
-            <form onSubmit={handleStudentSubmit} className="space-y-4">
+            <form onSubmit={handleStudentSubmit} className="p-6 space-y-4">
               <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
@@ -231,9 +178,23 @@ export default function AuthModal() {
                   className="text-blue-700 font-bold hover:underline flex items-center gap-1"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>Auto-Fill Aarav Sharma (PRN20200101)</span>
+                  <span>Auto-Fill Student (Aarav Sharma - PRN20200101)</span>
                 </button>
               </div>
+
+              {errorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -241,35 +202,32 @@ export default function AuthModal() {
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
               >
                 <UserCheck className="h-4 w-4" />
-                <span>{loading ? "Authenticating SSO..." : "Enter Student Vault"}</span>
+                <span>{loading ? "Authenticating SSO..." : "Sign In to Student Vault"}</span>
               </button>
             </form>
           </div>
         )}
 
-        {/* TAB 2: EXAM CELL HIGH-SECURITY ADMIN MODAL CONTENT */}
-        {activeTab === "EXAM_ADMIN" && (
-          <div className="p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-3 bg-slate-900 text-amber-400 rounded-2xl shadow-inner">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-slate-900">
-                    Exam Cell Authority Gate
-                  </h3>
-                  <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
-                    CLEARANCE L4
-                  </span>
+        {/* 2. STRICT EXAM CELL ADMIN ONLY LOGIN MODAL */}
+        {role === "EXAM_ADMIN" && (
+          <div>
+            <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
+                  <Shield className="h-7 w-7" />
                 </div>
-                <p className="text-xs text-slate-500">
-                  Controller of Examinations batch Merkle anchoring console
-                </p>
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-widest bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                    Admin Authority Only &bull; Level 4 Clearance
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    Exam Cell Authority Login
+                  </h3>
+                </div>
               </div>
             </div>
 
-            <form onSubmit={handleAdminSubmit} className="space-y-4">
+            <form onSubmit={handleAdminSubmit} className="p-6 space-y-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
@@ -314,6 +272,20 @@ export default function AuthModal() {
                 </button>
               </div>
 
+              {errorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -326,27 +298,29 @@ export default function AuthModal() {
           </div>
         )}
 
-        {/* TAB 3: UNIVERSITY STAFF MODAL CONTENT */}
-        {activeTab === "UNIVERSITY_STAFF" && (
-          <div className="p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl">
-                <Building2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Institutional Departmental Desk
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Multi-department portal for Admissions, NEP ABC, &amp; Placement audits
-                </p>
+        {/* 3. STRICT UNIVERSITY STAFF ONLY LOGIN MODAL */}
+        {role === "UNIVERSITY_STAFF" && (
+          <div>
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-blue-200">
+                  <Building2 className="h-7 w-7" />
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-widest bg-blue-800/80 border border-blue-700 px-2 py-0.5 rounded-full text-blue-200">
+                    University Staff Only
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    Institutional Departmental Portal
+                  </h3>
+                </div>
               </div>
             </div>
 
-            <form onSubmit={handleStaffSubmit} className="space-y-4">
+            <form onSubmit={handleStaffSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Select Department Authority:
+                  Choose Departmental Authority:
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <div
@@ -354,13 +328,13 @@ export default function AuthModal() {
                       setStaffDept("PG_ADMISSIONS_OFFICER");
                       setStaffId(DEMO_CREDENTIALS.staff.admissions.staffId);
                     }}
-                    className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
+                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
                       staffDept === "PG_ADMISSIONS_OFFICER"
-                        ? "bg-blue-50 border-blue-600 ring-2 ring-blue-500/20"
+                        ? "bg-blue-50 border-blue-600 ring-2 ring-blue-500/20 font-bold"
                         : "bg-slate-50 border-slate-200"
                     }`}
                   >
-                    <div className="text-[11px] font-bold text-slate-900">PG Admissions</div>
+                    <div className="text-[11px] text-slate-900">PG Admissions</div>
                   </div>
 
                   <div
@@ -368,13 +342,13 @@ export default function AuthModal() {
                       setStaffDept("NEP_ABC_COORDINATOR");
                       setStaffId(DEMO_CREDENTIALS.staff.nep.staffId);
                     }}
-                    className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
+                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
                       staffDept === "NEP_ABC_COORDINATOR"
-                        ? "bg-purple-50 border-purple-600 ring-2 ring-purple-500/20"
+                        ? "bg-purple-50 border-purple-600 ring-2 ring-purple-500/20 font-bold"
                         : "bg-slate-50 border-slate-200"
                     }`}
                   >
-                    <div className="text-[11px] font-bold text-slate-900">NEP ABC</div>
+                    <div className="text-[11px] text-slate-900">NEP ABC</div>
                   </div>
 
                   <div
@@ -382,13 +356,13 @@ export default function AuthModal() {
                       setStaffDept("PLACEMENT_OFFICER_TNP");
                       setStaffId(DEMO_CREDENTIALS.staff.placement.staffId);
                     }}
-                    className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
+                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
                       staffDept === "PLACEMENT_OFFICER_TNP"
-                        ? "bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/20"
+                        ? "bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/20 font-bold"
                         : "bg-slate-50 border-slate-200"
                     }`}
                   >
-                    <div className="text-[11px] font-bold text-slate-900">Placement</div>
+                    <div className="text-[11px] text-slate-900">Placement</div>
                   </div>
                 </div>
               </div>
@@ -439,6 +413,20 @@ export default function AuthModal() {
                 </button>
               </div>
 
+              {errorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -448,21 +436,6 @@ export default function AuthModal() {
                 <span>{loading ? "Authenticating..." : "Unlock Institutional Desk"}</span>
               </button>
             </form>
-          </div>
-        )}
-
-        {/* Global Alerts */}
-        {errorMsg && (
-          <div className="mx-6 sm:mx-8 mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold animate-in fade-in">
-            <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="mx-6 sm:mx-8 mb-6 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-bold animate-in fade-in">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>{successMsg}</span>
           </div>
         )}
       </div>

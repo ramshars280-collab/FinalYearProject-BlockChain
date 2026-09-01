@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ethers } from "ethers";
@@ -39,6 +39,8 @@ export default function Navbar() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSimulated, setIsSimulated] = useState(false);
   const [blockHeight, setBlockHeight] = useState<number>(6294830);
+  const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     checkWalletConnection();
@@ -56,7 +58,17 @@ export default function Navbar() {
       });
     }
 
-    return () => clearInterval(interval);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsLoginDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const checkWalletConnection = async () => {
@@ -111,10 +123,7 @@ export default function Navbar() {
   ];
 
   const handleNavClick = (e: React.MouseEvent, item: typeof navLinks[0]) => {
-    if (!item.requiredRole) {
-      // Public Verifier is always open
-      return;
-    }
+    if (!item.requiredRole) return;
 
     if (!isAuthenticated) {
       e.preventDefault();
@@ -123,6 +132,11 @@ export default function Navbar() {
       e.preventDefault();
       openAuthModal(item.requiredRole);
     }
+  };
+
+  const handleRoleLoginClick = (role: UserRole) => {
+    setIsLoginDropdownOpen(false);
+    openAuthModal(role);
   };
 
   return (
@@ -234,13 +248,63 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => openAuthModal("STUDENT")}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-blue-50 text-blue-900 border border-blue-300 rounded-xl text-xs font-bold shadow-2xs transition-all hover:scale-102"
-              >
-                <LogIn className="h-4 w-4 text-blue-600" />
-                <span>Portal Login</span>
-              </button>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsLoginDropdownOpen(!isLoginDropdownOpen)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-blue-50 text-blue-900 border border-blue-300 rounded-xl text-xs font-bold shadow-2xs transition-all hover:scale-102"
+                >
+                  <LogIn className="h-4 w-4 text-blue-600" />
+                  <span>Portal Login</span>
+                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                </button>
+
+                {isLoginDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">
+                      Choose Your Portal
+                    </div>
+
+                    <button
+                      onClick={() => handleRoleLoginClick("STUDENT")}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
+                    >
+                      <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                        <GraduationCap className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div>Student Portal Login</div>
+                        <p className="text-[10px] text-slate-500 font-normal">PRN &bull; Degree Vault &bull; ZK Proofs</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => handleRoleLoginClick("EXAM_ADMIN")}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-amber-50 transition-colors text-xs font-bold text-slate-800 hover:text-amber-900"
+                    >
+                      <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                        <Shield className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div>Exam Cell Admin Login</div>
+                        <p className="text-[10px] text-slate-500 font-normal">Controller of Exams &bull; Merkle Minting</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => handleRoleLoginClick("UNIVERSITY_STAFF")}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left hover:bg-blue-50 transition-colors text-xs font-bold text-slate-800 hover:text-blue-900"
+                    >
+                      <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                        <Briefcase className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div>Institutional Staff Login</div>
+                        <p className="text-[10px] text-slate-500 font-normal">Admissions &bull; NEP ABC &bull; Placement</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Wallet Button */}
