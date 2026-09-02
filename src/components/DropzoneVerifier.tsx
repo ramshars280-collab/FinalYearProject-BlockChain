@@ -21,21 +21,29 @@ import {
   Fingerprint,
   Building2,
   Award,
+  Share2,
+  Link2,
+  Check,
+  ExternalLink,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { W3CCredentialPayload, VerificationResult } from "../types";
 import { hashCredentialSubject } from "../lib/crypto";
 import { verifyCredentialOnChain } from "../lib/contracts";
 import { verifyZkSelectiveProof } from "../lib/zkProof";
+import { getRevocationDetail } from "../lib/storage";
 import DegreeCertificate from "./DegreeCertificate";
 import QrScannerModal from "./QrScannerModal";
 
 export default function DropzoneVerifier() {
+  const searchParams = useSearchParams();
   const [dragActive, setDragActive] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState<number>(0);
   const [credential, setCredential] = useState<W3CCredentialPayload | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerConfetti = () => {
@@ -196,6 +204,39 @@ export default function DropzoneVerifier() {
       handleCredentialVerification(data);
     } catch (e) {
       console.error("Fixture load error:", e);
+    }
+  };
+
+  // Auto-verify credential passed via URL parameter (?cred=... or ?data=...)
+  useEffect(() => {
+    const credParam = searchParams.get("cred") || searchParams.get("data");
+    if (credParam) {
+      try {
+        let jsonStr = "";
+        try {
+          jsonStr = decodeURIComponent(escape(atob(credParam)));
+        } catch {
+          jsonStr = decodeURIComponent(credParam);
+        }
+        const parsed = JSON.parse(jsonStr);
+        handleCredentialVerification(parsed);
+      } catch (err) {
+        console.error("Failed to parse URL credential parameter", err);
+      }
+    }
+  }, [searchParams]);
+
+  const copyVerificationLink = () => {
+    if (!credential) return;
+    try {
+      const jsonStr = JSON.stringify(credential);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      const url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (e) {
+      console.error("Failed to generate share link", e);
     }
   };
 
@@ -367,8 +408,18 @@ export default function DropzoneVerifier() {
                   </div>
                 </div>
 
-                <div className="text-xs text-emerald-900 font-mono bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shrink-0 font-bold">
-                  Leaf Index: #{result.leafIndex ?? 0} &bull; Sepolia
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={copyVerificationLink}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-xs"
+                    title="Copy direct verification link for resumes/LinkedIn"
+                  >
+                    {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Share2 className="h-3.5 w-3.5 text-emerald-700" />}
+                    <span>{copiedLink ? "Link Copied!" : "Share 1-Click Link"}</span>
+                  </button>
+                  <div className="text-xs text-emerald-900 font-mono bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shrink-0 font-bold">
+                    Leaf Index: #{result.leafIndex ?? 0} &bull; Sepolia
+                  </div>
                 </div>
               </div>
 
@@ -399,23 +450,53 @@ export default function DropzoneVerifier() {
 
           {/* REVOKED STATE */}
           {result.isRevoked && (
-            <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-6 shadow-sm flex items-start gap-4">
-              <div className="p-3 bg-amber-600 text-white rounded-2xl shadow-md shrink-0">
-                <ShieldAlert className="h-7 w-7" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-lg font-bold text-amber-950">
-                    Credential Has Been Revoked
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase bg-amber-200 border border-amber-300 text-amber-900 px-2 py-0.5 rounded-full">
-                    Dynamic Bitmap Status
-                  </span>
+            <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-600 text-white rounded-2xl shadow-md shrink-0">
+                  <ShieldAlert className="h-7 w-7" />
                 </div>
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by {typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : "the issuing university"}.
-                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-lg font-bold text-amber-950">
+                      Credential Has Been Revoked
+                    </h4>
+                    <span className="text-[10px] font-bold uppercase bg-amber-200 border border-amber-300 text-amber-900 px-2 py-0.5 rounded-full">
+                      Dynamic Bitmap Status
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by {typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : "the issuing university"}.
+                  </p>
+                </div>
               </div>
+
+              {/* Enhanced Revocation Taxonomy & Replacement Detail */}
+              {(() => {
+                const rev = getRevocationDetail(result.batchId, result.leafIndex);
+                if (!rev) return null;
+                return (
+                  <div className="bg-white/90 p-4 rounded-xl border border-amber-300 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                        <AlertCircle className="h-4 w-4 text-amber-700" />
+                        <span>Official Reason: {rev.reasonTitle || rev.reasonCode}</span>
+                      </span>
+                      <span className="font-mono text-[10px] text-slate-500">
+                        Revoked: {rev.revokedAt}
+                      </span>
+                    </div>
+                    <p className="text-slate-700 leading-relaxed">
+                      {rev.reasonDescription}
+                    </p>
+                    {rev.supersededByHash && (
+                      <div className="pt-2 border-t border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
+                        <span className="text-amber-900 font-bold">Superseded by Replacement Credential:</span>
+                        <span className="font-mono font-bold text-blue-800 break-all">{rev.supersededByHash}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

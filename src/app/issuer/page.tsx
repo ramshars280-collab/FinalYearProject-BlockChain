@@ -707,6 +707,45 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 </div>
               )}
 
+              {/* Academic Governance Quorum Checkpoint */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-blue-600" />
+                    <span>Examination Board Multi-Signature Quorum</span>
+                  </span>
+                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                    3 of 3 Verified
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-slate-800 block">Exam Cell Desk</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Gazette Reconciled</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-slate-800 block">Academic Dean</span>
+                      <span className="text-[10px] text-slate-500 font-mono">NEP Credits Audited</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-slate-800 block">Controller of Exams</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Sepolia Root Co-Signed</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button

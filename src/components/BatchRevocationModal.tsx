@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { BatchRecord } from "../types";
 import { revokeCredentialOnChain } from "../lib/contracts";
+import { saveRevocationRecord, RevocationReasonCode } from "../lib/storage";
 
 interface BatchRevocationModalProps {
   isOpen: boolean;
@@ -19,6 +20,11 @@ export default function BatchRevocationModal({
   onRevokedSuccess,
 }: BatchRevocationModalProps) {
   const [selectedLeafIndex, setSelectedLeafIndex] = useState<number>(0);
+  const [reasonCode, setReasonCode] = useState<RevocationReasonCode>("CLERICAL_CORRECTION");
+  const [reasonDescription, setReasonDescription] = useState<string>(
+    "Clerical recalculation of academic credits/CGPA following re-evaluation."
+  );
+  const [supersededByHash, setSupersededByHash] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTx, setSuccessTx] = useState<string | null>(null);
 
@@ -35,6 +41,25 @@ export default function BatchRevocationModal({
       }
 
       const res = await revokeCredentialOnChain(batch.batchId, selectedLeafIndex, signer);
+
+      const reasonTitleMap: Record<RevocationReasonCode, string> = {
+        CLERICAL_CORRECTION: "Clerical Correction / CGPA Recalculation",
+        NAME_REVISION: "Surname or Candidate Name Spelling Revision",
+        ADMIN_REISSUE: "Administrative Re-issue / Specialization Change",
+        MALPRACTICE_DISCIPLINARY: "Disciplinary Malpractice / Official Cancellation",
+      };
+
+      saveRevocationRecord({
+        batchId: batch.batchId,
+        leafIndex: selectedLeafIndex,
+        reasonCode,
+        reasonTitle: reasonTitleMap[reasonCode],
+        reasonDescription: reasonDescription || "Official administrative revocation recorded on Sepolia registry.",
+        supersededByHash: supersededByHash.trim() || undefined,
+        revokedAt: new Date().toISOString().slice(0, 10),
+        officerStaffId: "COE-EXAM-DESK",
+      });
+
       setSuccessTx(res.txHash);
       onRevokedSuccess();
     } catch (e) {
@@ -95,6 +120,48 @@ export default function BatchRevocationModal({
                   );
                 })}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Official Revocation Reason:
+              </label>
+              <select
+                value={reasonCode}
+                onChange={(e) => setReasonCode(e.target.value as RevocationReasonCode)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="CLERICAL_CORRECTION">Clerical Error / CGPA Recalculation</option>
+                <option value="NAME_REVISION">Candidate Name / Surname Spelling Revision</option>
+                <option value="ADMIN_REISSUE">Administrative Re-issue / Specialization Change</option>
+                <option value="MALPRACTICE_DISCIPLINARY">Disciplinary Action / Malpractice Cancellation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Audit Notes / Justification:
+              </label>
+              <input
+                type="text"
+                value={reasonDescription}
+                onChange={(e) => setReasonDescription(e.target.value)}
+                placeholder="e.g. CGPA re-evaluated following semester audit"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-900 focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Superseded By Replacement Hash (Optional):
+              </label>
+              <input
+                type="text"
+                value={supersededByHash}
+                onChange={(e) => setSupersededByHash(e.target.value)}
+                placeholder="0x... (Leave empty if permanently cancelled)"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-mono text-slate-900 focus:outline-hidden"
+              />
             </div>
 
             <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">

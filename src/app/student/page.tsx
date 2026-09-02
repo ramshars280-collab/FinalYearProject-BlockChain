@@ -28,6 +28,8 @@ import {
   LogOut,
   User,
   ShieldAlert,
+  Share2,
+  Check,
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
@@ -286,6 +288,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
     qrDataUrl: "",
     prn: "",
   });
+  const [copiedCredId, setCopiedCredId] = useState<string | null>(null);
 
   useEffect(() => {
     checkWalletAndIdentities();
@@ -404,6 +407,19 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
   const handleDownloadCredential = (cred: W3CCredentialPayload) => {
     const filename = `${cred.credentialSubject.prn}_degree_verifiable_credential.json`;
     downloadFile(JSON.stringify(cred, null, 2), filename, "application/json");
+  };
+
+  const handleCopyShareLink = (cred: W3CCredentialPayload) => {
+    try {
+      const jsonStr = JSON.stringify(cred);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      const url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      navigator.clipboard.writeText(url);
+      setCopiedCredId(cred.id);
+      setTimeout(() => setCopiedCredId(null), 2500);
+    } catch (e) {
+      console.error("Failed to copy share link:", e);
+    }
   };
 
   const handleShowQr = async (cred: W3CCredentialPayload) => {
@@ -636,6 +652,19 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleCopyShareLink(cred)}
+                      className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                      title="Copy 1-click verification link for job applications and LinkedIn"
+                    >
+                      {copiedCredId === cred.id ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Share2 className="h-3.5 w-3.5 text-emerald-600" />
+                      )}
+                      <span>{copiedCredId === cred.id ? "Link Copied!" : "Share 1-Click Link"}</span>
+                    </button>
+
                     <button
                       onClick={() => handleDownloadCredential(cred)}
                       className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"

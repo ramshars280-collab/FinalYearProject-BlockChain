@@ -169,6 +169,7 @@ const STORAGE_KEYS = {
   STUDENT_VAULT: "mgm_blockchain_student_vault_v2",
   SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v2",
   CUSTOM_UNIVERSITIES: "mgm_blockchain_custom_universities_v2",
+  REVOCATIONS: "mgm_blockchain_revocations_v2",
 };
 
 export function getConsortiumInstitutions(): ConsortiumInstitution[] {
@@ -309,4 +310,45 @@ export function saveSepoliaConfig(config: Partial<SepoliaConfig>) {
   const current = getSepoliaConfig();
   const updated = { ...current, ...config };
   localStorage.setItem(STORAGE_KEYS.SEPOLIA_CONFIG, JSON.stringify(updated));
+}
+
+export type RevocationReasonCode =
+  | "CLERICAL_CORRECTION"
+  | "NAME_REVISION"
+  | "ADMIN_REISSUE"
+  | "MALPRACTICE_DISCIPLINARY";
+
+export interface RevocationRecord {
+  batchId: string;
+  leafIndex: number;
+  reasonCode: RevocationReasonCode;
+  reasonTitle: string;
+  reasonDescription: string;
+  supersededByHash?: string;
+  revokedAt: string;
+  officerStaffId?: string;
+}
+
+export function getStoredRevocations(): Record<string, RevocationRecord> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.REVOCATIONS);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+export function saveRevocationRecord(record: RevocationRecord) {
+  if (typeof window === "undefined") return;
+  const current = getStoredRevocations();
+  const key = `${record.batchId}_${record.leafIndex}`;
+  current[key] = record;
+  localStorage.setItem(STORAGE_KEYS.REVOCATIONS, JSON.stringify(current));
+}
+
+export function getRevocationDetail(batchId?: string, leafIndex?: number): RevocationRecord | null {
+  if (!batchId || leafIndex === undefined || leafIndex === null) return null;
+  const current = getStoredRevocations();
+  return current[`${batchId}_${leafIndex}`] || null;
 }

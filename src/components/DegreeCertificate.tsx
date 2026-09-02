@@ -20,6 +20,7 @@ import {
   Copy,
   Check,
   Lock,
+  Globe,
 } from "lucide-react";
 import { W3CCredentialPayload, VerificationResult } from "../types";
 import InteractiveHologramCard from "./InteractiveHologramCard";
@@ -51,6 +52,7 @@ export default function DegreeCertificate({
   onShowQr,
 }: DegreeCertificateProps) {
   const [activeViewTab, setActiveViewTab] = useState<"certificate" | "transcript" | "crypto" | "raw">("certificate");
+  const [language, setLanguage] = useState<"en" | "bilingual">("en");
   const [copiedJson, setCopiedJson] = useState(false);
 
   const subject = credential?.credentialSubject || (credential as any)?.recipient || (credential as any)?.data || {};
@@ -126,8 +128,30 @@ export default function DegreeCertificate({
           </button>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        {/* Action Controls & NEP 2020 Bilingual Toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* NEP 2020 Bilingual Toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              onClick={() => setLanguage("en")}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                language === "en" ? "bg-white text-blue-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLanguage("bilingual")}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 ${
+                language === "bilingual" ? "bg-white text-blue-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+              }`}
+              title="NEP 2020 Mandate: Bilingual Maharashtra Degree Format (मराठी / English)"
+            >
+              <Globe className="h-3 w-3 text-blue-600" />
+              <span>द्विभाषिक (मराठी)</span>
+            </button>
+          </div>
+
           {onShowQr && (
             <button
               onClick={onShowQr}
@@ -172,11 +196,24 @@ export default function DegreeCertificate({
               </div>
 
               <div>
-                <h1 className="text-2xl sm:text-4xl font-serif font-black text-blue-950 uppercase tracking-widest pt-2">
-                  {toSafeString(subject?.university, toSafeString(credential?.issuer?.name, "MGM University"))}
-                </h1>
+                {language === "bilingual" ? (
+                  <div className="space-y-1">
+                    <h1 className="text-2xl sm:text-3xl font-serif font-black text-blue-950 uppercase tracking-wide">
+                      महात्मा गांधी मिशन विद्यापीठ, छत्रपती संभाजीनगर
+                    </h1>
+                    <p className="text-sm sm:text-base font-serif font-bold text-slate-800 tracking-wider">
+                      MGM UNIVERSITY, CHHATRAPATI SAMBHAJINAGAR
+                    </p>
+                  </div>
+                ) : (
+                  <h1 className="text-2xl sm:text-4xl font-serif font-black text-blue-950 uppercase tracking-widest pt-2">
+                    {toSafeString(subject?.university, toSafeString(credential?.issuer?.name, "MGM University"))}
+                  </h1>
+                )}
                 <p className="text-xs sm:text-sm font-serif italic text-slate-600 tracking-wide mt-1">
-                  Maharashtra, India &bull; Established under Maharashtra Universities Act &bull; Consortium Node
+                  {language === "bilingual"
+                    ? "महाराष्ट्र अधिनियम क्र. २६/२०१९ अन्वये स्थापित • Established under Maharashtra Act No. XXVI of 2019"
+                    : "Maharashtra, India • Established under Maharashtra Universities Act • Consortium Node"}
                 </p>
               </div>
 
@@ -189,11 +226,18 @@ export default function DegreeCertificate({
             {/* Body Text */}
             <div className="text-center my-10 space-y-6 relative z-10">
               <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">
-                The Board of Management and the Academic Council hereby confer the degree of
+                {language === "bilingual"
+                  ? "व्यवस्थापन मंडळ व विद्या परिषदेच्या अनुमतीने प्रदान करण्यात येणारी पदवी / The Board of Management and the Academic Council hereby confer the degree of"
+                  : "The Board of Management and the Academic Council hereby confer the degree of"}
               </p>
 
               <div className="space-y-1">
                 <h2 className="text-3xl sm:text-4xl font-serif font-black text-blue-950 tracking-tight">
+                  {language === "bilingual" && (
+                    <span className="block text-xl sm:text-2xl text-blue-900 font-bold mb-1">
+                      अभियांत्रिकी व तंत्रज्ञान पदवी
+                    </span>
+                  )}
                   {toSafeString(subject?.degree, toSafeString((credential as any)?.title, toSafeString((credential as any)?.name, toSafeString((credential as any)?.course, "Certificate of Completion"))))}
                 </h2>
                 <p className="text-lg sm:text-xl font-serif italic font-bold text-blue-800">
@@ -202,7 +246,7 @@ export default function DegreeCertificate({
               </div>
 
               <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">
-                upon
+                {language === "bilingual" ? "यांना / upon" : "upon"}
               </p>
 
               <div className="text-3xl sm:text-5xl font-serif font-black text-slate-950 underline decoration-blue-600 decoration-3 underline-offset-8 py-1">
@@ -210,7 +254,9 @@ export default function DegreeCertificate({
               </div>
 
               <p className="text-xs text-slate-600 max-w-2xl mx-auto leading-relaxed pt-2">
-                who has successfully fulfilled all academic requirements, practical dissertations, and examinations prescribed by the university under the National Higher Education Qualifications Framework (NHEQF).
+                {language === "bilingual"
+                  ? "ज्यांनी राष्ट्रीय उच्च शिक्षण पात्रता आराखडा (NHEQF) अंतर्गत विहित केलेल्या सर्व शैक्षणिक अटी व परीक्षा यशस्वीरीत्या पूर्ण केल्या आहेत. • who has successfully fulfilled all academic requirements, practical dissertations, and examinations prescribed by the university under NHEQF."
+                  : "who has successfully fulfilled all academic requirements, practical dissertations, and examinations prescribed by the university under the National Higher Education Qualifications Framework (NHEQF)."}
               </p>
 
               {/* Badges Grid */}
@@ -261,7 +307,7 @@ export default function DegreeCertificate({
                 </div>
                 <div className="h-0.5 w-28 bg-slate-400 mx-auto" />
                 <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  Dean, Faculty of Engineering
+                  {language === "bilingual" ? "डीन, अभियांत्रिकी संकाय / Dean" : "Dean, Faculty of Engineering"}
                 </div>
               </div>
 
@@ -282,7 +328,7 @@ export default function DegreeCertificate({
                 </div>
                 <div className="h-0.5 w-28 bg-slate-400 mx-auto" />
                 <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  Controller of Examinations
+                  {language === "bilingual" ? "परीक्षा नियंत्रक / Controller of Exams" : "Controller of Examinations"}
                 </div>
               </div>
             </div>
