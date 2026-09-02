@@ -49,7 +49,6 @@ import {
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
-import RegisterUniversityModal from "../../components/RegisterUniversityModal";
 import { useAuth, DEMO_CREDENTIALS } from "../../context/AuthContext";
 
 export default function IssuerPage() {
@@ -286,7 +285,6 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   // Tab 1: Minting state
   const [institutions, setInstitutions] = useState<ConsortiumInstitution[]>([]);
   const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution | null>(null);
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   const [batches, setBatches] = useState<BatchRecord[]>([]);
   const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS_MGM);
@@ -825,53 +823,6 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </table>
             </div>
           </div>
-
-          {/* Consortium Registered Universities Overview (Read-Only) */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  <span>Consortium Member Universities &amp; Trust Nodes ({institutions.length})</span>
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Accredited participating universities with authorized smart contracts in the inter-university consortium network.
-                </p>
-              </div>
-
-              <div className="text-xs text-slate-500 font-medium">
-                Current Authority: <span className="font-bold text-blue-700 font-mono">{selectedInstitution?.name || "MGM University"}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {institutions.map((uni) => (
-                <div
-                  key={uni.id}
-                  className={`p-4 rounded-2xl border text-xs space-y-2 transition-all ${
-                    uni.id === (selectedInstitution?.id || "mgmu")
-                      ? "bg-blue-50/70 border-blue-300 ring-2 ring-blue-400/20"
-                      : "bg-slate-50 border-slate-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                      {uni.code}
-                    </span>
-                    {uni.id === (selectedInstitution?.id || "mgmu") && (
-                      <span className="text-[10px] bg-blue-600 text-white font-bold px-2 py-0.5 rounded-full">
-                        Your Node
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block">{uni.name}</span>
-                    <span className="text-slate-500 text-[11px]">{uni.city}, {uni.state}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
@@ -1026,16 +977,6 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
           batch={revocationModalBatch}
         />
       )}
-
-      {/* Register University Modal */}
-      <RegisterUniversityModal
-        isOpen={isRegisterModalOpen}
-        onClose={() => setIsRegisterModalOpen(false)}
-        onRegistered={() => {
-          setIsRegisterModalOpen(false);
-          loadInstitutions();
-        }}
-      />
     </div>
   );
 }
