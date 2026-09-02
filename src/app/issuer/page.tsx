@@ -32,6 +32,8 @@ import {
   AlertTriangle,
   XCircle,
   KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
@@ -57,6 +59,7 @@ export default function IssuerPage() {
   // Admin Login State
   const [adminId, setAdminId] = useState(DEMO_CREDENTIALS.admin.staffId);
   const [adminPass, setAdminPass] = useState(DEMO_CREDENTIALS.admin.password);
+  const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -206,13 +209,25 @@ export default function IssuerPage() {
                     <KeyRound className="h-4 w-4" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={adminPass}
                     onChange={(e) => setAdminPass(e.target.value)}
                     required
                     placeholder="••••••••"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-3 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-hidden transition-all"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-10 py-3 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
