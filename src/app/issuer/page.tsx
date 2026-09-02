@@ -107,11 +107,11 @@ export default function IssuerPage() {
     );
   }
 
-  // 2. UNAUTHENTICATED: Full-Page Split Screen View (like JUNO Campus ERP)
+  // 2. UNAUTHENTICATED: Full-Page Split Screen View
   if (!isAuthenticated || !user || user.role !== "EXAM_ADMIN") {
     return (
       <div className="w-full max-w-5xl mx-auto my-4 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 grid grid-cols-1 lg:grid-cols-12 min-h-[580px] bg-white">
-        {/* LEFT SIDE: JUNO Campus University Admin Branding */}
+        {/* LEFT SIDE: University Admin Branding */}
         <div className="lg:col-span-5 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
           {/* Subtle decorative glow */}
           <div className="absolute -right-16 -top-16 w-56 h-56 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />

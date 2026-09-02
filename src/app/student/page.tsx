@@ -100,11 +100,11 @@ export default function StudentPortalPage() {
     );
   }
 
-  // 2. UNAUTHENTICATED: Full-Page Split Screen View (like JUNO Campus ERP)
+  // 2. UNAUTHENTICATED: Full-Page Split Screen View
   if (!isAuthenticated || !user || user.role !== "STUDENT") {
     return (
       <div className="w-full max-w-5xl mx-auto my-4 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 grid grid-cols-1 lg:grid-cols-12 min-h-[580px] bg-white">
-        {/* LEFT SIDE: JUNO Campus University Branding */}
+        {/* LEFT SIDE: University Branding */}
         <div className="lg:col-span-5 bg-gradient-to-br from-slate-950 via-blue-950 to-blue-900 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
           {/* Subtle decorative glow */}
           <div className="absolute -right-16 -top-16 w-56 h-56 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -128,7 +128,7 @@ export default function StudentPortalPage() {
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-xs rounded-full text-[11px] font-bold text-blue-200 border border-white/15">
               <Sparkles className="h-3 w-3 text-blue-300" />
-              <span>JUNO Campus ERP &bull; Student SSO</span>
+              <span>Academic Portal &bull; Student SSO</span>
             </div>
           </div>
 
@@ -251,7 +251,7 @@ export default function StudentPortalPage() {
             </form>
 
             <div className="pt-2 text-center text-[11px] text-slate-400">
-              MGM University JUNO Campus SSO &bull; Strict DPDP Cryptographic Privacy
+              MGM University Official SSO &bull; Strict DPDP Cryptographic Privacy
             </div>
           </div>
         </div>
