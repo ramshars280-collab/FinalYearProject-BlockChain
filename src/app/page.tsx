@@ -83,11 +83,6 @@ function PublicVerifierContent() {
     <div className="space-y-12 py-4">
       {/* Hero Section */}
       <div className="text-center max-w-4xl mx-auto space-y-4">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold shadow-2xs">
-          <Sparkles className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
-          <span>OpenCerts 2.0 &bull; Blockcerts Standard &bull; MGM University Registry</span>
-        </div>
-
         <h1 className="text-4xl sm:text-6xl font-black text-slate-950 tracking-tight leading-tight">
           Trustless Academic Degree Verification on{" "}
           <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 bg-clip-text text-transparent">
