@@ -564,7 +564,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       {/* ========================================================= */}
       {activeTab === "minting" && (
         <div className="space-y-8">
-          {/* Consortium University Selector */}
+          {/* Institutional Issuing Authority Node (Fixed to Authenticated University) */}
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -572,37 +572,26 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Issuing Authority Node
+                  Logged-in Issuing Authority
                 </span>
                 <span className="text-sm font-bold text-slate-900">
                   {selectedInstitution ? selectedInstitution.name : "MGM University"}
                 </span>
+                <span className="text-xs text-slate-500 block">
+                  {selectedInstitution ? `${selectedInstitution.city}, ${selectedInstitution.state}` : "Chhatrapati Sambhajinagar, Maharashtra"}
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedInstitution?.id || ""}
-                onChange={(e) => {
-                  const inst = institutions.find((i) => i.id === e.target.value);
-                  if (inst) setSelectedInstitution(inst);
-                }}
-                className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-hidden"
-              >
-                {institutions.map((inst) => (
-                  <option key={inst.id} value={inst.id}>
-                    {inst.shortName} ({inst.city})
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => setIsRegisterModalOpen(true)}
-                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
-              >
-                <PlusCircle className="h-3.5 w-3.5 text-blue-600" />
-                <span>+ Register University</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-mono text-slate-700 font-bold flex items-center gap-1.5">
+                <span className="text-slate-400 font-normal">Node Code:</span>
+                <span>{selectedInstitution?.code || "MGMU-ENG-01"}</span>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-3 py-1.5 font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Authenticated Institution</span>
+              </div>
             </div>
           </div>
 
@@ -656,22 +645,22 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <button
                     onClick={() => {
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
-                      setBatchId("MGM-2024-BTECH-BATCH02");
+                      setBatchId("MGM-2024-BTECH-BATCH01");
                       recalculateTree(INITIAL_STUDENTS_MGM);
                     }}
                     className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-[11px] font-bold"
                   >
-                    MGM CSE (1,000+)
+                    MGM CSE (Batch 01)
                   </button>
                   <button
                     onClick={() => {
-                      setCurrentStudents(INITIAL_STUDENTS_SPPU);
-                      setBatchId("SPPU-2024-BE-COMP");
-                      recalculateTree(INITIAL_STUDENTS_SPPU);
+                      setCurrentStudents(INITIAL_STUDENTS_MGM);
+                      setBatchId("MGM-2024-BTECH-BATCH02");
+                      recalculateTree(INITIAL_STUDENTS_MGM);
                     }}
-                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-[11px] font-bold"
+                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[11px] font-bold"
                   >
-                    SPPU Pune Batch
+                    MGM IT &amp; ECE (Batch 02)
                   </button>
                 </div>
               </div>
@@ -834,6 +823,53 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Consortium Registered Universities Overview (Read-Only) */}
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  <span>Consortium Member Universities &amp; Trust Nodes ({institutions.length})</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Accredited participating universities with authorized smart contracts in the inter-university consortium network.
+                </p>
+              </div>
+
+              <div className="text-xs text-slate-500 font-medium">
+                Current Authority: <span className="font-bold text-blue-700 font-mono">{selectedInstitution?.name || "MGM University"}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {institutions.map((uni) => (
+                <div
+                  key={uni.id}
+                  className={`p-4 rounded-2xl border text-xs space-y-2 transition-all ${
+                    uni.id === (selectedInstitution?.id || "mgmu")
+                      ? "bg-blue-50/70 border-blue-300 ring-2 ring-blue-400/20"
+                      : "bg-slate-50 border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                      {uni.code}
+                    </span>
+                    {uni.id === (selectedInstitution?.id || "mgmu") && (
+                      <span className="text-[10px] bg-blue-600 text-white font-bold px-2 py-0.5 rounded-full">
+                        Your Node
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 block">{uni.name}</span>
+                    <span className="text-slate-500 text-[11px]">{uni.city}, {uni.state}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
