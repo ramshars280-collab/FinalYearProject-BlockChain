@@ -169,14 +169,14 @@ export default function Navbar() {
           {/* RIGHT: User Session Badge (if logged in) + Connect MetaMask Button */}
           <div className="flex items-center gap-3 shrink-0">
             {isAuthenticated && user && (
-              <div className="hidden sm:flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1.5 pl-3 text-xs shadow-2xs">
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs">
                 <div className="flex items-center gap-1.5 font-bold text-blue-950">
                   {user.role === "STUDENT" ? (
                     <User className="h-3.5 w-3.5 text-blue-600" />
                   ) : (
                     <Shield className="h-3.5 w-3.5 text-blue-600" />
                   )}
-                  <span className="truncate max-w-[140px]">
+                  <span className="hidden sm:inline truncate max-w-[140px]">
                     {user.role === "STUDENT"
                       ? `${(user as any).prn}`
                       : "University Admin"}
