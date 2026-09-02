@@ -136,31 +136,19 @@ export default function StudentPortalPage() {
             </div>
           </div>
 
-          {/* Center: Value Proposition & Trust Badges */}
-          <div className="space-y-5 my-8 relative z-10">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
-                Student Degree &amp; Credential Vault
+          {/* Center: Student Academic Portal */}
+          <div className="space-y-4 my-8 relative z-10">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-blue-300 uppercase tracking-widest block">
+                Office of Academic Records
+              </span>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                Student Credential &amp; Degree Vault
               </h2>
-              <p className="text-xs text-blue-100/85 mt-2 leading-relaxed">
-                Access self-sovereign verifiable credentials, bind your MetaMask wallet, and generate privacy-preserving zero-knowledge proofs.
-              </p>
             </div>
-
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center gap-2.5 text-xs text-blue-100">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>India DPDP Act 2023 Compliant (Zero-PII On-Chain)</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs text-blue-100">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>EIP-712 Typed Identity Cryptographic Binding</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs text-blue-100">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>NEP 2020 Academic Bank of Credits (ABC)</span>
-              </div>
-            </div>
+            <p className="text-xs text-blue-100/85 leading-relaxed">
+              Official student self-sovereign portal. Sign in with your permanent registration credentials to access your verified degrees, cryptographic proofs, and digital credentials.
+            </p>
           </div>
 
           {/* Bottom Footer Note */}

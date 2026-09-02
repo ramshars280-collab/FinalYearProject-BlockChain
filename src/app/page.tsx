@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import DropzoneVerifier from "../components/DropzoneVerifier";
 import RegisterUniversityModal from "../components/RegisterUniversityModal";
 import {
@@ -20,19 +20,59 @@ import {
   Building2,
   PlusCircle,
   Globe,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getConsortiumInstitutions } from "../lib/storage";
+import { useAuth } from "../context/AuthContext";
 
 export default function PublicVerifierPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-xs text-slate-500 font-semibold">Loading Verifier...</div>}>
+      <PublicVerifierContent />
+    </Suspense>
+  );
+}
+
+function PublicVerifierContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, isAuthenticated } = useAuth();
   const [isRegisterUniModalOpen, setIsRegisterUniModalOpen] = useState(false);
   const [institutionsCount, setInstitutionsCount] = useState(4);
+  const [mounted, setMounted] = useState(false);
 
-  React.useEffect(() => {
+  const isExplicitVerifier = searchParams.get("verifier") === "true";
+
+  useEffect(() => {
+    setMounted(true);
     setInstitutionsCount(getConsortiumInstitutions().length);
   }, [isRegisterUniModalOpen]);
+
+  // A logged-in user must NEVER see the public landing page or hero section.
+  // If they navigate to root without explicitly requesting the verifier tool, redirect immediately:
+  useEffect(() => {
+    if (mounted && isAuthenticated && user && !isExplicitVerifier) {
+      if (user.role === "STUDENT") {
+        router.replace("/student");
+      } else if (user.role === "EXAM_ADMIN") {
+        router.replace("/issuer");
+      }
+    }
+  }, [mounted, isAuthenticated, user, isExplicitVerifier, router]);
+
+  // If redirecting logged-in user to their dashboard, show a brief loading state
+  if (mounted && isAuthenticated && user && !isExplicitVerifier) {
+    return (
+      <div className="py-20 text-center space-y-3">
+        <div className="w-10 h-10 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto" />
+        <p className="text-xs text-slate-500 font-bold">
+          Redirecting to {user.role === "STUDENT" ? "Student Vault" : "Admin Console"}...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 py-4">

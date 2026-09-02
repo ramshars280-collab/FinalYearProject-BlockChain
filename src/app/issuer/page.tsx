@@ -143,31 +143,19 @@ export default function IssuerPage() {
             </div>
           </div>
 
-          {/* Center: Authority Capabilities */}
-          <div className="space-y-5 my-8 relative z-10">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
-                University Authority &amp; Minting Console
+          {/* Center: Official Institutional Office */}
+          <div className="space-y-4 my-8 relative z-10">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-amber-400/90 uppercase tracking-widest block">
+                Office of the Controller of Examinations
+              </span>
+              <h2 className="text-2xl font-black text-white tracking-tight">
+                Academic Credential Registry Console
               </h2>
-              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                Authorized administrative terminal for anchoring graduation Merkle roots, dynamically managing 256-bit revocation bitmaps, and auditing candidate batches.
-              </p>
             </div>
-
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center gap-2.5 text-xs text-slate-300">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>O(1) Merkle Tree Batch Commitments on Sepolia</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs text-slate-300">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>Dynamic 256-Bit Bitmap Word Instant Revocations</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs text-slate-300">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>High-Throughput Candidate CGPA Discrepancy Audits</span>
-              </div>
-            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Official institutional portal for accredited university officers. Authorized personnel only. All access is cryptographically audited and recorded.
+            </p>
           </div>
 
           {/* Bottom Footer Note */}
