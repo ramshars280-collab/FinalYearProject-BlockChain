@@ -380,7 +380,7 @@ export default function DropzoneVerifier() {
                   </span>
                   <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                     <Building2 className="h-4 w-4 text-blue-700" />
-                    <span>{result.issuingInstitutionName || credential?.credentialSubject.university || "MGM University"}</span>
+                    <span>{typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : typeof credential?.credentialSubject?.university === "string" ? credential.credentialSubject.university : "MGM University"}</span>
                   </div>
                 </div>
 
@@ -413,7 +413,7 @@ export default function DropzoneVerifier() {
                   </span>
                 </div>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by {result.issuingInstitutionName || "the issuing university"}.
+                  This academic credential was explicitly invalidated in the dynamic revocation registry on Ethereum Sepolia by {typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : "the issuing university"}.
                 </p>
               </div>
             </div>
@@ -431,7 +431,7 @@ export default function DropzoneVerifier() {
                     Cryptographic Hash Mismatch / Data Tampered
                   </h4>
                   <p className="text-xs text-red-800 mt-1">
-                    {result.tamperReason || "The certificate content has been modified or does not match the anchored Sepolia Merkle tree."}
+                    {typeof result.tamperReason === "string" ? result.tamperReason : "The certificate content has been modified or does not match the anchored Sepolia Merkle tree."}
                   </p>
                 </div>
               </div>

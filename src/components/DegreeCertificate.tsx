@@ -30,6 +30,21 @@ interface DegreeCertificateProps {
   onShowQr?: () => void;
 }
 
+function toSafeString(val: any, fallback: string = ""): string {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "string") return val.trim() || fallback;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") {
+    if (val.title && (typeof val.title === "string" || typeof val.title === "number")) return String(val.title);
+    if (val.name && (typeof val.name === "string" || typeof val.name === "number")) return String(val.name);
+    if (val.label && (typeof val.label === "string" || typeof val.label === "number")) return String(val.label);
+    if (val.value && (typeof val.value === "string" || typeof val.value === "number")) return String(val.value);
+    if (val.description && typeof val.description === "string") return val.description;
+    return fallback;
+  }
+  return fallback;
+}
+
 export default function DegreeCertificate({
   credential,
   verification,
@@ -158,7 +173,7 @@ export default function DegreeCertificate({
 
               <div>
                 <h1 className="text-2xl sm:text-4xl font-serif font-black text-blue-950 uppercase tracking-widest pt-2">
-                  {subject.university || credential.issuer?.name || "MGM University"}
+                  {toSafeString(subject?.university, toSafeString(credential?.issuer?.name, "MGM University"))}
                 </h1>
                 <p className="text-xs sm:text-sm font-serif italic text-slate-600 tracking-wide mt-1">
                   Maharashtra, India &bull; Established under Maharashtra Universities Act &bull; Consortium Node
@@ -179,10 +194,10 @@ export default function DegreeCertificate({
 
               <div className="space-y-1">
                 <h2 className="text-3xl sm:text-4xl font-serif font-black text-blue-950 tracking-tight">
-                  {subject?.degree || (credential as any)?.name || (credential as any)?.title || "Certificate of Completion"}
+                  {toSafeString(subject?.degree, toSafeString((credential as any)?.title, toSafeString((credential as any)?.name, toSafeString((credential as any)?.course, "Certificate of Completion"))))}
                 </h2>
                 <p className="text-lg sm:text-xl font-serif italic font-bold text-blue-800">
-                  in {subject?.branch || (credential as any)?.course || (credential as any)?.specialization || "Academic Coursework"}
+                  in {toSafeString(subject?.branch, toSafeString((credential as any)?.course, toSafeString((credential as any)?.specialization, toSafeString((credential as any)?.description, "Academic Coursework"))))}
                 </p>
               </div>
 
@@ -191,7 +206,7 @@ export default function DegreeCertificate({
               </p>
 
               <div className="text-3xl sm:text-5xl font-serif font-black text-slate-950 underline decoration-blue-600 decoration-3 underline-offset-8 py-1">
-                {subject?.fullName || (credential as any)?.recipient?.name || (credential as any)?.studentName || "Candidate"}
+                {toSafeString(subject?.fullName, toSafeString((credential as any)?.recipient?.name, toSafeString((credential as any)?.studentName, toSafeString((credential as any)?.recipient, "Candidate"))))}
               </div>
 
               <p className="text-xs text-slate-600 max-w-2xl mx-auto leading-relaxed pt-2">
@@ -205,7 +220,7 @@ export default function DegreeCertificate({
                     Permanent Reg. No.
                   </span>
                   <span className="font-mono text-xs font-black text-blue-900">
-                    {subject?.prn || (credential as any)?.recipient?.id || (credential as any)?.id || "N/A"}
+                    {toSafeString(subject?.prn, toSafeString((credential as any)?.recipient?.id, toSafeString((credential as any)?.id, "N/A")))}
                   </span>
                 </div>
 
@@ -214,7 +229,7 @@ export default function DegreeCertificate({
                     Cumulative CGPA
                   </span>
                   <span className="font-serif text-sm font-black text-blue-900">
-                    {isZk ? `≥ ${proof?.zkProof?.thresholdValue}` : subject?.cgpa ? `${Number(subject.cgpa).toFixed(2)} / 10.0` : "COMPLETED"}
+                    {isZk ? `≥ ${toSafeString(proof?.zkProof?.thresholdValue, "8.0")}` : subject?.cgpa ? `${toSafeString(subject.cgpa)} / 10.0` : "COMPLETED"}
                   </span>
                 </div>
 
@@ -223,7 +238,7 @@ export default function DegreeCertificate({
                     Year of Graduation
                   </span>
                   <span className="font-mono text-xs font-black text-slate-900">
-                    {subject?.graduationYear || (credential as any)?.issuanceDate?.slice(0, 4) || (credential as any)?.year || new Date().getFullYear()}
+                    {toSafeString(subject?.graduationYear, toSafeString((credential as any)?.completion_date, toSafeString((credential as any)?.course?.completion_date, toSafeString((credential as any)?.issuanceDate?.slice(0, 4), String(new Date().getFullYear())))))}
                   </span>
                 </div>
 
@@ -232,7 +247,7 @@ export default function DegreeCertificate({
                     NHEQF Level
                   </span>
                   <span className="font-sans text-xs font-black text-emerald-800">
-                    Level {subject?.nheqfLevel || 6.0}
+                    Level {toSafeString(subject?.nheqfLevel, "6.0")}
                   </span>
                 </div>
               </div>
@@ -319,7 +334,7 @@ export default function DegreeCertificate({
 
             <div className="text-right">
               <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg">
-                PRN: {subject?.prn || (credential as any)?.recipient?.id || (credential as any)?.id || "N/A"}
+                PRN: {toSafeString(subject?.prn, toSafeString((credential as any)?.recipient?.id, toSafeString((credential as any)?.id, "N/A")))}
               </span>
             </div>
           </div>
@@ -328,19 +343,19 @@ export default function DegreeCertificate({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
             <div>
               <span className="text-slate-500 block">Candidate Name:</span>
-              <span className="font-bold text-slate-900">{subject?.fullName || (credential as any)?.recipient?.name || "Candidate"}</span>
+              <span className="font-bold text-slate-900">{toSafeString(subject?.fullName, toSafeString((credential as any)?.recipient?.name, toSafeString((credential as any)?.studentName, "Candidate")))}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Degree Program:</span>
-              <span className="font-bold text-slate-900">{subject?.degree || (credential as any)?.name || "Program"}</span>
+              <span className="font-bold text-slate-900">{toSafeString(subject?.degree, toSafeString((credential as any)?.name, toSafeString((credential as any)?.title, "Program")))}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Specialization:</span>
-              <span className="font-bold text-slate-900">{subject?.branch || (credential as any)?.course || "General"}</span>
+              <span className="font-bold text-slate-900">{toSafeString(subject?.branch, toSafeString((credential as any)?.course, "General"))}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Final CGPA:</span>
-              <span className="font-bold text-blue-700">{subject?.cgpa ? `${subject.cgpa} / 10.0` : "COMPLETED"}</span>
+              <span className="font-bold text-blue-700">{toSafeString(subject?.cgpa, "COMPLETED")}</span>
             </div>
           </div>
 
