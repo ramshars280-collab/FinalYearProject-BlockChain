@@ -103,7 +103,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
       {/* Top Micro Ticker */}
       <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-1 text-[11px] text-blue-900">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-start">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-blue-800 font-mono font-semibold" suppressHydrationWarning>
               <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
@@ -112,15 +112,6 @@ export default function Navbar() {
             <span className="hidden sm:inline text-blue-300">&bull;</span>
             <span className="hidden sm:inline text-blue-700 font-medium">
               Ethereum Sepolia
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-blue-800 font-medium hidden md:inline">
-              Zero-PII On-Chain &bull; DPDP Act Certified &bull; NEP 2020 ABC
-            </span>
-            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-200 font-mono font-bold text-[10px]">
-              EVM v0.8.20
             </span>
           </div>
         </div>
