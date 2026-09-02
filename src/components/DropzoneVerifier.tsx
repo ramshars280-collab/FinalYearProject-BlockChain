@@ -318,34 +318,20 @@ export default function DropzoneVerifier() {
 
           {/* Quick Demo Pre-Anchored Fixtures */}
           <div className="pt-5 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="text-slate-500 font-bold mr-1">Demo Consortium Fixtures:</span>
+            <span className="text-slate-500 font-bold mr-1">Demo Degree Fixtures:</span>
             <button
               onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
               className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
             >
               <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-              <span>MGM University</span>
-            </button>
-            <button
-              onClick={() => loadFixture("/fixtures/sppu_degree_sample.json")}
-              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-            >
-              <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-              <span>SPPU Pune</span>
-            </button>
-            <button
-              onClick={() => loadFixture("/fixtures/mu_degree_sample.json")}
-              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-            >
-              <Award className="h-3.5 w-3.5 text-amber-700" />
-              <span>Mumbai University</span>
+              <span>MGM University (Valid)</span>
             </button>
             <button
               onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}
               className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
             >
               <XCircle className="h-3.5 w-3.5 text-red-600" />
-              <span>Tampered Sample</span>
+              <span>Tampered Sample (Invalid)</span>
             </button>
           </div>
         </div>

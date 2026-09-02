@@ -85,7 +85,7 @@ function PublicVerifierContent() {
       <div className="text-center max-w-4xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-full text-xs font-bold shadow-2xs">
           <Sparkles className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
-          <span>OpenCerts 2.0 &bull; Blockcerts Standard &bull; Multi-University Consortium</span>
+          <span>OpenCerts 2.0 &bull; Blockcerts Standard &bull; MGM University Registry</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-black text-slate-950 tracking-tight leading-tight">
@@ -134,12 +134,12 @@ function PublicVerifierContent() {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            Consortium Nodes
+            Accredited Node
           </span>
           <div className="text-2xl font-black text-blue-700 font-mono" suppressHydrationWarning>
-            {institutionsCount} Active Universities
+            MGM University
           </div>
-          <span className="text-[10px] text-emerald-700 font-bold">Inter-University Trust</span>
+          <span className="text-[10px] text-emerald-700 font-bold">Node MGMU-ENG-01</span>
         </div>
       </div>
 
@@ -278,13 +278,13 @@ function PublicVerifierContent() {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-900 rounded-full text-xs font-bold border border-blue-200 mb-1">
               <Building2 className="h-3.5 w-3.5 text-blue-600" />
-              <span>Inter-University Trust Network</span>
+              <span>Accredited Issuing Authority</span>
             </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Registered Consortium Universities &amp; Trust Nodes ({institutions.length})
+              Registered University &amp; Sepolia Trust Node
             </h2>
             <p className="text-xs text-slate-500">
-              Accredited institutions actively issuing cryptographically verifiable degree credentials on Ethereum Sepolia.
+              Accredited university node actively issuing cryptographically verifiable degree credentials on Ethereum Sepolia.
             </p>
           </div>
 

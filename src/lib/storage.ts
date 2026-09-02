@@ -16,42 +16,6 @@ export const CONSORTIUM_UNIVERSITIES: ConsortiumInstitution[] = [
     website: "https://mgmu.ac.in",
     crestColor: "blue",
   },
-  {
-    id: "sppu",
-    name: "Savitribai Phule Pune University",
-    shortName: "SPPU Pune",
-    code: "SPPU-ENG-02",
-    address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
-    city: "Pune",
-    state: "Maharashtra, India",
-    establishedAct: "Established under Poona University Act 1949 & Maharashtra Public Universities Act 2016",
-    website: "http://www.unipune.ac.in",
-    crestColor: "indigo",
-  },
-  {
-    id: "mu",
-    name: "University of Mumbai",
-    shortName: "Mumbai University",
-    code: "MU-ENG-03",
-    address: "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
-    city: "Mumbai",
-    state: "Maharashtra, India",
-    establishedAct: "Established on 18th July 1857 & Maharashtra Public Universities Act 2016",
-    website: "https://mu.ac.in",
-    crestColor: "amber",
-  },
-  {
-    id: "coep",
-    name: "COEP Technological University",
-    shortName: "COEP Tech",
-    code: "COEP-TECH-04",
-    address: "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
-    city: "Pune",
-    state: "Maharashtra, India",
-    establishedAct: "Established under Maharashtra Act No. XXXV of 2022 (Estd. 1854)",
-    website: "https://www.coep.org.in",
-    crestColor: "emerald",
-  },
 ];
 
 export interface SepoliaConfig {
@@ -130,33 +94,33 @@ export const INITIAL_STUDENTS_MGM: StudentDegreeData[] = [
   },
 ];
 
-export const INITIAL_STUDENTS_SPPU: StudentDegreeData[] = [
+export const INITIAL_STUDENTS_MGM_BATCH2: StudentDegreeData[] = [
   {
-    prn: "SPPU20205819",
+    prn: "PRN20200105",
     fullName: "Sneha Jagtap",
-    degree: "Bachelor of Engineering",
-    branch: "Computer Engineering",
+    degree: "Bachelor of Technology",
+    branch: "Information Technology",
     cgpa: 9.15,
     graduationYear: 2024,
     issueDate: "2024-06-20",
     nheqfCredits: 168,
     nheqfLevel: 6.0,
-    university: "Savitribai Phule Pune University",
-    institutionCode: "SPPU-ENG-02",
+    university: "MGM University, Chhatrapati Sambhajinagar",
+    institutionCode: "MGMU-ENG-01",
     division: "First Class with Distinction",
   },
   {
-    prn: "SPPU20205820",
+    prn: "PRN20200106",
     fullName: "Vikram Shinde",
-    degree: "Bachelor of Engineering",
-    branch: "Information Technology",
+    degree: "Bachelor of Technology",
+    branch: "Electronics & Computer Engineering",
     cgpa: 8.60,
     graduationYear: 2024,
     issueDate: "2024-06-20",
     nheqfCredits: 164,
     nheqfLevel: 6.0,
-    university: "Savitribai Phule Pune University",
-    institutionCode: "SPPU-ENG-02",
+    university: "MGM University, Chhatrapati Sambhajinagar",
+    institutionCode: "MGMU-ENG-01",
     division: "First Class with Distinction",
   },
 ];
@@ -164,12 +128,12 @@ export const INITIAL_STUDENTS_SPPU: StudentDegreeData[] = [
 export const INITIAL_STUDENTS = INITIAL_STUDENTS_MGM;
 
 const STORAGE_KEYS = {
-  BATCHES: "mgm_blockchain_batches_v2",
-  IDENTITIES: "mgm_blockchain_identities_v2",
-  STUDENT_VAULT: "mgm_blockchain_student_vault_v2",
-  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v2",
-  CUSTOM_UNIVERSITIES: "mgm_blockchain_custom_universities_v2",
-  REVOCATIONS: "mgm_blockchain_revocations_v2",
+  BATCHES: "mgm_blockchain_batches_v5",
+  IDENTITIES: "mgm_blockchain_identities_v5",
+  STUDENT_VAULT: "mgm_blockchain_student_vault_v5",
+  SEPOLIA_CONFIG: "mgm_blockchain_sepolia_config_v5",
+  CUSTOM_UNIVERSITIES: "mgm_blockchain_custom_universities_v5",
+  REVOCATIONS: "mgm_blockchain_revocations_v5",
 };
 
 export function getConsortiumInstitutions(): ConsortiumInstitution[] {
@@ -246,23 +210,7 @@ export function initializeDefaultBatches(): BatchRecord[] {
     records: INITIAL_STUDENTS_MGM,
   };
 
-  const { rootHex: sppuRoot } = buildBatchMerkleTree(INITIAL_STUDENTS_SPPU);
-  const sppuBatchId = "SPPU-2024-BE-BATCH01";
-
-  const sppuBatch: BatchRecord = {
-    batchId: sppuBatchId,
-    merkleRoot: sppuRoot,
-    ipfsCid: "QmZtmD2qt8fJpq3CLDH8TFZiakrirkqqn3D24ghj34h89",
-    timestamp: 1718870400,
-    issuer: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
-    institutionName: "Savitribai Phule Pune University",
-    institutionCode: "SPPU-ENG-02",
-    totalCredentials: INITIAL_STUDENTS_SPPU.length,
-    revokedIndices: [],
-    records: INITIAL_STUDENTS_SPPU,
-  };
-
-  const defaultBatches = [mgmBatch, sppuBatch];
+  const defaultBatches = [mgmBatch];
 
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(defaultBatches));

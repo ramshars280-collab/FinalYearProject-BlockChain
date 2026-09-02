@@ -44,7 +44,6 @@ import {
   getSepoliaConfig,
   getConsortiumInstitutions,
   INITIAL_STUDENTS_MGM,
-  INITIAL_STUDENTS_SPPU,
 } from "../../lib/storage";
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
@@ -340,14 +339,14 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       flag: "Forged PRN / No On-Chain Merkle Record",
     },
     {
-      prn: "SPPU20209811",
+      prn: "PRN20200104",
       claimedName: "Neha Kulkarni",
       claimedCgpa: 8.92,
       onChainName: "Neha Kulkarni",
       onChainCgpa: 8.92,
-      onChainUniversity: "Savitribai Phule Pune University",
+      onChainUniversity: "MGM University",
       status: "AUTHENTIC",
-      flag: "Cross-University Consortium Verified",
+      flag: "Exact On-Chain Match",
     },
   ]);
   const [auditFilter, setAuditFilter] = useState<"ALL" | "AUTHENTIC" | "DISCREPANCY" | "UNREGISTERED">("ALL");
