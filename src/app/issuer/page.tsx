@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Papa from "papaparse";
 import { ethers } from "ethers";
 import {
@@ -29,6 +30,7 @@ import {
   FileCheck2,
   AlertTriangle,
   XCircle,
+  KeyRound,
 } from "lucide-react";
 import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
@@ -67,83 +69,198 @@ export default function IssuerPage() {
     }
   };
 
-  // If not logged in as Admin, show clean centered Admin Login Card
-  if (!isAuthenticated || !user || user.role !== "EXAM_ADMIN") {
+  // 1. SESSION CONFLICT: If already logged in as Student, show Access Denied notice
+  if (isAuthenticated && user?.role === "STUDENT") {
     return (
-      <div className="max-w-md mx-auto py-12 px-4 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded-full text-xs font-bold">
-            <Shield className="h-3.5 w-3.5 text-amber-700" />
-            <span>Clearance Level 4 &bull; Examination Authority</span>
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-            University Admin Console
+      <div className="max-w-2xl mx-auto my-12 bg-white rounded-3xl border border-amber-200 shadow-xl p-8 sm:p-10 space-y-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mx-auto shadow-inner">
+          <ShieldAlert className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-bold uppercase tracking-wider">
+            Access Restricted
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
+            Access Restricted to Exam Authority
           </h1>
-          <p className="text-xs text-slate-500">
-            Sign in with authorized Controller of Examinations credentials to anchor Merkle degree batches and run candidate audits.
+          <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+            You are currently signed in with an active <strong>Student</strong> session for{" "}
+            <span className="font-mono font-bold text-slate-900">{(user as any).prn}</span> ({(user as any).fullName || "Aarav Sharma"}).
+            Batch Merkle root anchoring and candidate audit tools require <strong>Level 4 Examination Authority</strong> credentials.
           </p>
         </div>
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/student"
+            className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+          >
+            Return to Student Vault
+          </Link>
+          <button
+            onClick={logout}
+            className="w-full sm:w-auto px-6 py-3 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-300 hover:border-red-300 rounded-xl text-xs font-bold transition-all"
+          >
+            Sign Out &amp; Switch Account
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 space-y-5">
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Exam Officer Staff ID:
-              </label>
-              <input
-                type="text"
-                value={adminId}
-                onChange={(e) => setAdminId(e.target.value.toUpperCase())}
-                required
-                placeholder="EXAM_ADMIN_MGM"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-              />
-            </div>
+  // 2. UNAUTHENTICATED: Full-Page Split Screen View (like JUNO Campus ERP)
+  if (!isAuthenticated || !user || user.role !== "EXAM_ADMIN") {
+    return (
+      <div className="w-full max-w-5xl mx-auto my-4 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 grid grid-cols-1 lg:grid-cols-12 min-h-[580px] bg-white">
+        {/* LEFT SIDE: JUNO Campus University Admin Branding */}
+        <div className="lg:col-span-5 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
+          {/* Subtle decorative glow */}
+          <div className="absolute -right-16 -top-16 w-56 h-56 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-16 -bottom-16 w-56 h-56 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Master Authority Passkey:
-              </label>
-              <input
-                type="password"
-                value={adminPass}
-                onChange={(e) => setAdminPass(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminId(DEMO_CREDENTIALS.admin.staffId);
-                  setAdminPass(DEMO_CREDENTIALS.admin.password);
-                }}
-                className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Auto-Fill Controller of Exams (Prof. V. M. Deshpande)</span>
-              </button>
-            </div>
-
-            {loginError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold">
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                <span>{loginError}</span>
+          {/* Top: Authority Brand */}
+          <div className="space-y-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 backdrop-blur-md border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-inner">
+                <Shield className="h-7 w-7" />
               </div>
-            )}
+              <div>
+                <span className="text-xs uppercase font-extrabold tracking-widest text-amber-400 block">
+                  Examination Authority
+                </span>
+                <span className="text-[10px] text-slate-300 font-medium">
+                  Controller of Examinations &bull; MGM University
+                </span>
+              </div>
+            </div>
 
-            <button
-              type="submit"
-              disabled={loginLoading}
-              className="w-full py-3.5 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-900/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
-            >
-              <Shield className="h-4 w-4 text-amber-400" />
-              <span>{loginLoading ? "Authorizing..." : "Authorize & Enter Admin Console"}</span>
-            </button>
-          </form>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/15 backdrop-blur-xs rounded-full text-[11px] font-bold text-amber-300 border border-amber-400/25">
+              <Shield className="h-3 w-3 text-amber-400" />
+              <span>Clearance Level 4 &bull; Administrator ERP</span>
+            </div>
+          </div>
+
+          {/* Center: Authority Capabilities */}
+          <div className="space-y-5 my-8 relative z-10">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
+                University Authority &amp; Minting Console
+              </h2>
+              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                Authorized administrative terminal for anchoring graduation Merkle roots, dynamically managing 256-bit revocation bitmaps, and auditing candidate batches.
+              </p>
+            </div>
+
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>O(1) Merkle Tree Batch Commitments on Sepolia</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>Dynamic 256-Bit Bitmap Word Instant Revocations</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-slate-300">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>High-Throughput Candidate CGPA Discrepancy Audits</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Footer Note */}
+          <div className="pt-4 border-t border-white/10 text-[11px] text-slate-400 flex items-center justify-between relative z-10">
+            <span>MGM University Trust Network</span>
+            <span className="font-mono font-bold text-amber-400">COE-AUTH-01</span>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE: Admin Login Form */}
+        <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center bg-white">
+          <div className="max-w-md w-full mx-auto space-y-6">
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                Exam Authority Login
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Enter your authorized Examination Cell Officer ID and master passkey.
+              </p>
+            </div>
+
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Officer Staff ID:
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={adminId}
+                    onChange={(e) => setAdminId(e.target.value.toUpperCase())}
+                    required
+                    placeholder="EXAM_ADMIN_MGM"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-3 text-xs text-slate-900 font-mono font-bold uppercase focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-hidden transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Master Authority Passkey:
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <KeyRound className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="password"
+                    value={adminPass}
+                    onChange={(e) => setAdminPass(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-3 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-hidden transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Demo Auto-Fill Shortcut */}
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-center justify-between">
+                <span className="text-[11px] text-amber-900 font-semibold">Demo Credentials:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminId(DEMO_CREDENTIALS.admin.staffId);
+                    setAdminPass(DEMO_CREDENTIALS.admin.password);
+                  }}
+                  className="text-xs text-amber-800 font-bold hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-600" />
+                  <span>Auto-Fill (Prof. Deshpande)</span>
+                </button>
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 font-semibold">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-950 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-slate-900/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
+              >
+                <Shield className="h-4 w-4 text-amber-400" />
+                <span>{loginLoading ? "Authorizing Clearance..." : "Authorize & Enter Admin Console"}</span>
+              </button>
+            </form>
+
+            <div className="pt-2 text-center text-[11px] text-slate-400">
+              Clearance Level 4 Security Protocol &bull; Controller of Examinations
+            </div>
+          </div>
         </div>
       </div>
     );
