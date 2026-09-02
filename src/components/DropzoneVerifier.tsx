@@ -28,15 +28,19 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { W3CCredentialPayload, VerificationResult } from "../types";
-import { hashCredentialSubject } from "../lib/crypto";
+import { hashCredentialSubject, buildBatchMerkleTree, createW3CCredential } from "../lib/crypto";
 import { verifyCredentialOnChain } from "../lib/contracts";
 import { verifyZkSelectiveProof } from "../lib/zkProof";
-import { getRevocationDetail } from "../lib/storage";
+import { getRevocationDetail, getStoredBatches } from "../lib/storage";
 import DegreeCertificate from "./DegreeCertificate";
 import QrScannerModal from "./QrScannerModal";
 
 export default function DropzoneVerifier() {
   const searchParams = useSearchParams();
+  const [activeInputTab, setActiveInputTab] = useState<"url" | "upload">("url");
+  const [inputUrl, setInputUrl] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState<number>(0);
@@ -184,6 +188,7 @@ export default function DropzoneVerifier() {
   };
 
   const handleFileUpload = (file: File) => {
+    setFileError(null);
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -191,10 +196,94 @@ export default function DropzoneVerifier() {
         const parsed = JSON.parse(text);
         handleCredentialVerification(parsed);
       } catch (err) {
-        alert("Invalid JSON file format");
+        setFileError("Unable to extract cryptographic certificate data from this file. Please check file format.");
       }
     };
+    reader.onerror = () => {
+      setFileError("Failed to read the file from your device.");
+    };
     reader.readAsText(file);
+  };
+
+  const handleVerifyPastedUrl = (rawInput?: string) => {
+    setUrlError(null);
+    const target = (rawInput !== undefined ? rawInput : inputUrl).trim();
+    if (!target) {
+      setUrlError("Please enter or paste a verification URL or Student PRN.");
+      return;
+    }
+
+    try {
+      // 1. If it's a URL, extract cred / data query parameter
+      if (target.includes("http://") || target.includes("https://") || target.includes("?") || target.includes("cred=") || target.includes("data=")) {
+        let credParam: string | null = null;
+        try {
+          const urlObj = target.startsWith("http") ? new URL(target) : new URL(target, window.location.origin);
+          credParam = urlObj.searchParams.get("cred") || urlObj.searchParams.get("data");
+        } catch {
+          const match = target.match(/[?&](cred|data)=([^&#]+)/);
+          if (match) credParam = match[2];
+        }
+
+        if (credParam) {
+          let jsonStr = "";
+          try {
+            jsonStr = decodeURIComponent(escape(atob(credParam)));
+          } catch {
+            jsonStr = decodeURIComponent(credParam);
+          }
+          const parsed = JSON.parse(jsonStr);
+          handleCredentialVerification(parsed);
+          return;
+        }
+      }
+
+      // 2. Direct PRN / Roll Number lookup (e.g. PRN20200101)
+      const batches = getStoredBatches();
+      for (const batch of batches) {
+        const studentIndex = batch.records?.findIndex(
+          (s: any) => s.prn?.toLowerCase() === target.toLowerCase()
+        );
+        if (studentIndex !== undefined && studentIndex !== -1 && batch.records?.[studentIndex]) {
+          const student = batch.records[studentIndex];
+          const treeData = buildBatchMerkleTree(batch.records);
+          const proofData = {
+            ...treeData.proofs[studentIndex],
+            batchId: batch.batchId,
+            contractAddress: "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+            network: "Ethereum Sepolia",
+          };
+          const cred = createW3CCredential(
+            student,
+            proofData,
+            batch.issuer,
+            batch.institutionName,
+            batch.institutionCode
+          );
+          handleCredentialVerification(cred);
+          return;
+        }
+      }
+
+      // 3. Raw JSON object string
+      if (target.startsWith("{") && target.endsWith("}")) {
+        const parsed = JSON.parse(target);
+        handleCredentialVerification(parsed);
+        return;
+      }
+
+      // 4. Base64 payload
+      try {
+        const jsonStr = decodeURIComponent(escape(atob(target)));
+        const parsed = JSON.parse(jsonStr);
+        handleCredentialVerification(parsed);
+        return;
+      } catch {}
+
+      setUrlError("No active on-chain credential found matching this URL or PRN. Please verify the link.");
+    } catch (e: any) {
+      setUrlError("Invalid URL format or corrupted credential data.");
+    }
   };
 
   const loadFixture = async (path: string) => {
@@ -261,81 +350,213 @@ export default function DropzoneVerifier() {
 
   return (
     <div className="w-full space-y-6">
-      {/* Dropzone Container */}
-      <div
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        className={`relative overflow-hidden border-2 border-dashed rounded-3xl p-8 sm:p-14 text-center transition-all bg-white shadow-md ${
-          dragActive
-            ? "border-blue-600 bg-blue-50/50 scale-[1.01] ring-4 ring-blue-500/10"
-            : "border-slate-300 hover:border-blue-500 hover:bg-slate-50/50"
-        }`}
-      >
-        {/* Animated Laser Scanning Beam */}
-        {isVerifying && <div className="laser-scan-line" />}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-          className="hidden"
-        />
-
-        <div className="max-w-md mx-auto space-y-5">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-sm relative group">
-            <Fingerprint className="h-10 w-10 text-blue-600" />
-            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
-          </div>
-
-          <div className="space-y-1.5">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Drag &amp; Drop Academic Degree Credential
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              Consortium Inter-University Verification &bull; W3C JSON-LD &bull; Sepolia Smart Contract &bull; Zero-PII
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+      {/* If not currently displaying a verified result, show the Dual-Method Input Hub */}
+      {!result && (
+        <div className="space-y-4">
+          {/* Method Switcher Tabs: URL vs Upload File */}
+          <div className="flex items-center justify-center gap-2 max-w-sm mx-auto p-1.5 bg-slate-200/70 rounded-2xl border border-slate-300 shadow-inner">
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98"
+              onClick={() => {
+                setActiveInputTab("url");
+                setUrlError(null);
+                setFileError(null);
+              }}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeInputTab === "url"
+                  ? "bg-white text-blue-950 shadow-sm border border-slate-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              Select .JSON Credential
+              <Link2 className="h-4 w-4 text-blue-600" />
+              <span>Verify via URL</span>
             </button>
 
             <button
-              onClick={() => setIsQrModalOpen(true)}
-              className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-102 shadow-xs"
+              onClick={() => {
+                setActiveInputTab("upload");
+                setUrlError(null);
+                setFileError(null);
+              }}
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeInputTab === "upload"
+                  ? "bg-white text-blue-950 shadow-sm border border-slate-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              <QrCode className="h-4 w-4 text-blue-600" />
-              <span>Scan QR Code</span>
+              <UploadCloud className="h-4 w-4 text-blue-600" />
+              <span>Upload File</span>
             </button>
           </div>
 
-          {/* Quick Demo Pre-Anchored Fixtures */}
-          <div className="pt-5 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="text-slate-500 font-bold mr-1">Demo Degree Fixtures:</span>
-            <button
-              onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
-              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+          {/* TAB 1: VERIFY VIA URL */}
+          {activeInputTab === "url" && (
+            <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-md space-y-6 text-center">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative">
+                <Link2 className="h-8 w-8 text-blue-600" />
+                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
+              </div>
+
+              <div className="max-w-md mx-auto space-y-1.5">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Verify via Credential URL
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                  Paste the verification link from the student&apos;s resume, LinkedIn, or email.
+                </p>
+              </div>
+
+              <div className="max-w-xl mx-auto space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={inputUrl}
+                      onChange={(e) => {
+                        setInputUrl(e.target.value);
+                        if (urlError) setUrlError(null);
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleVerifyPastedUrl()}
+                      placeholder="Paste verification URL or Student PRN (e.g. PRN20200101)..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs text-slate-900 font-mono focus:outline-hidden focus:ring-2 focus:ring-blue-600 pr-10"
+                    />
+                    {inputUrl && (
+                      <button
+                        onClick={() => setInputUrl("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleVerifyPastedUrl()}
+                    disabled={isVerifying}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 hover:scale-102"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>{isVerifying ? "Verifying..." : "Verify URL"}</span>
+                  </button>
+                </div>
+
+                {urlError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-center gap-2 justify-center font-semibold">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <span>{urlError}</span>
+                  </div>
+                )}
+
+                {/* Quick Try Sample Links / PRNs */}
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
+                  <span className="text-slate-500 font-medium">Quick Try Samples:</span>
+                  <button
+                    onClick={() => {
+                      setInputUrl("PRN20200101");
+                      handleVerifyPastedUrl("PRN20200101");
+                    }}
+                    className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg text-xs font-semibold transition-all"
+                  >
+                    PRN20200101 (Aarav Sharma)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInputUrl("PRN20200102");
+                      handleVerifyPastedUrl("PRN20200102");
+                    }}
+                    className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold transition-all"
+                  >
+                    PRN20200102 (Ananya Deshmukh)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: UPLOAD CERTIFICATE FILE */}
+          {activeInputTab === "upload" && (
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`relative overflow-hidden border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all bg-white shadow-md ${
+                dragActive
+                  ? "border-blue-600 bg-blue-50/50 scale-[1.01] ring-4 ring-blue-500/10"
+                  : "border-slate-300 hover:border-blue-500 hover:bg-slate-50/50"
+              }`}
             >
-              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-              <span>MGM University (Valid)</span>
-            </button>
-            <button
-              onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}
-              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-            >
-              <XCircle className="h-3.5 w-3.5 text-red-600" />
-              <span>Tampered Sample (Invalid)</span>
-            </button>
-          </div>
+              {isVerifying && <div className="laser-scan-line" />}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.txt,application/json"
+                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                className="hidden"
+              />
+
+              <div className="max-w-md mx-auto space-y-4">
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative group">
+                  <UploadCloud className="h-8 w-8 text-blue-600" />
+                  <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                    Upload Certificate File
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                    Drag and drop your academic degree certificate file or browse from your device
+                  </p>
+                </div>
+
+                {fileError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-center gap-2 justify-center font-semibold">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <span>{fileError}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98"
+                  >
+                    Select Certificate File
+                  </button>
+
+                  <button
+                    onClick={() => setIsQrModalOpen(true)}
+                    className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-102 shadow-xs"
+                  >
+                    <QrCode className="h-4 w-4 text-blue-600" />
+                    <span>Scan QR Code</span>
+                  </button>
+                </div>
+
+                {/* Quick Demo Pre-Anchored Fixtures */}
+                <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
+                  <span className="text-slate-500 font-bold mr-1">Demo File Samples:</span>
+                  <button
+                    onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+                    <span>MGM University (Valid)</span>
+                  </button>
+                  <button
+                    onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}
+                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <XCircle className="h-3.5 w-3.5 text-red-600" />
+                    <span>Tampered Sample (Invalid)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Verification In-Progress Stepper Animation */}
       {isVerifying && (
@@ -371,6 +592,21 @@ export default function DropzoneVerifier() {
       {/* Result Status Banners */}
       {result && !isVerifying && (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between pb-1">
+            <button
+              onClick={() => {
+                setResult(null);
+                setCredential(null);
+                setInputUrl("");
+                setUrlError(null);
+                setFileError(null);
+              }}
+              className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 transition-colors px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-2xs"
+            >
+              <span>← Verify Another Credential (URL or File)</span>
+            </button>
+          </div>
+
           {/* SUCCESS STATE WITH EXPLICIT ISSUING UNIVERSITY BADGE */}
           {result.isValid && !result.isRevoked && (
             <div className="bg-emerald-50 border border-emerald-300 rounded-3xl p-6 shadow-sm space-y-4">
