@@ -111,7 +111,7 @@ export default function Navbar() {
             </span>
             <span className="hidden sm:inline text-blue-300">&bull;</span>
             <span className="hidden sm:inline text-blue-700 font-medium">
-              Ethereum Sepolia &bull; OpenCerts / SIH Standard
+              Ethereum Sepolia
             </span>
           </div>
 
