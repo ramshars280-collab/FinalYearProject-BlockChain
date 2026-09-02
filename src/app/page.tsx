@@ -100,7 +100,12 @@ function PublicVerifierContent() {
         </p>
       </div>
 
-      {/* Live Blockchain Metrics Bar */}
+      {/* Central Public Verification Hub (Directly in Hero Space like Blockcerts) */}
+      <div className="max-w-4xl mx-auto">
+        <DropzoneVerifier />
+      </div>
+
+      {/* Live Blockchain Metrics Bar (Positioned below Verifier) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-5xl mx-auto">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
@@ -141,11 +146,6 @@ function PublicVerifierContent() {
           </div>
           <span className="text-[10px] text-emerald-700 font-bold">Node MGMU-ENG-01</span>
         </div>
-      </div>
-
-      {/* Main Drag-and-Drop Verifier Card */}
-      <div className="max-w-4xl mx-auto">
-        <DropzoneVerifier />
       </div>
 
       {/* PROMINENT UNIVERSITY REGISTRATION & CONSORTIUM ONBOARDING BANNER */}
