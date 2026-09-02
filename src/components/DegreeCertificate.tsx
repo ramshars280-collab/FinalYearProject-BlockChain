@@ -38,9 +38,9 @@ export default function DegreeCertificate({
   const [activeViewTab, setActiveViewTab] = useState<"certificate" | "transcript" | "crypto" | "raw">("certificate");
   const [copiedJson, setCopiedJson] = useState(false);
 
-  const subject = credential.credentialSubject;
-  const proof = credential.proof;
-  const isZk = proof.type === "ZkSelectiveProof2024" || !!proof.zkProof;
+  const subject = credential?.credentialSubject || (credential as any)?.recipient || (credential as any)?.data || {};
+  const proof = credential?.proof || {};
+  const isZk = proof?.type === "ZkSelectiveProof2024" || !!proof?.zkProof;
 
   const handlePrint = () => {
     window.print();
@@ -179,10 +179,10 @@ export default function DegreeCertificate({
 
               <div className="space-y-1">
                 <h2 className="text-3xl sm:text-4xl font-serif font-black text-blue-950 tracking-tight">
-                  {subject.degree}
+                  {subject?.degree || (credential as any)?.name || (credential as any)?.title || "Certificate of Completion"}
                 </h2>
                 <p className="text-lg sm:text-xl font-serif italic font-bold text-blue-800">
-                  in {subject.branch}
+                  in {subject?.branch || (credential as any)?.course || (credential as any)?.specialization || "Academic Coursework"}
                 </p>
               </div>
 
@@ -191,7 +191,7 @@ export default function DegreeCertificate({
               </p>
 
               <div className="text-3xl sm:text-5xl font-serif font-black text-slate-950 underline decoration-blue-600 decoration-3 underline-offset-8 py-1">
-                {subject.fullName}
+                {subject?.fullName || (credential as any)?.recipient?.name || (credential as any)?.studentName || "Candidate"}
               </div>
 
               <p className="text-xs text-slate-600 max-w-2xl mx-auto leading-relaxed pt-2">
@@ -205,7 +205,7 @@ export default function DegreeCertificate({
                     Permanent Reg. No.
                   </span>
                   <span className="font-mono text-xs font-black text-blue-900">
-                    {subject.prn}
+                    {subject?.prn || (credential as any)?.recipient?.id || (credential as any)?.id || "N/A"}
                   </span>
                 </div>
 
@@ -214,7 +214,7 @@ export default function DegreeCertificate({
                     Cumulative CGPA
                   </span>
                   <span className="font-serif text-sm font-black text-blue-900">
-                    {isZk ? `≥ ${proof.zkProof?.thresholdValue}` : Number(subject.cgpa).toFixed(2)} / 10.0
+                    {isZk ? `≥ ${proof?.zkProof?.thresholdValue}` : subject?.cgpa ? `${Number(subject.cgpa).toFixed(2)} / 10.0` : "COMPLETED"}
                   </span>
                 </div>
 
@@ -223,7 +223,7 @@ export default function DegreeCertificate({
                     Year of Graduation
                   </span>
                   <span className="font-mono text-xs font-black text-slate-900">
-                    {subject.graduationYear}
+                    {subject?.graduationYear || (credential as any)?.issuanceDate?.slice(0, 4) || (credential as any)?.year || new Date().getFullYear()}
                   </span>
                 </div>
 
@@ -232,7 +232,7 @@ export default function DegreeCertificate({
                     NHEQF Level
                   </span>
                   <span className="font-sans text-xs font-black text-emerald-800">
-                    Level {subject.nheqfLevel || 6.0}
+                    Level {subject?.nheqfLevel || 6.0}
                   </span>
                 </div>
               </div>
@@ -279,12 +279,12 @@ export default function DegreeCertificate({
                   <ShieldCheck className="h-4 w-4 text-blue-700" />
                   <span className="font-bold text-slate-900">Merkle Anchor:</span>
                   <span className="text-slate-700 font-mono font-semibold">
-                    {proof.merkleProof?.rootHash ? `${proof.merkleProof.rootHash.slice(0, 10)}••••••••${proof.merkleProof.rootHash.slice(-8)}` : "Verified On Sepolia"}
+                    {proof?.merkleProof?.rootHash ? `${proof.merkleProof.rootHash.slice(0, 10)}••••••••${proof.merkleProof.rootHash.slice(-8)}` : "Verified On Sepolia"}
                   </span>
                 </div>
 
                 <a
-                  href={getEtherscanUrl(proof.merkleProof?.contractAddress || "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7")}
+                  href={getEtherscanUrl(proof?.merkleProof?.contractAddress || "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7")}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-bold no-print underline"
@@ -295,7 +295,7 @@ export default function DegreeCertificate({
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-                <div>Batch ID: {proof.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01"} &bull; Leaf Index: #{proof.merkleProof?.leafIndex ?? 0}</div>
+                <div>Batch ID: {proof?.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01"} &bull; Leaf Index: #{proof?.merkleProof?.leafIndex ?? 0}</div>
                 <div>DPDP Act Compliant &bull; Zero PII On-Chain</div>
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function DegreeCertificate({
 
             <div className="text-right">
               <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg">
-                PRN: {subject.prn}
+                PRN: {subject?.prn || (credential as any)?.recipient?.id || (credential as any)?.id || "N/A"}
               </span>
             </div>
           </div>
@@ -328,19 +328,19 @@ export default function DegreeCertificate({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
             <div>
               <span className="text-slate-500 block">Candidate Name:</span>
-              <span className="font-bold text-slate-900">{subject.fullName}</span>
+              <span className="font-bold text-slate-900">{subject?.fullName || (credential as any)?.recipient?.name || "Candidate"}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Degree Program:</span>
-              <span className="font-bold text-slate-900">{subject.degree}</span>
+              <span className="font-bold text-slate-900">{subject?.degree || (credential as any)?.name || "Program"}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Specialization:</span>
-              <span className="font-bold text-slate-900">{subject.branch}</span>
+              <span className="font-bold text-slate-900">{subject?.branch || (credential as any)?.course || "General"}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Final CGPA:</span>
-              <span className="font-bold text-blue-700">{subject.cgpa} / 10.0</span>
+              <span className="font-bold text-blue-700">{subject?.cgpa ? `${subject.cgpa} / 10.0` : "COMPLETED"}</span>
             </div>
           </div>
 
@@ -410,7 +410,7 @@ export default function DegreeCertificate({
                 </span>
               </div>
               <p className="font-mono text-xs text-slate-800 break-all bg-white p-2.5 rounded-lg border border-slate-200 font-semibold">
-                {proof.merkleProof?.leafHash || "0x78cbf7ec4aa8904c81d73ea3330051d6e2c5bb2dcc1423b3d94e4ca5a89036df"}
+                {proof?.merkleProof?.leafHash || "No Merkle Leaf Hash Present in JSON"}
               </p>
             </div>
 
@@ -419,14 +419,14 @@ export default function DegreeCertificate({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Step 2: Commutative Merkle Proof Siblings ({proof.merkleProof?.proof.length || 2} Hops)</span>
+                  <span>Step 2: Commutative Merkle Proof Siblings ({proof?.merkleProof?.proof?.length || 0} Hops)</span>
                 </span>
                 <span className="text-[10px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-mono font-bold">
                   O(log N) Proof
                 </span>
               </div>
               <div className="space-y-1.5 font-mono text-xs">
-                {proof.merkleProof?.proof.map((p, idx) => (
+                {(proof?.merkleProof?.proof || []).map((p, idx) => (
                   <div key={idx} className="bg-white p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
                     <span className="text-blue-700 font-bold">Hop #{idx + 1}:</span>
                     <span className="text-slate-800 truncate max-w-md">{p}</span>
@@ -447,7 +447,7 @@ export default function DegreeCertificate({
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                The computed hash matches the anchored root on the Sepolia smart contract registry. Bit index #{proof.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
+                The computed hash matches the anchored root on the Sepolia smart contract registry. Bit index #{proof?.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
               </p>
             </div>
           </div>
