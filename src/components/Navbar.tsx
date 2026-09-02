@@ -153,13 +153,13 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     isActive
-                      ? "text-blue-900 bg-blue-50 border border-blue-200 shadow-xs"
-                      : "text-slate-600 hover:text-blue-900 hover:bg-slate-50 border border-transparent"
+                      ? "text-white bg-blue-600 shadow-sm border border-blue-700"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
                   <span>{link.label}</span>
                 </Link>
               );
@@ -228,11 +228,11 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                  isActive ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-slate-500"}`} />
                 <span>{link.label}</span>
               </Link>
             );

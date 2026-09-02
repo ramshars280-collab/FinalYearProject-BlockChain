@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   UserCheck,
   Wallet,
@@ -44,6 +45,7 @@ import InteractiveHologramCard from "../../components/InteractiveHologramCard";
 import { useAuth, DEMO_CREDENTIALS } from "../../context/AuthContext";
 
 export default function StudentPortalPage() {
+  const router = useRouter();
   const { user, isAuthenticated, loginStudent, logout } = useAuth();
 
   // Login form state
@@ -60,6 +62,8 @@ export default function StudentPortalPage() {
     setLoginLoading(false);
     if (!res.success) {
       setLoginError(res.error || "Login failed");
+    } else {
+      router.push("/student");
     }
   };
 

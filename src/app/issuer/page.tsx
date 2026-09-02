@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { ethers } from "ethers";
 import {
@@ -50,6 +51,7 @@ import RegisterUniversityModal from "../../components/RegisterUniversityModal";
 import { useAuth, DEMO_CREDENTIALS } from "../../context/AuthContext";
 
 export default function IssuerPage() {
+  const router = useRouter();
   const { user, isAuthenticated, loginAdmin, logout } = useAuth();
 
   // Admin Login State
@@ -66,6 +68,8 @@ export default function IssuerPage() {
     setLoginLoading(false);
     if (!res.success) {
       setLoginError(res.error || "Admin authentication failed");
+    } else {
+      router.push("/issuer");
     }
   };
 
