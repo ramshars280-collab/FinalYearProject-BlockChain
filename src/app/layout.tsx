@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import { AuthProvider } from "../context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "MGM Trust Registry | Blockchain Degree Verification",
+  title: "SOET VeriTrust | Blockchain Degree Verification",
   description:
     "OpenCerts/Blockcerts-compliant academic credential authentication system with EIP-712 identity binding, dynamic revocation bitmaps, and NEP 2020 Academic Bank of Credits.",
 };

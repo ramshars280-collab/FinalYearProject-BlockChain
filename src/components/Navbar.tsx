@@ -127,7 +127,7 @@ export default function Navbar() {
             </div>
             <div>
               <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">
-                MGM Trust Registry
+                SOET VeriTrust
               </span>
               <p className="text-[11px] text-slate-500 hidden sm:block leading-none mt-0.5">
                 Academic Credential Verification System

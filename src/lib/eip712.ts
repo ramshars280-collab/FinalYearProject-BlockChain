@@ -20,7 +20,7 @@ export function getIdentityDomain(
   chainId: number = 11155111
 ): EIP712DomainData {
   return {
-    name: "MGM Trust Registry",
+    name: "SOET VeriTrust",
     version: "1",
     chainId,
     verifyingContract: contractAddress,

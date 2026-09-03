@@ -232,7 +232,7 @@ function PublicVerifierContent() {
                 <th className="p-3.5">Verification Metric</th>
                 <th className="p-3.5 text-slate-600">Traditional Paper</th>
                 <th className="p-3.5 text-slate-600">Centralized DB Portal</th>
-                <th className="p-3.5 text-blue-900 font-bold bg-blue-50">MGM Trust Registry (Web3)</th>
+                <th className="p-3.5 text-blue-900 font-bold bg-blue-50">SOET VeriTrust (Web3)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

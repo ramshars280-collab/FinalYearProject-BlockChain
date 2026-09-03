@@ -45,7 +45,7 @@ contract IdentityRegistry {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 EIP712_DOMAIN_TYPEHASH,
-                keccak256(bytes("MGM Trust Registry")),
+                keccak256(bytes("SOET VeriTrust")),
                 keccak256(bytes("1")),
                 block.chainid,
                 address(this)
