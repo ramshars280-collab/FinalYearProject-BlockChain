@@ -43,22 +43,35 @@ A production-ready, minimalist, and cryptographically secure Web3 system for iss
 │   │   ├── layout.tsx                 # Root layout with responsive Navbar
 │   │   ├── page.tsx                   # View 1: Public Drag-and-Drop / URL Verifier
 │   │   ├── student/page.tsx           # View 2: Student Portal & EIP-712 Vault
-│   │   └── issuer/page.tsx            # View 3: Exam Cell Batch Minting & Merkle Tree Visualizer
+│   │   ├── issuer/page.tsx            # View 3: Exam Cell Batch Minting & Merkle Tree Visualizer
+│   │   └── api/
+│   │       ├── auth/                  # Server-side HMAC-SHA256 session endpoints
+│   │       │   ├── login/route.ts
+│   │       │   ├── logout/route.ts
+│   │       │   └── session/route.ts
+│   │       └── verify/                # Public short verification URL endpoint
+│   │           └── [batchId]/[leafIndex]/route.ts
 │   ├── components/
 │   │   ├── Navbar.tsx                 # Top navigation with network & wallet states
 │   │   ├── DropzoneVerifier.tsx       # Dual URL / File dropzone verifier
-│   │   ├── DegreeCertificate.tsx      # OpenCerts official degree card renderer
+│   │   ├── DegreeCertificate.tsx      # OpenCerts official degree card renderer & QR code
 │   │   ├── MerkleTreeVisualizer.tsx   # Interactive visual Merkle node hierarchy
 │   │   ├── ZkProofModal.tsx           # DPDP selective disclosure generator
-│   │   └── BatchRevocationModal.tsx   # Dynamic bitmap revocation modal
+│   │   ├── BatchRevocationModal.tsx   # Dynamic bitmap revocation modal
+│   │   ├── RegisterUniversityModal.tsx# Consortium university onboarding modal
+│   │   └── QrScannerModal.tsx         # Mobile camera QR reader
+│   ├── context/
+│   │   └── AuthContext.tsx            # Cookie-backed server session React context
 │   ├── lib/
 │   │   ├── crypto.ts                  # Keccak256 canonical hashing & MerkleTree engine
 │   │   ├── eip712.ts                  # EIP-712 typed signing & verification
+│   │   ├── serverAuth.ts              # Server-side authentication & token signing
 │   │   ├── zkProof.ts                 # Selective disclosure proofs verified against real batches
 │   │   ├── contracts.ts               # ethers.js Sepolia provider & simulated fallback engine
-│   │   ├── storage.ts                 # LocalStorage persistence & ERP sample data
+│   │   ├── storage.ts                 # Storage persistence & ERP sample data
 │   │   └── zipHelper.ts               # JSZip bulk student certificate packager
 │   └── types/
+│       ├── auth.ts                    # Authentication types & department roles
 │       └── index.ts                   # W3C and Merkle TypeScript interfaces
 ```
 
@@ -89,25 +102,24 @@ npm start
 
 ---
 
-## 🧪 Testing the 4 Operational Views
-
-### Testing the 3 Operational Views
+## 🧪 Testing the 3 Operational Views
 
 ### View 1: Public Drag-and-Drop / URL Verifier (`/`)
-- Choose between **Verify via URL** (enter PRN or direct URL) or **Upload File** (drop certificate JSON).
+- Choose between **Verify via URL** (enter PRN, short verification URL `?verify=batchId/leafIndex`, or direct URL) or **Upload File** (drop certificate JSON).
 - Try 1-click test buttons for **Aarav Sharma** (`PRN20200101`) or **Ananya Deshmukh** (`PRN20200102`).
-- Observe client-side verification in `<140ms`, confetti animation, authentic tamper-proof badge, and official degree card.
+- Observe client-side verification in `<140ms`, confetti animation, authentic tamper-proof badge, and official degree card with scannable on-chain verification QR code.
 
 ### View 2: Student Portal (`/student`)
-- Enter PRN `PRN20200101` and password to authenticate.
+- Enter PRN `PRN20200101` and password to authenticate via secure HTTP-only cookies.
 - Bind MetaMask wallet via EIP-712 cryptographic signature.
 - Click **"Download JSON"** to export W3C verifiable credential.
 - Click **"Selective Disclosure"** -> Set threshold (e.g. `CGPA >= 7.5`) and enable DPDP PII Redaction -> Download selective disclosure credential.
+- Click **"Share Link"** or **"Show QR"** to generate concise, scannable verification links.
 
 ### View 3: Exam Cell Batch Minting (`/issuer`)
 - Authenticate with authorized Examination Controller credentials (`EXAM_ADMIN_MGM`).
-- Upload graduation batch CSV -> Real-time 32-byte Merkle Root calculation and interactive DAG visualizer.
-- Click **"Anchor Batch to Sepolia"** to anchor on Ethereum Sepolia (or simulated local fallback with visible badge).
+- Upload graduation batch CSV with strict per-row validation -> Real-time 32-byte Merkle Root calculation and interactive DAG visualizer.
+- Click **"Anchor Batch to Sepolia"** to anchor on Ethereum Sepolia (or simulated local fallback with visible badge). Duplicate batch IDs are automatically blocked.
 - Click **"Download Student JSONs (.zip)"** to package graduation credentials.
 - Click **"Manage Revocations"** to revoke any credential via the 256-bit bitmap.
 
