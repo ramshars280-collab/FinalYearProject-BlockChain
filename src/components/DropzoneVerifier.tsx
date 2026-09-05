@@ -211,7 +211,7 @@ export default function DropzoneVerifier() {
     reader.readAsText(file);
   };
 
-  const handleVerifyPastedUrl = (rawInput?: string) => {
+  const handleVerifyPastedUrl = async (rawInput?: string) => {
     setUrlError(null);
     const target = (rawInput !== undefined ? rawInput : inputUrl).trim();
     if (!target) {
@@ -220,7 +220,51 @@ export default function DropzoneVerifier() {
     }
 
     try {
-      // 1. If it's a URL, extract cred / data query parameter
+      // 1. Check if target is a short verification URL or ID format:
+      // e.g. "?verify=batchId/leafIndex", "/api/verify/batchId/leafIndex", or "batchId/leafIndex"
+      let shortBatchId: string | null = null;
+      let shortLeafIndex: number | null = null;
+
+      if (target.includes("verify=") || target.includes("v=")) {
+        try {
+          const urlObj = target.startsWith("http") ? new URL(target) : new URL(target, window.location.origin);
+          const v = urlObj.searchParams.get("verify") || urlObj.searchParams.get("v");
+          if (v) {
+            const parts = v.replace(/^\/?api\/verify\//, "").split("/");
+            if (parts.length >= 2) {
+              shortBatchId = parts[0];
+              shortLeafIndex = parseInt(parts[1], 10);
+            }
+          }
+        } catch {}
+      }
+
+      if (!shortBatchId && target.includes("/api/verify/")) {
+        const match = target.match(/\/api\/verify\/([^/?#]+)\/(\d+)/);
+        if (match) {
+          shortBatchId = match[1];
+          shortLeafIndex = parseInt(match[2], 10);
+        }
+      }
+
+      if (!shortBatchId) {
+        const match = target.trim().match(/^([A-Za-z0-9_-]+)\/(\d+)$/);
+        if (match) {
+          shortBatchId = match[1];
+          shortLeafIndex = parseInt(match[2], 10);
+        }
+      }
+
+      if (shortBatchId && shortLeafIndex !== null && !isNaN(shortLeafIndex)) {
+        setIsVerifying(true);
+        const verified = await verifyByBatchAndLeaf(shortBatchId, shortLeafIndex);
+        setIsVerifying(false);
+        if (verified) return;
+        setUrlError(`No on-chain credential found for batch "${shortBatchId}" at leaf index #${shortLeafIndex}.`);
+        return;
+      }
+
+      // 2. If it's a URL, extract cred / data query parameter
       if (target.includes("http://") || target.includes("https://") || target.includes("?") || target.includes("cred=") || target.includes("data=")) {
         let credParam: string | null = null;
         try {
@@ -244,7 +288,7 @@ export default function DropzoneVerifier() {
         }
       }
 
-      // 2. Direct PRN / Roll Number lookup (e.g. PRN20200101)
+      // 3. Direct PRN / Roll Number lookup (e.g. PRN20200101)
       const batches = getStoredBatches();
       for (const batch of batches) {
         const studentIndex = batch.records?.findIndex(
@@ -271,14 +315,14 @@ export default function DropzoneVerifier() {
         }
       }
 
-      // 3. Raw JSON object string
+      // 4. Raw JSON object string
       if (target.startsWith("{") && target.endsWith("}")) {
         const parsed = JSON.parse(target);
         handleCredentialVerification(parsed);
         return;
       }
 
-      // 4. Base64 payload
+      // 5. Base64 payload
       try {
         const jsonStr = decodeURIComponent(escape(atob(target)));
         const parsed = JSON.parse(jsonStr);
@@ -286,10 +330,52 @@ export default function DropzoneVerifier() {
         return;
       } catch {}
 
-      setUrlError("No active on-chain credential found matching this URL or PRN. Please verify the link.");
+      setUrlError("No active on-chain credential found matching this URL, batch ID, or PRN. Please verify the link.");
     } catch (e: any) {
       setUrlError("Invalid URL format or corrupted credential data.");
     }
+  };
+
+  const verifyByBatchAndLeaf = async (batchId: string, leafIndex: number): Promise<boolean> => {
+    try {
+      // 1. Fetch from server public verification endpoint
+      const res = await fetch(`/api/verify/${encodeURIComponent(batchId)}/${leafIndex}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.credential) {
+          handleCredentialVerification(data.credential);
+          return true;
+        }
+      }
+
+      // 2. Client-side fallback from getStoredBatches()
+      const batches = getStoredBatches();
+      const foundBatch = batches.find(
+        (b) => b.batchId.toLowerCase() === batchId.toLowerCase()
+      );
+      if (foundBatch && foundBatch.records && foundBatch.records[leafIndex]) {
+        const student = foundBatch.records[leafIndex];
+        const treeData = buildBatchMerkleTree(foundBatch.records);
+        const proofData = {
+          ...treeData.proofs[leafIndex],
+          batchId: foundBatch.batchId,
+          contractAddress: getSepoliaConfig().credentialRegistryAddress,
+          network: "Ethereum Sepolia",
+        };
+        const cred = createW3CCredential(
+          student,
+          proofData,
+          foundBatch.issuer,
+          foundBatch.institutionName,
+          foundBatch.institutionCode
+        );
+        handleCredentialVerification(cred);
+        return true;
+      }
+    } catch (err) {
+      console.warn("verifyByBatchAndLeaf error:", err);
+    }
+    return false;
   };
 
   const loadFixture = async (path: string) => {
@@ -302,8 +388,21 @@ export default function DropzoneVerifier() {
     }
   };
 
-  // Auto-verify credential passed via URL parameter (?cred=... or ?data=...)
+  // Auto-verify credential passed via URL parameter (?verify=batchId/leafIndex or ?cred=... or ?data=...)
   useEffect(() => {
+    const verifyParam = searchParams.get("verify") || searchParams.get("v");
+    if (verifyParam) {
+      const parts = verifyParam.replace(/^\/?api\/verify\//, "").split("/");
+      if (parts.length >= 2) {
+        const bId = parts[0];
+        const lIdx = parseInt(parts[1], 10);
+        if (bId && !isNaN(lIdx)) {
+          verifyByBatchAndLeaf(bId, lIdx);
+          return;
+        }
+      }
+    }
+
     const credParam = searchParams.get("cred") || searchParams.get("data");
     if (credParam) {
       try {
@@ -324,9 +423,16 @@ export default function DropzoneVerifier() {
   const copyVerificationLink = () => {
     if (!credential) return;
     try {
-      const jsonStr = JSON.stringify(credential);
-      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
-      const url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      const batchId = credential.proof?.merkleProof?.batchId;
+      const leafIndex = credential.proof?.merkleProof?.leafIndex;
+      let url = "";
+      if (batchId && leafIndex !== undefined && leafIndex !== null) {
+        url = `${window.location.origin}/?verify=${encodeURIComponent(batchId)}/${leafIndex}`;
+      } else {
+        const jsonStr = JSON.stringify(credential);
+        const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+        url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      }
       navigator.clipboard.writeText(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);

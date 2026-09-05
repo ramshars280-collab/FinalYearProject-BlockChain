@@ -410,9 +410,16 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
 
   const handleCopyShareLink = (cred: W3CCredentialPayload) => {
     try {
-      const jsonStr = JSON.stringify(cred);
-      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
-      const url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      const batchId = cred.proof?.merkleProof?.batchId;
+      const leafIndex = cred.proof?.merkleProof?.leafIndex;
+      let url = "";
+      if (batchId && leafIndex !== undefined && leafIndex !== null) {
+        url = `${window.location.origin}/?verify=${encodeURIComponent(batchId)}/${leafIndex}`;
+      } else {
+        const jsonStr = JSON.stringify(cred);
+        const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+        url = `${window.location.origin}/?cred=${encodeURIComponent(b64)}&verifier=true`;
+      }
       navigator.clipboard.writeText(url);
       setCopiedCredId(cred.id);
       setTimeout(() => setCopiedCredId(null), 2500);
@@ -423,16 +430,11 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
 
   const handleShowQr = async (cred: W3CCredentialPayload) => {
     try {
-      const qrPayload = JSON.stringify({
-        id: cred.id,
-        prn: cred.credentialSubject.prn,
-        batchId: cred.proof.merkleProof?.batchId || "",
-        merkleRoot: cred.proof.merkleProof?.rootHash || "",
-        leafIndex: cred.proof.merkleProof?.leafIndex || 0,
-        contractAddress: cred.proof.merkleProof?.contractAddress || "",
-      });
+      const batchId = cred.proof?.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01";
+      const leafIndex = cred.proof?.merkleProof?.leafIndex ?? 0;
+      const shortUrl = `${window.location.origin}/?verify=${encodeURIComponent(batchId)}/${leafIndex}`;
 
-      const dataUrl = await QRCode.toDataURL(qrPayload, {
+      const dataUrl = await QRCode.toDataURL(shortUrl, {
         width: 340,
         margin: 2,
         color: {

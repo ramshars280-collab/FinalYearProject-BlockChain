@@ -35,19 +35,64 @@ export default function QrScannerModal({
       );
 
       scanner.render(
-        (decodedText) => {
+        async (decodedText) => {
+          // 1. Try direct JSON parsing
           try {
             const parsed = JSON.parse(decodedText);
             if (parsed && (parsed.credentialSubject || parsed.type)) {
               scanner?.clear();
               onScanSuccess(parsed);
               onClose();
-            } else {
-              setError("QR Code does not contain a valid W3C credential JSON format.");
+              return;
             }
-          } catch (e) {
-            setError("Scanned data is not a valid JSON credential.");
+          } catch {}
+
+          // 2. Try verification URL or short batchId/leafIndex format
+          let shortBatchId: string | null = null;
+          let shortLeafIndex: number | null = null;
+
+          if (decodedText.includes("verify=") || decodedText.includes("v=")) {
+            try {
+              const urlObj = decodedText.startsWith("http") ? new URL(decodedText) : new URL(decodedText, window.location.origin);
+              const v = urlObj.searchParams.get("verify") || urlObj.searchParams.get("v");
+              if (v) {
+                const parts = v.replace(/^\/?api\/verify\//, "").split("/");
+                if (parts.length >= 2) {
+                  shortBatchId = parts[0];
+                  shortLeafIndex = parseInt(parts[1], 10);
+                }
+              }
+            } catch {}
+          } else if (decodedText.includes("/api/verify/")) {
+            const match = decodedText.match(/\/api\/verify\/([^/?#]+)\/(\d+)/);
+            if (match) {
+              shortBatchId = match[1];
+              shortLeafIndex = parseInt(match[2], 10);
+            }
+          } else {
+            const match = decodedText.trim().match(/^([A-Za-z0-9_-]+)\/(\d+)$/);
+            if (match) {
+              shortBatchId = match[1];
+              shortLeafIndex = parseInt(match[2], 10);
+            }
           }
+
+          if (shortBatchId && shortLeafIndex !== null && !isNaN(shortLeafIndex)) {
+            try {
+              const res = await fetch(`/api/verify/${encodeURIComponent(shortBatchId)}/${shortLeafIndex}`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.credential) {
+                  scanner?.clear();
+                  onScanSuccess(data.credential);
+                  onClose();
+                  return;
+                }
+              }
+            } catch {}
+          }
+
+          setError("Scanned QR code did not contain a valid W3C credential or verification link.");
         },
         (errorMessage) => {
           // ignore stream frame errors

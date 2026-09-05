@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GraduationCap,
   ShieldCheck,
@@ -21,7 +21,9 @@ import {
   Check,
   Lock,
   Globe,
+  X,
 } from "lucide-react";
+import QRCode from "qrcode";
 import { W3CCredentialPayload, VerificationResult } from "../types";
 import { getSepoliaConfig } from "../lib/storage";
 import InteractiveHologramCard from "./InteractiveHologramCard";
@@ -60,6 +62,37 @@ export default function DegreeCertificate({
   const proof = credential?.proof || {};
   const isSelective = proof?.type === "SelectiveDisclosureProof2024" || proof?.type === "ZkSelectiveProof2024" || !!proof?.selectiveProof || !!proof?.zkProof;
   const selectiveProof = proof?.selectiveProof || proof?.zkProof;
+
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const batchId = proof?.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01";
+  const leafIndex = proof?.merkleProof?.leafIndex ?? 0;
+  const shortVerificationUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/?verify=${encodeURIComponent(batchId)}/${leafIndex}`
+      : `/?verify=${encodeURIComponent(batchId)}/${leafIndex}`;
+
+  useEffect(() => {
+    let isMounted = true;
+    QRCode.toDataURL(shortVerificationUrl, {
+      width: 220,
+      margin: 1,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (isMounted) setQrCodeDataUrl(url);
+      })
+      .catch((err) => console.error("QR generation error:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shortVerificationUrl]);
 
   const handlePrint = () => {
     window.print();
@@ -154,15 +187,16 @@ export default function DegreeCertificate({
             </button>
           </div>
 
-          {onShowQr && (
-            <button
-              onClick={onShowQr}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition-colors"
-            >
-              <QrCode className="h-3.5 w-3.5 text-blue-600" />
-              <span>QR Code</span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setShowQrModal(true);
+              if (onShowQr) onShowQr();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition-colors"
+          >
+            <QrCode className="h-3.5 w-3.5 text-blue-600" />
+            <span>QR Code</span>
+          </button>
 
           <button
             onClick={handlePrint}
@@ -301,13 +335,13 @@ export default function DegreeCertificate({
               </div>
             </div>
 
-            {/* Official Signatures & Seal */}
-            <div className="grid grid-cols-3 items-end pt-10 pb-6 border-t border-slate-200 text-center relative z-10">
+            {/* Official Signatures, Seal & On-Chain Verification QR */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 items-end pt-10 pb-6 border-t border-slate-200 text-center relative z-10 gap-4">
               <div className="space-y-1">
                 <div className="font-serif italic text-base text-slate-900 font-bold">
                   Dr. S. K. Mahajan
                 </div>
-                <div className="h-0.5 w-28 bg-slate-400 mx-auto" />
+                <div className="h-0.5 w-24 bg-slate-400 mx-auto" />
                 <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   {language === "bilingual" ? "डीन, अभियांत्रिकी संकाय / Dean" : "Dean, Faculty of Engineering"}
                 </div>
@@ -315,20 +349,45 @@ export default function DegreeCertificate({
 
               {/* Embossed University Seal */}
               <div className="flex flex-col items-center">
-                <div className="relative w-20 h-20 rounded-full border-4 border-blue-800 bg-gradient-to-tr from-blue-100 to-blue-50 flex flex-col items-center justify-center text-blue-950 shadow-md ring-4 ring-blue-100">
-                  <Award className="h-8 w-8 text-blue-800" />
-                  <span className="text-[8px] font-black uppercase tracking-tighter text-blue-900">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-blue-800 bg-gradient-to-tr from-blue-100 to-blue-50 flex flex-col items-center justify-center text-blue-950 shadow-md ring-4 ring-blue-100">
+                  <Award className="h-7 w-7 sm:h-8 sm:w-8 text-blue-800" />
+                  <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-tighter text-blue-900">
                     SEAL OF AUTHENTICITY
                   </span>
                 </div>
                 <span className="text-[9px] font-semibold text-slate-500 mt-1">Official University Seal</span>
               </div>
 
+              {/* Official Verification QR Code */}
+              <div className="flex flex-col items-center">
+                {qrCodeDataUrl ? (
+                  <div
+                    onClick={() => setShowQrModal(true)}
+                    className="cursor-pointer group p-1.5 bg-white border-2 border-slate-300 hover:border-blue-500 rounded-xl shadow-xs transition-all hover:scale-105"
+                    title="Click to Enlarge QR Code"
+                  >
+                    <img
+                      src={qrCodeDataUrl}
+                      alt="Verification QR Code"
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-md"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center">
+                    <QrCode className="h-6 w-6 text-slate-400 animate-pulse" />
+                  </div>
+                )}
+                <span className="text-[9px] font-bold text-slate-600 mt-1 flex items-center gap-1">
+                  <span>Scan to Verify</span>
+                  <ExternalLink className="h-2.5 w-2.5 text-blue-600 no-print" />
+                </span>
+              </div>
+
               <div className="space-y-1">
                 <div className="font-serif italic text-base text-slate-900 font-bold">
                   Prof. V. M. Deshpande
                 </div>
-                <div className="h-0.5 w-28 bg-slate-400 mx-auto" />
+                <div className="h-0.5 w-24 bg-slate-400 mx-auto" />
                 <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   {language === "bilingual" ? "परीक्षा नियंत्रक / Controller of Exams" : "Controller of Examinations"}
                 </div>
@@ -537,6 +596,71 @@ export default function DegreeCertificate({
           <pre className="bg-slate-900 p-4 rounded-xl border border-slate-800 font-mono text-xs text-blue-300 overflow-x-auto max-h-96">
             {JSON.stringify(credential, null, 2)}
           </pre>
+        </div>
+      )}
+
+      {/* Short URL Verification QR Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-200 relative">
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center justify-center gap-2">
+              <div className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                <QrCode className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">
+                Official Verification QR
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Scan with any mobile camera to instantly verify this degree on Ethereum Sepolia
+            </p>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl inline-block shadow-inner">
+              {qrCodeDataUrl ? (
+                <img
+                  src={qrCodeDataUrl}
+                  alt="Official Verification QR"
+                  className="w-56 h-56 mx-auto rounded-lg"
+                />
+              ) : (
+                <div className="w-56 h-56 flex items-center justify-center">
+                  <QrCode className="h-12 w-12 text-slate-400 animate-pulse" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5 text-xs text-left">
+              <div className="font-mono text-[11px] text-slate-700 truncate bg-slate-100 p-2.5 rounded-xl border border-slate-200 font-semibold">
+                {shortVerificationUrl}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(shortVerificationUrl);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }}
+                className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedLink ? "Copied Short Verification URL!" : "Copy Verification URL"}</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>
