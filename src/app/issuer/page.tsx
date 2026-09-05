@@ -298,6 +298,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [isZipping, setIsZipping] = useState(false);
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
   const [csvErrors, setCsvErrors] = useState<CsvRowError[]>([]);
+  const [anchorError, setAnchorError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -487,8 +488,28 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
   const handleAnchorOnChain = async () => {
     if (!computedTreeData) return;
-    setIsAnchoring(true);
+    setAnchorError(null);
     setAnchorSuccess(null);
+
+    const trimmedBatchId = batchId.trim();
+    if (!trimmedBatchId) {
+      setAnchorError("Batch ID cannot be empty.");
+      return;
+    }
+
+    const existingBatches = getStoredBatches();
+    const isDuplicate = existingBatches.some(
+      (b) => b.batchId.trim().toLowerCase() === trimmedBatchId.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setAnchorError(
+        `Duplicate Batch ID: A batch with ID '${trimmedBatchId}' already exists. Smart contract and registry require unique batch IDs.`
+      );
+      return;
+    }
+
+    setIsAnchoring(true);
 
     try {
       const config = getSepoliaConfig();
@@ -506,18 +527,18 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       }
 
       const contractRes = await anchorMerkleBatch(
-        batchId,
+        trimmedBatchId,
         computedTreeData.root,
-        `ipfs://bafybeig${batchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        `ipfs://bafybeig${trimmedBatchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
         signer
       );
       const txHash = contractRes.txHash;
       const simulated = contractRes.simulated;
 
       const newBatch: BatchRecord = {
-        batchId,
+        batchId: trimmedBatchId,
         merkleRoot: computedTreeData.rootHex || computedTreeData.root,
-        ipfsCid: `ipfs://bafybeig${batchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        ipfsCid: `ipfs://bafybeig${trimmedBatchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
         timestamp: Math.floor(Date.now() / 1000),
         issuer: selectedInstitution?.address || "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
         institutionName,
@@ -527,12 +548,13 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         records: currentStudents,
       };
 
-      const updated = [newBatch, ...batches];
+      const updated = [newBatch, ...existingBatches];
       saveStoredBatches(updated);
       setBatches(updated);
       setAnchorSuccess({ ...newBatch, txHash, simulated });
     } catch (err: any) {
       console.error("Anchoring error:", err);
+      setAnchorError(err?.message || "Failed to anchor batch on Ethereum Sepolia.");
     } finally {
       setIsAnchoring(false);
     }
@@ -689,9 +711,21 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 <input
                   type="text"
                   value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-hidden"
+                  onChange={(e) => {
+                    setBatchId(e.target.value);
+                    setAnchorError(null);
+                  }}
+                  className={`w-full bg-slate-50 border ${
+                    batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase())
+                      ? "border-amber-400 focus:border-amber-500"
+                      : "border-slate-300"
+                  } rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-hidden`}
                 />
+                {batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase()) && (
+                  <p className="text-[10px] text-amber-700 font-semibold mt-1">
+                    ⚠️ Note: A batch with this ID already exists in the registry.
+                  </p>
+                )}
               </div>
 
               {/* CSV Upload Dropzone */}
@@ -752,6 +786,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <button
                     onClick={() => {
                       setCsvErrors([]);
+                      setAnchorError(null);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH01");
                       recalculateTree(INITIAL_STUDENTS_MGM);
@@ -763,6 +798,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <button
                     onClick={() => {
                       setCsvErrors([]);
+                      setAnchorError(null);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH02");
                       recalculateTree(INITIAL_STUDENTS_MGM);
@@ -864,6 +900,18 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <span>{isZipping ? "Generating ZIP..." : "Download Student JSONs (.zip)"}</span>
                 </button>
               </div>
+
+              {anchorError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-900 rounded-2xl space-y-1.5 text-xs animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 font-bold text-sm text-red-900">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <span>Anchoring Blocked</span>
+                  </div>
+                  <p className="text-[11px] text-red-700 leading-relaxed font-mono">
+                    {anchorError}
+                  </p>
+                </div>
+              )}
 
               {anchorSuccess && (
                 <div
