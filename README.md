@@ -88,13 +88,26 @@ A production-ready, minimalist, and cryptographically secure Web3 system for iss
 npm install
 ```
 
-### 2. Run Development Server
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env.local`:
+```bash
+cp .env.example .env.local
+```
+Set the server authentication credentials in `.env.local`:
+```env
+AUTH_SECRET=soet_veritrust_jwt_secret_dev_32_characters_min
+ADMIN_PASSWORD=admin@mgm2026
+STUDENT_DEFAULT_PASSWORD=student123
+```
+*(All public Sepolia contract addresses and RPC endpoints are pre-configured).*
+
+### 3. Run Development Server
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. Build for Production
+### 4. Build for Production
 ```bash
 npm run build
 npm start
