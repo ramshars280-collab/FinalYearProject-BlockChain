@@ -25,7 +25,7 @@ interface RegisterUniversityModalProps {
   onRegistered: (newInst: ConsortiumInstitution) => void;
 }
 
-const TEMPLATES = [
+const getTemplates = () => [
   {
     name: "Indian Institute of Technology Bombay",
     shortName: "IIT Bombay",
@@ -34,7 +34,7 @@ const TEMPLATES = [
     state: "Maharashtra, India",
     establishedAct: "Institutes of Technology Act 1961",
     website: "https://www.iitb.ac.in",
-    address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    address: getSepoliaConfig().credentialRegistryAddress,
   },
   {
     name: "Birla Institute of Technology and Science, Pilani",
@@ -79,7 +79,7 @@ export default function RegisterUniversityModal({
 
   if (!isOpen) return null;
 
-  const applyTemplate = (t: typeof TEMPLATES[0]) => {
+  const applyTemplate = (t: ReturnType<typeof getTemplates>[0]) => {
     setName(t.name);
     setShortName(t.shortName);
     setCode(t.code);
@@ -199,7 +199,7 @@ export default function RegisterUniversityModal({
             Quick Onboard Templates:
           </span>
           <div className="flex flex-wrap gap-2">
-            {TEMPLATES.map((t, i) => (
+            {getTemplates().map((t, i) => (
               <button
                 key={i}
                 type="button"

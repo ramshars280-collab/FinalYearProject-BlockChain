@@ -23,6 +23,7 @@ import {
   Globe,
 } from "lucide-react";
 import { W3CCredentialPayload, VerificationResult } from "../types";
+import { getSepoliaConfig } from "../lib/storage";
 import InteractiveHologramCard from "./InteractiveHologramCard";
 
 interface DegreeCertificateProps {
@@ -346,7 +347,7 @@ export default function DegreeCertificate({
                 </div>
 
                 <a
-                  href={getEtherscanUrl(proof?.merkleProof?.contractAddress || "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7")}
+                  href={getEtherscanUrl(proof?.merkleProof?.contractAddress || getSepoliaConfig().credentialRegistryAddress)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-bold no-print underline"

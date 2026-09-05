@@ -31,7 +31,7 @@ import { W3CCredentialPayload, VerificationResult } from "../types";
 import { hashCredentialSubject, buildBatchMerkleTree, createW3CCredential } from "../lib/crypto";
 import { verifyCredentialOnChain } from "../lib/contracts";
 import { verifyZkSelectiveProof } from "../lib/zkProof";
-import { getRevocationDetail, getStoredBatches } from "../lib/storage";
+import { getRevocationDetail, getStoredBatches, getSepoliaConfig } from "../lib/storage";
 import DegreeCertificate from "./DegreeCertificate";
 import QrScannerModal from "./QrScannerModal";
 
@@ -256,7 +256,7 @@ export default function DropzoneVerifier() {
           const proofData = {
             ...treeData.proofs[studentIndex],
             batchId: batch.batchId,
-            contractAddress: "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+            contractAddress: getSepoliaConfig().credentialRegistryAddress,
             network: "Ethereum Sepolia",
           };
           const cred = createW3CCredential(

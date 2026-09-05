@@ -27,9 +27,12 @@ export interface SepoliaConfig {
 }
 
 export const DEFAULT_SEPOLIA_CONFIG: SepoliaConfig = {
-  credentialRegistryAddress: "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
-  identityRegistryAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-  rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+  credentialRegistryAddress:
+    process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY || "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+  identityRegistryAddress:
+    process.env.NEXT_PUBLIC_IDENTITY_REGISTRY || "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+  rpcUrl:
+    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
   chainId: 11155111,
   isSimulatedNetwork: false,
 };
