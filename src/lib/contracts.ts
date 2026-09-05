@@ -114,7 +114,7 @@ export async function anchorMerkleBatch(
   merkleRoot: string,
   ipfsCid: string,
   signer?: ethers.Signer | null
-): Promise<{ txHash: string; blockNumber: number }> {
+): Promise<{ txHash: string; blockNumber: number; simulated: boolean }> {
   const config = getSepoliaConfig();
 
   if (signer) {
@@ -129,17 +129,19 @@ export async function anchorMerkleBatch(
       return {
         txHash: receipt.hash,
         blockNumber: receipt.blockNumber,
+        simulated: false,
       };
     } catch (e: any) {
-      console.warn("Sepolia anchor transaction bypassed to demo mode:", e?.message);
+      console.warn("Sepolia anchor transaction bypassed to simulated mode:", e?.message);
     }
   }
 
-  // Demo fallback mode
+  // Simulated fallback mode
   const randomBytes = ethers.hexlify(ethers.randomBytes(32));
   return {
     txHash: randomBytes,
     blockNumber: 6294021 + Math.floor(Math.random() * 500),
+    simulated: true,
   };
 }
 
@@ -150,7 +152,7 @@ export async function revokeCredentialOnChain(
   batchId: string,
   leafIndex: number,
   signer?: ethers.Signer | null
-): Promise<{ txHash: string }> {
+): Promise<{ txHash: string; simulated: boolean }> {
   const config = getSepoliaConfig();
 
   if (signer) {
@@ -162,7 +164,7 @@ export async function revokeCredentialOnChain(
       );
       const tx = await contract.revokeCredential(batchId, leafIndex);
       const receipt = await tx.wait(1);
-      return { txHash: receipt.hash };
+      return { txHash: receipt.hash, simulated: false };
     } catch (e) {
       console.warn("Sepolia revoke call fell back to local storage:", e);
     }
@@ -178,5 +180,5 @@ export async function revokeCredentialOnChain(
     }
   }
 
-  return { txHash: ethers.hexlify(ethers.randomBytes(32)) };
+  return { txHash: ethers.hexlify(ethers.randomBytes(32)), simulated: true };
 }

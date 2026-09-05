@@ -75,6 +75,7 @@ export default function RegisterUniversityModal({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isSimulated, setIsSimulated] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -116,6 +117,8 @@ export default function RegisterUniversityModal({
       crestColor: "blue",
     };
 
+    let simulated = true;
+
     // Attempt on-chain registry call if MetaMask is connected
     try {
       if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -127,22 +130,29 @@ export default function RegisterUniversityModal({
           const tx = await contract.registerInstitution(generatedAddress, name.trim()).catch(() => null);
           if (tx) {
             await tx.wait(1);
+            simulated = false;
           }
         }
       }
     } catch (err) {
       console.warn("On-chain registration bypass to storage:", err);
+      simulated = true;
     }
 
+    setIsSimulated(simulated);
     // Save in consortium storage
     registerNewInstitution(newInstitution);
-    setSuccessMsg(`Successfully onboarded "${name}" to the Blockchain Consortium!`);
+    setSuccessMsg(
+      simulated
+        ? `Onboarded "${name}" (Simulated — not on-chain)`
+        : `Successfully onboarded "${name}" on Sepolia on-chain!`
+    );
     setLoading(false);
 
     setTimeout(() => {
       onRegistered(newInstitution);
       onClose();
-    }, 600);
+    }, 1200);
   };
 
   return (
@@ -301,9 +311,30 @@ export default function RegisterUniversityModal({
           )}
 
           {successMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-bold">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>{successMsg}</span>
+            <div
+              className={`p-3 ${
+                isSimulated
+                  ? "bg-amber-50 border-amber-300 text-amber-900"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-900"
+              } border rounded-xl text-xs flex items-center justify-between gap-2 font-bold`}
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2
+                  className={`h-4 w-4 ${
+                    isSimulated ? "text-amber-600" : "text-emerald-600"
+                  } shrink-0`}
+                />
+                <span>{successMsg}</span>
+              </div>
+              {isSimulated ? (
+                <span className="px-2 py-0.5 bg-amber-200/90 text-amber-900 border border-amber-300 rounded-md text-[10px] uppercase font-extrabold tracking-wider shrink-0">
+                  Simulated — not on-chain
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-emerald-200/90 text-emerald-900 border border-emerald-300 rounded-md text-[10px] uppercase font-extrabold tracking-wider shrink-0">
+                  Live On-Chain
+                </span>
+              )}
             </div>
           )}
 

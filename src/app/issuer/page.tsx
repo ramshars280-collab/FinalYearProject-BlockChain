@@ -413,23 +413,24 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       const institutionName = selectedInstitution ? selectedInstitution.name : "MGM University";
       const totalDegrees = currentStudents.length;
 
-      let txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
-
+      let signer: ethers.Signer | null = null;
       if (typeof window !== "undefined" && (window as any).ethereum) {
         try {
           const provider = new ethers.BrowserProvider((window as any).ethereum);
-          const signer = await provider.getSigner();
-          const contractRes = await anchorMerkleBatch(
-            batchId,
-            computedTreeData.root,
-            `ipfs://bafybeig${batchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
-            signer
-          );
-          txHash = contractRes.txHash;
+          signer = await provider.getSigner().catch(() => null);
         } catch (e: any) {
-          console.warn("Using simulated anchor fallback:", e);
+          console.warn("Could not acquire signer:", e);
         }
       }
+
+      const contractRes = await anchorMerkleBatch(
+        batchId,
+        computedTreeData.root,
+        `ipfs://bafybeig${batchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        signer
+      );
+      const txHash = contractRes.txHash;
+      const simulated = contractRes.simulated;
 
       const newBatch: BatchRecord = {
         batchId,
@@ -447,7 +448,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       const updated = [newBatch, ...batches];
       saveStoredBatches(updated);
       setBatches(updated);
-      setAnchorSuccess({ ...newBatch, txHash });
+      setAnchorSuccess({ ...newBatch, txHash, simulated });
     } catch (err: any) {
       console.error("Anchoring error:", err);
     } finally {
@@ -752,12 +753,41 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </div>
 
               {anchorSuccess && (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1 text-xs text-emerald-900">
-                  <div className="flex items-center gap-2 font-bold text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span>Batch Successfully Anchored on Sepolia!</span>
+                <div
+                  className={`p-4 ${
+                    anchorSuccess.simulated
+                      ? "bg-amber-50 border-amber-300 text-amber-900"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  } border rounded-2xl space-y-1.5 text-xs`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-bold text-sm">
+                      <CheckCircle2
+                        className={`h-4 w-4 ${
+                          anchorSuccess.simulated ? "text-amber-600" : "text-emerald-600"
+                        }`}
+                      />
+                      <span>
+                        {anchorSuccess.simulated
+                          ? "Batch Anchored Locally (Simulated Mode)"
+                          : "Batch Successfully Anchored on Sepolia!"}
+                      </span>
+                    </div>
+                    {anchorSuccess.simulated ? (
+                      <span className="px-2.5 py-1 bg-amber-200/90 text-amber-900 border border-amber-300 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                        Simulated — not on-chain
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 bg-emerald-200/90 text-emerald-900 border border-emerald-300 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                        Live On-Chain
+                      </span>
+                    )}
                   </div>
-                  <p className="font-mono text-[11px] text-emerald-800 truncate">
+                  <p
+                    className={`font-mono text-[11px] ${
+                      anchorSuccess.simulated ? "text-amber-800" : "text-emerald-800"
+                    } truncate`}
+                  >
                     Tx Hash: {anchorSuccess.txHash}
                   </p>
                 </div>

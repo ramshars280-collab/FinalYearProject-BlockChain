@@ -27,6 +27,7 @@ export default function BatchRevocationModal({
   const [supersededByHash, setSupersededByHash] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTx, setSuccessTx] = useState<string | null>(null);
+  const [isSimulated, setIsSimulated] = useState(false);
 
   if (!isOpen) return null;
 
@@ -41,6 +42,7 @@ export default function BatchRevocationModal({
       }
 
       const res = await revokeCredentialOnChain(batch.batchId, selectedLeafIndex, signer);
+      setIsSimulated(res.simulated);
 
       const reasonTitleMap: Record<RevocationReasonCode, string> = {
         CLERICAL_CORRECTION: "Clerical Correction / CGPA Recalculation",
@@ -182,19 +184,29 @@ export default function BatchRevocationModal({
           </div>
         ) : (
           <div className="space-y-4 py-2 text-center">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
+            <div className={`w-12 h-12 ${isSimulated ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"} rounded-full flex items-center justify-center mx-auto`}>
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
               <h4 className="text-sm font-bold text-slate-900">
-                Credential Successfully Revoked!
+                {isSimulated ? "Credential Revocation Simulated" : "Credential Successfully Revoked On-Chain!"}
               </h4>
               <p className="text-xs text-slate-500 mt-1">
-                Bitmap bit inverted on Sepolia. Any future verification checks will flag this degree as Revoked.
+                {isSimulated
+                  ? "Revocation recorded in local state registry. Any future verification checks will flag this degree as Revoked."
+                  : "Bitmap bit inverted on Sepolia. Any future verification checks will flag this degree as Revoked."}
               </p>
-              <p className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-2">
-                Status: Invalidation Confirmed On-Chain (Dynamic Bitmap Updated)
-              </p>
+              <div className="mt-2 flex items-center justify-center">
+                {isSimulated ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-[11px] font-bold">
+                    ⚠️ Simulated — not on-chain
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-[11px] font-bold">
+                    ✓ Confirmed On-Chain (Sepolia)
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={onClose}
