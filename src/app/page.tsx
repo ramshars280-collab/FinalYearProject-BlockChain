@@ -129,7 +129,7 @@ function PublicVerifierContent() {
           <div className="text-2xl font-black text-blue-700 font-mono">
             100% Zero-PII
           </div>
-          <span className="text-[10px] text-blue-800 font-bold">ZK Selective Disclosure</span>
+          <span className="text-[10px] text-blue-800 font-bold">Selective Disclosure</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">

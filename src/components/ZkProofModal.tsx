@@ -54,16 +54,16 @@ export default function ZkProofModal({
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              Zero-Knowledge Selective Disclosure
+              Selective Disclosure Credential
             </h3>
             <p className="text-xs text-slate-500">
-              India DPDP Act (Zero-PII & Selective Attribute Proofs)
+              India DPDP Act (Zero-PII &amp; Selective Attribute Proofs)
             </p>
           </div>
         </div>
 
         <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-          Prove your academic eligibility (e.g. CGPA &ge; 7.5) to recruiters or universities without disclosing your exact numerical marks, PRN, or personal identifiers.
+          Prove your academic eligibility (e.g. CGPA &ge; {thresholdCgpa}) to recruiters or universities without disclosing your exact numerical marks, PRN, or personal identifiers.
         </p>
 
         <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -106,7 +106,7 @@ export default function ZkProofModal({
                 Redact Identifiers (DPDP Act Compliance)
               </span>
               <span className="text-[11px] text-slate-500">
-                Hides PRN, Name & Seat Number from credential payload
+                Hides PRN, Name &amp; Seat Number from credential payload
               </span>
             </div>
             <input
@@ -129,14 +129,14 @@ export default function ZkProofModal({
             className="w-full mt-5 py-2.5 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
           >
             <Sparkles className="h-4 w-4" />
-            <span>Generate Cryptographic ZK Proof</span>
+            <span>Generate Selective Disclosure Credential</span>
           </button>
         ) : (
           <div className="mt-5 space-y-3">
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-start gap-2">
               <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">ZK Proof Created Successfully!</span>
+                <span className="font-bold">Selective Disclosure Credential Created!</span>
                 <p className="text-[11px] text-emerald-800 mt-0.5">
                   Commitment: {generatedProofCred.proof.zkProof?.commitmentHash.slice(0, 18)}...
                 </p>

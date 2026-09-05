@@ -73,24 +73,30 @@ export default function DropzoneVerifier() {
     setVerificationStep(2);
 
     try {
-      // 1. Check if ZK Selective Disclosure credential
-      if (data.proof?.type === "ZkSelectiveProof2024" || data.proof?.zkProof) {
+      // 1. Check if Selective Disclosure credential
+      if (
+        data.proof?.type === "SelectiveDisclosureProof2024" ||
+        data.proof?.type === "ZkSelectiveProof2024" ||
+        data.proof?.selectiveProof ||
+        data.proof?.zkProof
+      ) {
         await new Promise((r) => setTimeout(r, 250));
         setVerificationStep(3);
-        const zkValidation = verifyZkSelectiveProof(data);
+        const selectiveValidation = verifyZkSelectiveProof(data);
         const res: VerificationResult = {
-          isValid: zkValidation.isValid,
+          isValid: selectiveValidation.isValid,
           isRevoked: false,
-          tamperDetected: !zkValidation.isValid,
-          tamperReason: zkValidation.isValid ? undefined : zkValidation.message,
+          tamperDetected: !selectiveValidation.isValid,
+          tamperReason: selectiveValidation.isValid ? undefined : selectiveValidation.message,
           credential: data,
           verifiedAt: new Date().toLocaleTimeString(),
           isZkSelectiveProof: true,
+          isSelectiveDisclosure: true,
           issuingInstitutionName: data.issuer?.name || data.credentialSubject?.university || "MGM University",
           issuingInstitutionAddress: data.issuer?.ethereumAddress,
         };
         setResult(res);
-        if (zkValidation.isValid) triggerConfetti();
+        if (selectiveValidation.isValid) triggerConfetti();
         setIsVerifying(false);
         return;
       }

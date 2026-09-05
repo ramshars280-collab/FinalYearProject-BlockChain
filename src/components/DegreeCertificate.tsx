@@ -57,7 +57,8 @@ export default function DegreeCertificate({
 
   const subject = credential?.credentialSubject || (credential as any)?.recipient || (credential as any)?.data || {};
   const proof = credential?.proof || {};
-  const isZk = proof?.type === "ZkSelectiveProof2024" || !!proof?.zkProof;
+  const isSelective = proof?.type === "SelectiveDisclosureProof2024" || proof?.type === "ZkSelectiveProof2024" || !!proof?.selectiveProof || !!proof?.zkProof;
+  const selectiveProof = proof?.selectiveProof || proof?.zkProof;
 
   const handlePrint = () => {
     window.print();
@@ -275,7 +276,7 @@ export default function DegreeCertificate({
                     Cumulative CGPA
                   </span>
                   <span className="font-serif text-sm font-black text-blue-900">
-                    {isZk ? `≥ ${toSafeString(proof?.zkProof?.thresholdValue, "8.0")}` : subject?.cgpa ? `${toSafeString(subject.cgpa)} / 10.0` : "COMPLETED"}
+                    {isSelective ? `≥ ${toSafeString(selectiveProof?.thresholdValue, "8.0")}` : subject?.cgpa ? `${toSafeString(subject.cgpa)} / 10.0` : "COMPLETED"}
                   </span>
                 </div>
 

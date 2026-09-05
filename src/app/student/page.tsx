@@ -685,7 +685,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                       className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-                      <span>Generate ZK Proof</span>
+                      <span>Selective Disclosure</span>
                     </button>
                   </div>
                 </div>
@@ -698,7 +698,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
         )}
       </div>
 
-      {/* ZK Selective Disclosure Modal */}
+      {/* Selective Disclosure Modal */}
       {selectedCredForZk && (
         <ZkProofModal
           isOpen={!!selectedCredForZk}

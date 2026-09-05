@@ -54,16 +54,17 @@ export interface W3CCredentialPayload {
     id?: string;
   };
   proof: {
-    type: "EthereumMerkleProof2024" | "EIP712Signature2024" | "ZkSelectiveProof2024";
+    type: "EthereumMerkleProof2024" | "EIP712Signature2024" | "ZkSelectiveProof2024" | "SelectiveDisclosureProof2024";
     created: string;
     verificationMethod: string;
     merkleProof?: MerkleProofData;
-    zkProof?: ZkSelectiveProof;
+    zkProof?: SelectiveDisclosureProof;
+    selectiveProof?: SelectiveDisclosureProof;
     signature?: string;
   };
 }
 
-export interface ZkSelectiveProof {
+export interface SelectiveDisclosureProof {
   attributeName: string;
   assertionType: "GTE" | "LTE" | "EQUALS" | "MEMBERSHIP";
   thresholdValue: number | string;
@@ -75,6 +76,8 @@ export interface ZkSelectiveProof {
   proofHash: string;
   timestamp: number;
 }
+
+export type ZkSelectiveProof = SelectiveDisclosureProof;
 
 export interface BatchRecord {
   batchId: string;
@@ -134,6 +137,7 @@ export interface VerificationResult {
   txHash?: string;
   verifiedAt: string;
   isZkSelectiveProof?: boolean;
+  isSelectiveDisclosure?: boolean;
   issuingInstitutionName?: string;
   issuingInstitutionAddress?: string;
 }

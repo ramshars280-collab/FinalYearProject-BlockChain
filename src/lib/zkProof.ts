@@ -1,13 +1,14 @@
 import { ethers } from "ethers";
-import { StudentDegreeData, W3CCredentialPayload, ZkSelectiveProof } from "../types";
-import { canonicalStringify, hashCredentialSubject } from "./crypto";
+import { StudentDegreeData, W3CCredentialPayload, SelectiveDisclosureProof } from "../types";
+import { canonicalStringify } from "./crypto";
+import { getStoredBatches } from "./storage";
 
 /**
- * Generates a DPDP Act-compliant Zero-Knowledge Selective Disclosure credential.
+ * Generates a DPDP Act-compliant Selective Disclosure credential.
  * Allows a student to cryptographically prove assertions (e.g., CGPA >= 7.5)
  * or selectively disclose certain fields while redacting others.
  */
-export function generateZkSelectiveProof(
+export function generateSelectiveDisclosureProof(
   originalCredential: W3CCredentialPayload,
   thresholdCgpa: number = 7.5,
   redactPii: boolean = true
@@ -44,7 +45,7 @@ export function generateZkSelectiveProof(
     disclosedAttributes.fullName = subject.fullName;
   }
 
-  const zkProof: ZkSelectiveProof = {
+  const selectiveProof: SelectiveDisclosureProof = {
     attributeName: "cgpa",
     assertionType: "GTE",
     thresholdValue: thresholdCgpa,
@@ -62,10 +63,10 @@ export function generateZkSelectiveProof(
   const selectiveCredential: W3CCredentialPayload = {
     "@context": [
       ...originalCredential["@context"],
-      "https://w3id.org/security/suites/zk-selective-disclosure/v1",
+      "https://w3id.org/security/suites/selective-disclosure/v1",
     ],
-    id: `urn:uuid:zk-proof-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-    type: ["VerifiableCredential", "ZeroKnowledgeSelectiveCredential"],
+    id: `urn:uuid:selective-disclosure-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    type: ["VerifiableCredential", "SelectiveDisclosureCredential"],
     issuer: originalCredential.issuer,
     issuanceDate: new Date().toISOString(),
     credentialSubject: {
@@ -80,10 +81,11 @@ export function generateZkSelectiveProof(
       university: subject.university,
     },
     proof: {
-      type: "ZkSelectiveProof2024",
+      type: "SelectiveDisclosureProof2024",
       created: new Date().toISOString(),
       verificationMethod: originalCredential.proof.verificationMethod,
-      zkProof,
+      zkProof: selectiveProof,
+      selectiveProof,
       merkleProof: originalCredential.proof.merkleProof,
     },
   };
@@ -91,42 +93,169 @@ export function generateZkSelectiveProof(
   return selectiveCredential;
 }
 
+export const generateZkSelectiveProof = generateSelectiveDisclosureProof;
+
 /**
- * Validates a Zero-Knowledge Selective Disclosure proof client-side.
+ * Validates a Selective Disclosure proof against real stored batch records.
+ * Re-derives the commitment from authentic data rather than trusting self-reported values.
  */
 export function verifyZkSelectiveProof(credential: W3CCredentialPayload): {
   isValid: boolean;
   message: string;
   threshold?: number | string;
   assertionType?: string;
+  actualCgpa?: number;
 } {
-  const zk = credential.proof?.zkProof;
-  if (!zk) {
-    return { isValid: false, message: "Missing ZK Selective Proof payload" };
+  const proof = credential.proof?.selectiveProof || credential.proof?.zkProof;
+  if (!proof) {
+    return { isValid: false, message: "Missing Selective Disclosure proof payload" };
   }
 
-  if (!zk.actualSatisfied) {
+  const merkleProof = credential.proof?.merkleProof;
+  if (!merkleProof || !merkleProof.batchId) {
+    return { isValid: false, message: "Missing anchored batch metadata in selective disclosure credential" };
+  }
+
+  // 1. Fetch real batch from storage / registry
+  const batches = getStoredBatches();
+  const batch = batches.find(
+    (b) => b.batchId.toLowerCase() === merkleProof.batchId.toLowerCase()
+  );
+
+  if (!batch) {
     return {
       isValid: false,
-      message: `Predicate not satisfied: ${zk.attributeName} ${zk.assertionType} ${zk.thresholdValue}`,
+      message: `Batch "${merkleProof.batchId}" not found in institutional batch registry`,
     };
   }
 
-  // Re-check proof hash integrity
-  const expectedProofHash = ethers.keccak256(
+  // 2. Verify on-chain/stored Merkle root consistency
+  if (batch.merkleRoot.toLowerCase() !== (merkleProof.rootHash || "").toLowerCase()) {
+    return {
+      isValid: false,
+      message: "Merkle root in proof does not match the anchored batch root",
+    };
+  }
+
+  // 3. Locate the genuine student record in the real batch
+  let realRecord: StudentDegreeData | undefined;
+
+  // Try by leafIndex first if valid
+  if (typeof merkleProof.leafIndex === "number" && batch.records[merkleProof.leafIndex]) {
+    const candidate = batch.records[merkleProof.leafIndex];
+    // Verify candidate matches commitment
+    const testCommitment = ethers.keccak256(
+      ethers.toUtf8Bytes(
+        canonicalStringify({
+          rootHash: batch.merkleRoot,
+          prnHash: ethers.keccak256(ethers.toUtf8Bytes(candidate.prn)),
+          cgpa: candidate.cgpa,
+          threshold: proof.thresholdValue,
+          salt: proof.salt,
+        })
+      )
+    );
+    if (testCommitment.toLowerCase() === proof.commitmentHash.toLowerCase()) {
+      realRecord = candidate;
+    }
+  }
+
+  // If not found by leafIndex, search all batch records for the matching commitment
+  if (!realRecord) {
+    for (const record of batch.records) {
+      const testCommitment = ethers.keccak256(
+        ethers.toUtf8Bytes(
+          canonicalStringify({
+            rootHash: batch.merkleRoot,
+            prnHash: ethers.keccak256(ethers.toUtf8Bytes(record.prn)),
+            cgpa: record.cgpa,
+            threshold: proof.thresholdValue,
+            salt: proof.salt,
+          })
+        )
+      );
+      if (testCommitment.toLowerCase() === proof.commitmentHash.toLowerCase()) {
+        realRecord = record;
+        break;
+      }
+    }
+  }
+
+  if (!realRecord) {
+    return {
+      isValid: false,
+      message: "Cryptographic commitment failure: No authentic student record in this batch corresponds to this commitment",
+    };
+  }
+
+  // 4. Re-derive commitment from the authentic record to ensure zero tampering
+  const expectedCommitment = ethers.keccak256(
     ethers.toUtf8Bytes(
-      `${zk.commitmentHash}:${zk.thresholdValue}:${zk.actualSatisfied}`
+      canonicalStringify({
+        rootHash: batch.merkleRoot,
+        prnHash: ethers.keccak256(ethers.toUtf8Bytes(realRecord.prn)),
+        cgpa: realRecord.cgpa,
+        threshold: proof.thresholdValue,
+        salt: proof.salt,
+      })
     )
   );
 
-  if (expectedProofHash.toLowerCase() !== zk.proofHash.toLowerCase()) {
-    return { isValid: false, message: "Cryptographic proof hash mismatch in ZK assertion" };
+  if (expectedCommitment.toLowerCase() !== proof.commitmentHash.toLowerCase()) {
+    return {
+      isValid: false,
+      message: "Selective disclosure commitment hash mismatch with authentic institutional record",
+    };
+  }
+
+  // 5. Evaluate the predicate against the REAL CGPA from the stored batch record
+  const realCgpa = Number(realRecord.cgpa);
+  const threshold = Number(proof.thresholdValue);
+  let satisfies = false;
+
+  switch (proof.assertionType) {
+    case "GTE":
+      satisfies = realCgpa >= threshold;
+      break;
+    case "LTE":
+      satisfies = realCgpa <= threshold;
+      break;
+    case "EQUALS":
+      satisfies = realCgpa === threshold;
+      break;
+    default:
+      satisfies = realCgpa >= threshold;
+  }
+
+  if (!satisfies) {
+    return {
+      isValid: false,
+      message: `Predicate failed: Actual CGPA (${realCgpa}) does not satisfy "${proof.attributeName} ${proof.assertionType} ${threshold}" in authentic batch record`,
+      threshold: proof.thresholdValue,
+      assertionType: proof.assertionType,
+      actualCgpa: realCgpa,
+    };
+  }
+
+  // 6. Verify proof hash integrity with verified actual satisfaction state
+  const expectedProofHash = ethers.keccak256(
+    ethers.toUtf8Bytes(`${proof.commitmentHash}:${proof.thresholdValue}:${satisfies}`)
+  );
+
+  if (expectedProofHash.toLowerCase() !== proof.proofHash.toLowerCase()) {
+    return {
+      isValid: false,
+      message: "Cryptographic proof hash verification failed",
+    };
   }
 
   return {
     isValid: true,
-    message: `Verified: ${zk.attributeName.toUpperCase()} ${zk.assertionType} ${zk.thresholdValue} (Certified under DPDP Zero-PII Standard)`,
-    threshold: zk.thresholdValue,
-    assertionType: zk.assertionType,
+    message: `Verified: ${proof.attributeName.toUpperCase()} ${proof.assertionType} ${proof.thresholdValue} against authentic batch "${batch.batchId}" (DPDP Selective Disclosure Standard)`,
+    threshold: proof.thresholdValue,
+    assertionType: proof.assertionType,
+    actualCgpa: realCgpa,
   };
 }
+
+export const verifySelectiveDisclosureProof = verifyZkSelectiveProof;
