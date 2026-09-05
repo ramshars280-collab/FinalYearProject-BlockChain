@@ -371,7 +371,20 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     }
   };
 
-  const loadBatches = () => {
+  const loadBatches = async () => {
+    try {
+      const res = await fetch("/api/batches");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.batches)) {
+          setBatches(data.batches);
+          saveStoredBatches(data.batches);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load batches from /api/batches, falling back to local storage:", err);
+    }
     const stored = getStoredBatches();
     setBatches(stored);
   };
@@ -497,8 +510,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       return;
     }
 
-    const existingBatches = getStoredBatches();
-    const isDuplicate = existingBatches.some(
+    const isDuplicate = batches.some(
       (b) => b.batchId.trim().toLowerCase() === trimmedBatchId.toLowerCase()
     );
 
@@ -535,7 +547,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       const txHash = contractRes.txHash;
       const simulated = contractRes.simulated;
 
-      const newBatch: BatchRecord = {
+      let newBatch: BatchRecord = {
         batchId: trimmedBatchId,
         merkleRoot: computedTreeData.rootHex || computedTreeData.root,
         ipfsCid: `ipfs://bafybeig${trimmedBatchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
@@ -548,7 +560,26 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         records: currentStudents,
       };
 
-      const updated = [newBatch, ...existingBatches];
+      try {
+        const apiRes = await fetch("/api/batches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newBatch),
+        });
+        if (apiRes.ok) {
+          const apiJson = await apiRes.json();
+          if (apiJson.batch) {
+            newBatch = apiJson.batch;
+          }
+        } else {
+          const errData = await apiRes.json().catch(() => ({}));
+          console.warn("Server database save warning:", errData.error);
+        }
+      } catch (apiErr) {
+        console.error("Failed to persist batch to server database:", apiErr);
+      }
+
+      const updated = [newBatch, ...batches.filter((b) => b.batchId.toLowerCase() !== newBatch.batchId.toLowerCase())];
       saveStoredBatches(updated);
       setBatches(updated);
       setAnchorSuccess({ ...newBatch, txHash, simulated });

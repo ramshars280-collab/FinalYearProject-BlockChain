@@ -62,6 +62,25 @@ export default function BatchRevocationModal({
         officerStaffId: "COE-EXAM-DESK",
       });
 
+      // Synchronize revocation with server database
+      try {
+        await fetch("/api/batches/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            batchId: batch.batchId,
+            leafIndex: selectedLeafIndex,
+            reasonCode,
+            reasonTitle: reasonTitleMap[reasonCode],
+            reasonDescription: reasonDescription || "Official administrative revocation recorded on Sepolia registry.",
+            supersededByHash: supersededByHash.trim() || undefined,
+            officerStaffId: "COE-EXAM-DESK",
+          }),
+        });
+      } catch (syncErr) {
+        console.error("Failed to synchronize revocation with server database:", syncErr);
+      }
+
       setSuccessTx(res.txHash);
       onRevokedSuccess();
     } catch (e) {
