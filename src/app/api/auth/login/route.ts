@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (err: any) {
+    console.error('[ServerAuth Error]:', err?.message);
     return NextResponse.json(
-      { success: false, error: 'Server authentication error' },
+      { success: false, error: err?.message || 'Server authentication error' },
       { status: 500 }
     );
   }

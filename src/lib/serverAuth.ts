@@ -1,32 +1,50 @@
 import crypto from 'crypto';
 import { AuthUser, StudentUser, AdminUser } from '../types/auth';
 
-const JWT_SECRET = process.env.AUTH_SECRET || 'soet_veritrust_jwt_secret_sepolia_2026';
+function getJwtSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || !secret.trim()) {
+    throw new Error('AUTH_SECRET environment variable is missing. Server authentication is disabled.');
+  }
+  return secret.trim();
+}
 
-// Server-side credential repository (never bundled to client JS)
+function getAdminPassword(): string {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || !password.trim()) {
+    throw new Error('ADMIN_PASSWORD environment variable is missing. Admin authentication is disabled.');
+  }
+  return password.trim();
+}
+
+function getStudentDefaultPassword(): string {
+  const password = process.env.STUDENT_DEFAULT_PASSWORD;
+  if (!password || !password.trim()) {
+    throw new Error('STUDENT_DEFAULT_PASSWORD environment variable is missing. Student authentication is disabled.');
+  }
+  return password.trim();
+}
+
+// Server-side credential metadata (never bundled to client JS)
 const SERVER_ADMIN = {
   staffId: 'EXAM_ADMIN_MGM',
-  password: process.env.ADMIN_PASSWORD || 'admin@mgm2026',
   fullName: 'Prof. V. M. Deshpande',
   department: 'Examination Authority' as const,
   authorizedWallet: '0x71C56538b15294500B73f8472B4fE963D4e58bEf',
 };
 
-const SERVER_STUDENTS: Record<string, { password: string; fullName: string; email: string; isWalletVerified: boolean }> = {
+const SERVER_STUDENTS: Record<string, { fullName: string; email: string; isWalletVerified: boolean }> = {
   'PRN20200101': {
-    password: process.env.STUDENT_DEFAULT_PASSWORD || 'student123',
     fullName: 'Aarav Sharma',
     email: 'aarav.sharma@mgmu.ac.in',
     isWalletVerified: true,
   },
   'PRN20200102': {
-    password: process.env.STUDENT_DEFAULT_PASSWORD || 'student123',
     fullName: 'Ananya Deshmukh',
     email: 'ananya.deshmukh@mgmu.ac.in',
     isWalletVerified: true,
   },
   'PRN20200103': {
-    password: process.env.STUDENT_DEFAULT_PASSWORD || 'student123',
     fullName: 'Rohan Kulkarni',
     email: 'rohan.kulkarni@mgmu.ac.in',
     isWalletVerified: false,
@@ -34,8 +52,9 @@ const SERVER_STUDENTS: Record<string, { password: string; fullName: string; emai
 };
 
 export function verifyAdminCredentials(staffId: string, pass: string): AdminUser | null {
+  const adminPassword = getAdminPassword();
   const cleanId = staffId.trim().toUpperCase();
-  if (cleanId === SERVER_ADMIN.staffId && pass === SERVER_ADMIN.password) {
+  if (cleanId === SERVER_ADMIN.staffId && pass === adminPassword) {
     return {
       role: 'EXAM_ADMIN',
       staffId: SERVER_ADMIN.staffId,
@@ -48,9 +67,10 @@ export function verifyAdminCredentials(staffId: string, pass: string): AdminUser
 }
 
 export function verifyStudentCredentials(prn: string, pass: string): StudentUser | null {
+  const studentPassword = getStudentDefaultPassword();
   const cleanPrn = prn.trim().toUpperCase();
   const record = SERVER_STUDENTS[cleanPrn];
-  if (record && pass === record.password) {
+  if (record && pass === studentPassword) {
     return {
       role: 'STUDENT',
       prn: cleanPrn,
@@ -63,6 +83,7 @@ export function verifyStudentCredentials(prn: string, pass: string): StudentUser
 }
 
 export function signSessionToken(user: AuthUser): string {
+  const jwtSecret = getJwtSecret();
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(
     JSON.stringify({
@@ -70,16 +91,17 @@ export function signSessionToken(user: AuthUser): string {
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
     })
   ).toString('base64url');
-  const signature = crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + payload).digest('base64url');
+  const signature = crypto.createHmac('sha256', jwtSecret).update(header + '.' + payload).digest('base64url');
   return header + '.' + payload + '.' + signature;
 }
 
 export function verifySessionToken(token: string): AuthUser | null {
   try {
+    const jwtSecret = getJwtSecret();
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     const [header, payload, signature] = parts;
-    const expected = crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + payload).digest('base64url');
+    const expected = crypto.createHmac('sha256', jwtSecret).update(header + '.' + payload).digest('base64url');
     if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
       const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
       if (data.exp && data.exp < Math.floor(Date.now() / 1000)) return null;
