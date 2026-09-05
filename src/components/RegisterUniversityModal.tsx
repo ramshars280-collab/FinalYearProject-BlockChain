@@ -93,15 +93,27 @@ export default function RegisterUniversityModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedAddress = address.trim();
+
     if (!name.trim() || !shortName.trim() || !code.trim()) {
-      setErrorMsg("Please fill in the required university details.");
+      setErrorMsg("Please fill in all required university details.");
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setErrorMsg("Authorized Issuer Ethereum Wallet Address is required.");
+      return;
+    }
+
+    if (!ethers.isAddress(trimmedAddress)) {
+      setErrorMsg(`Invalid Ethereum address "${trimmedAddress}". Please enter a valid 42-character hex address (0x...).`);
       return;
     }
 
     setLoading(true);
     setErrorMsg(null);
 
-    const generatedAddress = address.trim() || ethers.Wallet.createRandom().address;
+    const validatedAddress = ethers.getAddress(trimmedAddress);
     const newInstId = shortName.toLowerCase().replace(/[^a-z0-9]/g, "");
 
     const newInstitution: ConsortiumInstitution = {
@@ -109,7 +121,7 @@ export default function RegisterUniversityModal({
       name: name.trim(),
       shortName: shortName.trim(),
       code: code.trim().toUpperCase(),
-      address: generatedAddress,
+      address: validatedAddress,
       city: city.trim() || "Consortium Node",
       state: state.trim() || "India",
       establishedAct: establishedAct.trim() || "Accredited Higher Education Institution",
@@ -127,7 +139,7 @@ export default function RegisterUniversityModal({
         if (signer) {
           const config = getSepoliaConfig();
           const contract = new ethers.Contract(config.credentialRegistryAddress, CREDENTIAL_REGISTRY_ABI, signer);
-          const tx = await contract.registerInstitution(generatedAddress, name.trim()).catch(() => null);
+          const tx = await contract.registerInstitution(validatedAddress, name.trim()).catch(() => null);
           if (tx) {
             await tx.wait(1);
             simulated = false;
@@ -278,13 +290,17 @@ export default function RegisterUniversityModal({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Authorized Issuer Ethereum Wallet Address:
+                Authorized Issuer Ethereum Wallet Address: *
               </label>
               <input
                 type="text"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="0x... (Leave blank to generate dedicated keypair)"
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setErrorMsg(null);
+                }}
+                required
+                placeholder="0x... (Valid 42-character Ethereum address)"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 font-mono focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               />
             </div>
