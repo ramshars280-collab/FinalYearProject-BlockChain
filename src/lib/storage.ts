@@ -32,8 +32,10 @@ export const DEFAULT_SEPOLIA_CONFIG: SepoliaConfig = {
   identityRegistryAddress:
     process.env.NEXT_PUBLIC_IDENTITY_REGISTRY || "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
   rpcUrl:
-    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
-  chainId: 11155111,
+    process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ||
+    process.env.NEXT_PUBLIC_SEPOLIA_RPC ||
+    "https://ethereum-sepolia-rpc.publicnode.com",
+  chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 11155111,
   isSimulatedNetwork: false,
 };
 
