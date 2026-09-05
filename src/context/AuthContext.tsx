@@ -5,17 +5,10 @@ import { AuthUser, AuthState, UserRole, StudentUser, AdminUser } from "../types/
 
 const SESSION_KEY = "mgm_blockchain_session_v3";
 
-export const DEMO_CREDENTIALS = {
-  student: {
-    prn: "PRN20200101",
-    password: "student123",
-    fullName: "Aarav Sharma",
-  },
-  admin: {
-    staffId: "EXAM_ADMIN_MGM",
-    password: "admin@mgm2026",
-    fullName: "Prof. V. M. Deshpande (Controller of Exams)",
-  },
+// Non-sensitive demo identity identifiers (passwords reside exclusively on the server)
+export const DEMO_IDENTIFIERS = {
+  studentPrn: "PRN20200101",
+  adminStaffId: "EXAM_ADMIN_MGM",
 };
 
 interface AuthContextType extends AuthState {
@@ -30,14 +23,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SESSION_KEY);
-      if (stored) {
-        setUser(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Session load error:", e);
-    }
+    // Check server session cookie first
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
+        } else {
+          // Fall back to stored session if server session expired or unavailable
+          try {
+            const stored = localStorage.getItem(SESSION_KEY);
+            if (stored) {
+              setUser(JSON.parse(stored));
+            }
+          } catch (e) {
+            console.error("Session load error:", e);
+          }
+        }
+      })
+      .catch(() => {
+        try {
+          const stored = localStorage.getItem(SESSION_KEY);
+          if (stored) {
+            setUser(JSON.parse(stored));
+          }
+        } catch (e) {
+          console.error("Session load error:", e);
+        }
+      });
   }, []);
 
   const saveUserSession = (authUser: AuthUser | null) => {
@@ -50,48 +64,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginStudent = async (prnInput: string, passInput: string): Promise<{ success: boolean; error?: string }> => {
-    const cleanPrn = prnInput.trim().toUpperCase();
-    if (cleanPrn === "PRN20200101" && passInput === "student123") {
-      const studentUser: StudentUser = {
-        role: "STUDENT",
-        prn: "PRN20200101",
-        fullName: "Aarav Sharma",
-        email: "aarav.sharma@mgmu.ac.in",
-        isWalletVerified: true,
-      };
-      saveUserSession(studentUser);
-      return { success: true };
-    } else if (cleanPrn.startsWith("PRN") && passInput === "student123") {
-      const studentUser: StudentUser = {
-        role: "STUDENT",
-        prn: cleanPrn,
-        fullName: `Student (${cleanPrn})`,
-        email: `${cleanPrn.toLowerCase()}@mgmu.ac.in`,
-        isWalletVerified: false,
-      };
-      saveUserSession(studentUser);
-      return { success: true };
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "STUDENT",
+          identifier: prnInput.trim(),
+          password: passInput,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        saveUserSession(data.user);
+        return { success: true };
+      }
+      return { success: false, error: data.error || "Authentication failed" };
+    } catch (err: any) {
+      return { success: false, error: "Unable to connect to authentication server" };
     }
-    return { success: false, error: "Invalid PRN or password. Use demo: PRN20200101 / student123" };
   };
 
   const loginAdmin = async (staffIdInput: string, passInput: string): Promise<{ success: boolean; error?: string }> => {
-    const cleanStaffId = staffIdInput.trim().toUpperCase();
-    if (cleanStaffId === "EXAM_ADMIN_MGM" && passInput === "admin@mgm2026") {
-      const adminUser: AdminUser = {
-        role: "EXAM_ADMIN",
-        staffId: "EXAM_ADMIN_MGM",
-        fullName: "Prof. V. M. Deshpande",
-        department: "Examination Authority",
-        authorizedWallet: "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
-      };
-      saveUserSession(adminUser);
-      return { success: true };
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "EXAM_ADMIN",
+          identifier: staffIdInput.trim(),
+          password: passInput,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        saveUserSession(data.user);
+        return { success: true };
+      }
+      return { success: false, error: data.error || "Authentication failed" };
+    } catch (err: any) {
+      return { success: false, error: "Unable to connect to authentication server" };
     }
-    return { success: false, error: "Invalid Admin Staff ID or Master Password. Use demo: EXAM_ADMIN_MGM / admin@mgm2026" };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
     saveUserSession(null);
   };
 

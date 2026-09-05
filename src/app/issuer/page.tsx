@@ -48,15 +48,15 @@ import {
 import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
-import { useAuth, DEMO_CREDENTIALS } from "../../context/AuthContext";
+import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
 
 export default function IssuerPage() {
   const router = useRouter();
   const { user, isAuthenticated, loginAdmin, logout } = useAuth();
 
   // Admin Login State
-  const [adminId, setAdminId] = useState(DEMO_CREDENTIALS.admin.staffId);
-  const [adminPass, setAdminPass] = useState(DEMO_CREDENTIALS.admin.password);
+  const [adminId, setAdminId] = useState(DEMO_IDENTIFIERS.adminStaffId);
+  const [adminPass, setAdminPass] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -231,17 +231,16 @@ export default function IssuerPage() {
 
               {/* Demo Auto-Fill Shortcut */}
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-center justify-between">
-                <span className="text-[11px] text-amber-900 font-semibold">Demo Credentials:</span>
+                <span className="text-[11px] text-amber-900 font-semibold">Demo Staff ID:</span>
                 <button
                   type="button"
                   onClick={() => {
-                    setAdminId(DEMO_CREDENTIALS.admin.staffId);
-                    setAdminPass(DEMO_CREDENTIALS.admin.password);
+                    setAdminId(DEMO_IDENTIFIERS.adminStaffId);
                   }}
                   className="text-xs text-amber-800 font-bold hover:underline flex items-center gap-1"
                 >
                   <Sparkles className="h-3 w-3 text-amber-600" />
-                  <span>Auto-Fill (Prof. Deshpande)</span>
+                  <span>Fill ID ({DEMO_IDENTIFIERS.adminStaffId})</span>
                 </button>
               </div>
 

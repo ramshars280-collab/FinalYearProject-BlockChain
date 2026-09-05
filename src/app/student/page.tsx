@@ -45,15 +45,15 @@ import { W3CCredentialPayload, StudentDegreeData, BatchRecord } from "../../type
 import ZkProofModal from "../../components/ZkProofModal";
 import DegreeCertificate from "../../components/DegreeCertificate";
 import InteractiveHologramCard from "../../components/InteractiveHologramCard";
-import { useAuth, DEMO_CREDENTIALS } from "../../context/AuthContext";
+import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
 
 export default function StudentPortalPage() {
   const router = useRouter();
   const { user, isAuthenticated, loginStudent, logout } = useAuth();
 
   // Login form state
-  const [loginPrn, setLoginPrn] = useState(DEMO_CREDENTIALS.student.prn);
-  const [loginPass, setLoginPass] = useState(DEMO_CREDENTIALS.student.password);
+  const [loginPrn, setLoginPrn] = useState(DEMO_IDENTIFIERS.studentPrn);
+  const [loginPass, setLoginPass] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -227,17 +227,16 @@ export default function StudentPortalPage() {
 
               {/* Demo Auto-Fill Shortcut */}
               <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
-                <span className="text-[11px] text-blue-900 font-semibold">Demo Credentials:</span>
+                <span className="text-[11px] text-blue-900 font-semibold">Demo Student PRN:</span>
                 <button
                   type="button"
                   onClick={() => {
-                    setLoginPrn(DEMO_CREDENTIALS.student.prn);
-                    setLoginPass(DEMO_CREDENTIALS.student.password);
+                    setLoginPrn(DEMO_IDENTIFIERS.studentPrn);
                   }}
                   className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1"
                 >
                   <Sparkles className="h-3 w-3 text-blue-600" />
-                  <span>Auto-Fill (Aarav Sharma)</span>
+                  <span>Fill PRN ({DEMO_IDENTIFIERS.studentPrn})</span>
                 </button>
               </div>
 
