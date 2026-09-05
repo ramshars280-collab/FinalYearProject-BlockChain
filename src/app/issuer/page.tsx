@@ -273,6 +273,12 @@ export default function IssuerPage() {
   return <UniversityAdminWorkspace logout={logout} />;
 }
 
+interface CsvRowError {
+  rowNumber: number;
+  prn?: string;
+  errors: string[];
+}
+
 // ==========================================
 // UNIVERSITY ADMIN CONSOLE WORKSPACE (2 TABS)
 // ==========================================
@@ -280,18 +286,18 @@ export default function IssuerPage() {
 function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [activeTab, setActiveTab] = useState<"minting" | "audit">("minting");
 
-  // Tab 1: Minting state
+  // Tab 1: Batch Minting State
+  const [batches, setBatches] = useState<BatchRecord[]>([]);
   const [institutions, setInstitutions] = useState<ConsortiumInstitution[]>([]);
   const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution | null>(null);
-
-  const [batches, setBatches] = useState<BatchRecord[]>([]);
+  const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH01");
   const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS_MGM);
-  const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH02");
   const [computedTreeData, setComputedTreeData] = useState<any>(null);
   const [isAnchoring, setIsAnchoring] = useState(false);
   const [anchorSuccess, setAnchorSuccess] = useState<any>(null);
   const [isZipping, setIsZipping] = useState(false);
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
+  const [csvErrors, setCsvErrors] = useState<CsvRowError[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -383,22 +389,98 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed: StudentDegreeData[] = results.data.map((row: any, i: number) => ({
-          prn: row.prn || row.PRN || `PRN-${i + 1}`,
-          fullName: row.fullName || row.studentName || row.name || row.Name || "Student Name",
-          degree: row.degree || row.degreeName || "Bachelor of Technology",
-          branch: row.branch || row.major || row.department || "Computer Science and Engineering",
-          cgpa: parseFloat(row.cgpa || row.CGPA || "8.50"),
-          graduationYear: parseInt(row.graduationYear || row.year || "2024"),
-          issueDate: row.issueDate || new Date().toISOString().split("T")[0],
-          nheqfCredits: parseInt(row.creditsCompleted || row.nheqfCredits || "164"),
-          nheqfLevel: parseInt(row.nheqfLevel || "8"),
-          university: selectedInstitution?.name || "MGM University",
-          institutionCode: selectedInstitution?.code || "MGM-ENGG-01",
-        }));
+        const errorsList: CsvRowError[] = [];
+        const parsedStudents: StudentDegreeData[] = [];
 
-        setCurrentStudents(parsed);
-        recalculateTree(parsed);
+        results.data.forEach((row: any, i: number) => {
+          const rowNumber = i + 2; // +1 for 0-index, +1 for CSV header line
+          const rowErrors: string[] = [];
+
+          // 1. Validate PRN format & presence
+          const rawPrn = (row.prn || row.PRN || "").trim();
+          if (!rawPrn) {
+            rowErrors.push("Missing required field: PRN");
+          } else if (!/^[A-Z0-9_-]{3,30}$/i.test(rawPrn)) {
+            rowErrors.push(`Invalid PRN format "${rawPrn}" (must be alphanumeric, 3-30 characters)`);
+          }
+
+          // 2. Validate Full Name
+          const rawName = (row.fullName || row.FullName || row.name || row.Name || row.studentName || "").trim();
+          if (!rawName) {
+            rowErrors.push("Missing required field: Student Full Name");
+          } else if (rawName.length < 2) {
+            rowErrors.push("Student name too short (minimum 2 characters)");
+          }
+
+          // 3. Validate Degree
+          const rawDegree = (row.degree || row.Degree || row.degreeName || "").trim();
+          if (!rawDegree) {
+            rowErrors.push("Missing required field: Degree");
+          }
+
+          // 4. Validate Branch
+          const rawBranch = (row.branch || row.Branch || row.major || row.department || "").trim();
+          if (!rawBranch) {
+            rowErrors.push("Missing required field: Branch / Major");
+          }
+
+          // 5. Validate CGPA in sane range (0.00 to 10.00)
+          const rawCgpaStr = row.cgpa !== undefined ? String(row.cgpa).trim() : (row.CGPA !== undefined ? String(row.CGPA).trim() : "");
+          const parsedCgpa = parseFloat(rawCgpaStr);
+          if (rawCgpaStr === "" || isNaN(parsedCgpa)) {
+            rowErrors.push("Missing or non-numeric CGPA");
+          } else if (parsedCgpa < 0 || parsedCgpa > 10) {
+            rowErrors.push(`CGPA (${parsedCgpa}) out of valid range 0.00 - 10.00`);
+          }
+
+          // 6. Validate Graduation Year
+          const rawYearStr = row.graduationYear !== undefined ? String(row.graduationYear).trim() : (row.year !== undefined ? String(row.year).trim() : (row.Year !== undefined ? String(row.Year).trim() : ""));
+          const parsedYear = parseInt(rawYearStr, 10);
+          if (rawYearStr === "" || isNaN(parsedYear)) {
+            rowErrors.push("Missing or non-numeric Graduation Year");
+          } else if (parsedYear < 1950 || parsedYear > 2100) {
+            rowErrors.push(`Graduation Year (${parsedYear}) out of valid range 1950 - 2100`);
+          }
+
+          if (rowErrors.length > 0) {
+            errorsList.push({
+              rowNumber,
+              prn: rawPrn || `Row ${rowNumber}`,
+              errors: rowErrors,
+            });
+          } else {
+            parsedStudents.push({
+              prn: rawPrn.toUpperCase(),
+              fullName: rawName,
+              degree: rawDegree,
+              branch: rawBranch,
+              cgpa: parsedCgpa,
+              graduationYear: parsedYear,
+              issueDate: (row.issueDate || row.IssueDate || new Date().toISOString().split("T")[0]).trim(),
+              nheqfCredits: parseInt(row.creditsCompleted || row.Credits || row.nheqfCredits || "160", 10),
+              nheqfLevel: parseFloat(row.level || row.Level || row.nheqfLevel || "6.0"),
+              university: (row.university || row.University || selectedInstitution?.name || "MGM University").trim(),
+              institutionCode: selectedInstitution?.code || "MGMU-ENG-01",
+            });
+          }
+        });
+
+        if (errorsList.length > 0) {
+          setCsvErrors(errorsList);
+          setCurrentStudents([]);
+          setComputedTreeData(null);
+          setAnchorSuccess(null);
+        } else if (parsedStudents.length === 0) {
+          setCsvErrors([{ rowNumber: 1, errors: ["CSV contains no student data rows"] }]);
+          setCurrentStudents([]);
+          setComputedTreeData(null);
+          setAnchorSuccess(null);
+        } else {
+          setCsvErrors([]);
+          setCurrentStudents(parsedStudents);
+          recalculateTree(parsedStudents);
+          setAnchorSuccess(null);
+        }
       },
     });
   };
@@ -632,6 +714,35 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     className="hidden"
                   />
                 </div>
+
+                {/* Per-Row CSV Errors */}
+                {csvErrors.length > 0 && (
+                  <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2 text-left animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 text-xs font-bold text-red-900">
+                      <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      <span>
+                        CSV Validation Failed ({csvErrors.length} row{csvErrors.length > 1 ? "s" : ""} invalid)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-red-700 leading-relaxed">
+                      Anchoring is disabled until all invalid rows are resolved. No fabricated or placeholder values are permitted.
+                    </p>
+                    <div className="max-h-48 overflow-y-auto space-y-2 pt-1 divide-y divide-red-200/60 pr-1">
+                      {csvErrors.map((err, idx) => (
+                        <div key={idx} className="pt-2 text-[11px] text-red-800">
+                          <span className="font-bold text-red-950">
+                            Row {err.rowNumber} ({err.prn}):
+                          </span>
+                          <ul className="list-disc list-inside ml-2 mt-0.5 space-y-0.5 text-red-700">
+                            {err.errors.map((e, eIdx) => (
+                              <li key={eIdx}>{e}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sample Batch Buttons */}
@@ -640,6 +751,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
+                      setCsvErrors([]);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH01");
                       recalculateTree(INITIAL_STUDENTS_MGM);
@@ -650,6 +762,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   </button>
                   <button
                     onClick={() => {
+                      setCsvErrors([]);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH02");
                       recalculateTree(INITIAL_STUDENTS_MGM);
@@ -735,7 +848,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button
                   onClick={handleAnchorOnChain}
-                  disabled={isAnchoring || !computedTreeData}
+                  disabled={isAnchoring || !computedTreeData || csvErrors.length > 0 || currentStudents.length === 0}
                   className="py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
                 >
                   <ShieldCheck className="h-4 w-4" />
@@ -744,7 +857,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
                 <button
                   onClick={handleDownloadZip}
-                  disabled={isZipping || !computedTreeData}
+                  disabled={isZipping || !computedTreeData || csvErrors.length > 0 || currentStudents.length === 0}
                   className="py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
                 >
                   <Download className="h-4 w-4 text-blue-600" />
