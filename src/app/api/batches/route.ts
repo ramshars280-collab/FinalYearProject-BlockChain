@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllBatchesDb, getBatchByIdDb, saveBatchDb } from '@/lib/db';
+import { verifySessionToken } from '@/lib/serverAuth';
 import { BatchRecord } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,16 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionCookie = request.cookies.get('auth_session')?.value;
+    const user = sessionCookie ? verifySessionToken(sessionCookie) : null;
+
+    if (!user || user.role !== 'EXAM_ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       batchId,

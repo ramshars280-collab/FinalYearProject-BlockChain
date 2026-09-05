@@ -64,9 +64,10 @@ export default function BatchRevocationModal({
 
       // Synchronize revocation with server database
       try {
-        await fetch("/api/batches/revoke", {
+        const revokeRes = await fetch("/api/batches/revoke", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             batchId: batch.batchId,
             leafIndex: selectedLeafIndex,
@@ -77,6 +78,10 @@ export default function BatchRevocationModal({
             officerStaffId: "COE-EXAM-DESK",
           }),
         });
+        if (revokeRes.status === 401) {
+          alert("Unauthorized (401): Only an authenticated Examination Administrator can revoke credentials.");
+          return;
+        }
       } catch (syncErr) {
         console.error("Failed to synchronize revocation with server database:", syncErr);
       }

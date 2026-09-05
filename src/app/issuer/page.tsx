@@ -284,6 +284,7 @@ interface CsvRowError {
 // ==========================================
 
 function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"minting" | "audit">("minting");
 
   // Tab 1: Batch Minting State
@@ -373,7 +374,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
   const loadBatches = async () => {
     try {
-      const res = await fetch("/api/batches");
+      const res = await fetch("/api/batches", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.batches)) {
@@ -564,8 +565,15 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         const apiRes = await fetch("/api/batches", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(newBatch),
         });
+        if (apiRes.status === 401) {
+          setAnchorError("Unauthorized (401): Valid Examination Authority session required. Please sign in again.");
+          logout();
+          router.push("/issuer");
+          return;
+        }
         if (apiRes.ok) {
           const apiJson = await apiRes.json();
           if (apiJson.batch) {
@@ -573,10 +581,13 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
           }
         } else {
           const errData = await apiRes.json().catch(() => ({}));
-          console.warn("Server database save warning:", errData.error);
+          setAnchorError(errData.error || "Failed to persist batch to server database.");
+          return;
         }
-      } catch (apiErr) {
+      } catch (apiErr: any) {
         console.error("Failed to persist batch to server database:", apiErr);
+        setAnchorError(apiErr?.message || "Failed to persist batch to server database.");
+        return;
       }
 
       const updated = [newBatch, ...batches.filter((b) => b.batchId.toLowerCase() !== newBatch.batchId.toLowerCase())];
