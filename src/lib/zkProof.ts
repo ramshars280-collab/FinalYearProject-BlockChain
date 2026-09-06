@@ -1,7 +1,6 @@
 import { ethers } from "ethers";
-import { StudentDegreeData, W3CCredentialPayload, SelectiveDisclosureProof } from "../types";
+import { StudentDegreeData, W3CCredentialPayload, SelectiveDisclosureProof, BatchRecord } from "../types";
 import { canonicalStringify } from "./crypto";
-import { getStoredBatches } from "./storage";
 
 /**
  * Generates a DPDP Act-compliant Selective Disclosure credential.
@@ -99,13 +98,13 @@ export const generateZkSelectiveProof = generateSelectiveDisclosureProof;
  * Validates a Selective Disclosure proof against real stored batch records.
  * Re-derives the commitment from authentic data rather than trusting self-reported values.
  */
-export function verifyZkSelectiveProof(credential: W3CCredentialPayload): {
+export async function verifyZkSelectiveProof(credential: W3CCredentialPayload): Promise<{
   isValid: boolean;
   message: string;
   threshold?: number | string;
   assertionType?: string;
   actualCgpa?: number;
-} {
+}> {
   const proof = credential.proof?.selectiveProof || credential.proof?.zkProof;
   if (!proof) {
     return { isValid: false, message: "Missing Selective Disclosure proof payload" };
@@ -116,11 +115,40 @@ export function verifyZkSelectiveProof(credential: W3CCredentialPayload): {
     return { isValid: false, message: "Missing anchored batch metadata in selective disclosure credential" };
   }
 
-  // 1. Fetch real batch from storage / registry
-  const batches = getStoredBatches();
-  const batch = batches.find(
-    (b) => b.batchId.toLowerCase() === merkleProof.batchId.toLowerCase()
-  );
+  // 1. Fetch real batch from database (via API in browser, or directly in server environment)
+  let batch: BatchRecord | null = null;
+  if (typeof window === "undefined") {
+    const { getBatchByIdDb } = await import("./db");
+    batch = getBatchByIdDb(merkleProof.batchId);
+  } else {
+    try {
+      const res = await fetch(`/api/batches/${encodeURIComponent(merkleProof.batchId)}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.batch) {
+          batch = data.batch;
+        }
+      } else if (res.status === 404) {
+        return {
+          isValid: false,
+          message: `Batch "${merkleProof.batchId}" not found in institutional batch registry`,
+        };
+      } else {
+        return {
+          isValid: false,
+          message: `Verification server error (${res.status}) while retrieving batch "${merkleProof.batchId}"`,
+        };
+      }
+    } catch (err: any) {
+      return {
+        isValid: false,
+        message: `Network error retrieving batch "${merkleProof.batchId}": ${err?.message || "Failed to connect to verification server"}`,
+      };
+    }
+  }
 
   if (!batch) {
     return {

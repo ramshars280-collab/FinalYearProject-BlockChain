@@ -66,6 +66,7 @@ contract IdentityRegistry {
     ) external {
         require(bytes(prn).length > 0, "IdentityRegistry: PRN cannot be empty");
         require(_prnToWallet[prn] == address(0), "IdentityRegistry: PRN already bound");
+        require(bytes(_walletToPrn[msg.sender]).length == 0, "IdentityRegistry: wallet already bound to a PRN");
         require(signature.length == 65, "IdentityRegistry: invalid signature length");
 
         // Verify EIP-712 Signature

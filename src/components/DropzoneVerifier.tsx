@@ -82,7 +82,7 @@ export default function DropzoneVerifier() {
       ) {
         await new Promise((r) => setTimeout(r, 250));
         setVerificationStep(3);
-        const selectiveValidation = verifyZkSelectiveProof(data);
+        const selectiveValidation = await verifyZkSelectiveProof(data);
         const res: VerificationResult = {
           isValid: selectiveValidation.isValid,
           isRevoked: false,
