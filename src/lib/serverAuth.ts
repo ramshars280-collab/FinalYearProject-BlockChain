@@ -6,11 +6,11 @@ function getJwtSecret(): string {
 }
 
 function getAdminPassword(): string {
-  return process.env.ADMIN_PASSWORD?.trim() || 'admin_demo_password';
+  return process.env.ADMIN_PASSWORD?.trim() || 'admin123';
 }
 
 function getStudentDefaultPassword(): string {
-  return process.env.STUDENT_DEFAULT_PASSWORD?.trim() || 'student_demo_password';
+  return process.env.STUDENT_DEFAULT_PASSWORD?.trim() || 'student123';
 }
 
 // Server-side credential metadata (never bundled to client JS)

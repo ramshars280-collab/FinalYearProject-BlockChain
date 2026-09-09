@@ -96,7 +96,7 @@ cp .env.example .env.local
 Set the server authentication credentials in `.env.local`:
 ```env
 AUTH_SECRET=soet_veritrust_jwt_secret_dev_32_characters_min
-ADMIN_PASSWORD=admin@mgm2026
+ADMIN_PASSWORD=admin123
 STUDENT_DEFAULT_PASSWORD=student123
 ```
 *(All public Sepolia contract addresses and RPC endpoints are pre-configured).*
