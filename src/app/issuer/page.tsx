@@ -299,6 +299,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [isZipping, setIsZipping] = useState(false);
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
   const [csvErrors, setCsvErrors] = useState<CsvRowError[]>([]);
+  const [csvSuccess, setCsvSuccess] = useState<{ fileName: string; count: number } | null>(null);
   const [anchorError, setAnchorError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -543,16 +544,22 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
         if (errorsList.length > 0) {
           setCsvErrors(errorsList);
+          setCsvSuccess(null);
           setCurrentStudents([]);
           setComputedTreeData(null);
           setAnchorSuccess(null);
         } else if (parsedStudents.length === 0) {
           setCsvErrors([{ rowNumber: 1, errors: ["CSV contains no student data rows"] }]);
+          setCsvSuccess(null);
           setCurrentStudents([]);
           setComputedTreeData(null);
           setAnchorSuccess(null);
         } else {
           setCsvErrors([]);
+          setCsvSuccess({
+            fileName: file.name,
+            count: parsedStudents.length,
+          });
           setCurrentStudents(parsedStudents);
           recalculateTree(parsedStudents);
           setAnchorSuccess(null);
@@ -854,6 +861,36 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   />
                 </div>
 
+                {/* CSV Upload Success Confirmation Message */}
+                {csvSuccess && csvErrors.length === 0 && (
+                  <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start justify-between gap-3 text-left animate-in fade-in duration-200 shadow-xs">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                          <span>CSV Uploaded Successfully!</span>
+                          <span className="px-2 py-0.5 bg-emerald-200/80 text-emerald-950 rounded-full text-[10px] font-mono font-black">
+                            {csvSuccess.count} Students Ready
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-emerald-700 leading-relaxed">
+                          Loaded <strong className="font-semibold text-emerald-950 font-mono">{csvSuccess.fileName}</strong>. All {csvSuccess.count} student records parsed, Merkle tree computed, and ready to anchor on-chain.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCsvSuccess(null)}
+                      className="text-emerald-700 hover:text-emerald-950 p-1 hover:bg-emerald-100/60 rounded-lg transition-colors text-xs font-bold"
+                      title="Dismiss confirmation"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
                 {/* Per-Row CSV Errors */}
                 {csvErrors.length > 0 && (
                   <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-2xl space-y-2 text-left animate-in fade-in duration-200">
@@ -891,6 +928,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <button
                     onClick={() => {
                       setCsvErrors([]);
+                      setCsvSuccess(null);
                       setAnchorError(null);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH01");
@@ -903,6 +941,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   <button
                     onClick={() => {
                       setCsvErrors([]);
+                      setCsvSuccess(null);
                       setAnchorError(null);
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH02");
