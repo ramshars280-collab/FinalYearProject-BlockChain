@@ -49,6 +49,7 @@ import { anchorMerkleBatch } from "../../lib/contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
 import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
+import { INITIAL_AUDIT_CANDIDATES, CandidateAuditRecord } from "../../lib/auditData";
 
 export default function IssuerPage() {
   const router = useRouter();
@@ -309,59 +310,9 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tab 2: Candidate Audit State
-  const [auditRows, setAuditRows] = useState<any[]>([
-    {
-      prn: "PRN20200101",
-      claimedName: "Aarav Sharma",
-      claimedCgpa: 9.42,
-      onChainName: "Aarav Sharma",
-      onChainCgpa: 9.42,
-      onChainUniversity: "MGM University",
-      status: "AUTHENTIC",
-      flag: "Exact On-Chain Match",
-    },
-    {
-      prn: "PRN20200102",
-      claimedName: "Priya Patel",
-      claimedCgpa: 9.80,
-      onChainName: "Priya Patel",
-      onChainCgpa: 9.15,
-      onChainUniversity: "MGM University",
-      status: "DISCREPANCY",
-      flag: "Inflated CGPA (+0.65 higher than on-chain record)",
-    },
-    {
-      prn: "PRN20200103",
-      claimedName: "Rohan Gupta",
-      claimedCgpa: 8.78,
-      onChainName: "Rohan Gupta",
-      onChainCgpa: 8.78,
-      onChainUniversity: "MGM University",
-      status: "AUTHENTIC",
-      flag: "Exact On-Chain Match",
-    },
-    {
-      prn: "PRN99999999",
-      claimedName: "Vikram Malhotra",
-      claimedCgpa: 9.90,
-      onChainName: "—",
-      onChainCgpa: 0,
-      onChainUniversity: "—",
-      status: "UNREGISTERED",
-      flag: "Forged PRN / No On-Chain Merkle Record",
-    },
-    {
-      prn: "PRN20200104",
-      claimedName: "Neha Kulkarni",
-      claimedCgpa: 8.92,
-      onChainName: "Neha Kulkarni",
-      onChainCgpa: 8.92,
-      onChainUniversity: "MGM University",
-      status: "AUTHENTIC",
-      flag: "Exact On-Chain Match",
-    },
-  ]);
+  const [auditRows, setAuditRows] = useState<CandidateAuditRecord[]>(INITIAL_AUDIT_CANDIDATES);
   const [auditFilter, setAuditFilter] = useState<"ALL" | "AUTHENTIC" | "DISCREPANCY" | "UNREGISTERED">("ALL");
+  const [auditSearch, setAuditSearch] = useState<string>("");
 
   useEffect(() => {
     loadInstitutions();
@@ -705,10 +656,17 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     }
   };
 
-  // Filtered candidate audit rows
+  // Filtered candidate audit rows with filter & search
   const filteredAuditRows = auditRows.filter((row) => {
-    if (auditFilter === "ALL") return true;
-    return row.status === auditFilter;
+    const matchesFilter = auditFilter === "ALL" || row.status === auditFilter;
+    const cleanSearch = auditSearch.trim().toLowerCase();
+    const matchesSearch =
+      !cleanSearch ||
+      row.prn.toLowerCase().includes(cleanSearch) ||
+      row.claimedName.toLowerCase().includes(cleanSearch) ||
+      row.onChainName.toLowerCase().includes(cleanSearch) ||
+      row.flag.toLowerCase().includes(cleanSearch);
+    return matchesFilter && matchesSearch;
   });
 
   const handleExportAuditCsv = () => {
@@ -1188,52 +1146,66 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </div>
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 mr-2">Filter Matrix:</span>
-              <button
-                onClick={() => setAuditFilter("ALL")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  auditFilter === "ALL"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                All Candidates ({auditRows.length})
-              </button>
+            {/* Toolbar: Filters + Search Box */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 mr-1">Filter Matrix:</span>
+                <button
+                  onClick={() => setAuditFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    auditFilter === "ALL"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  All Candidates ({auditRows.length})
+                </button>
 
-              <button
-                onClick={() => setAuditFilter("AUTHENTIC")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  auditFilter === "AUTHENTIC"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                }`}
-              >
-                Authentic Match ({auditRows.filter((r) => r.status === "AUTHENTIC").length})
-              </button>
+                <button
+                  onClick={() => setAuditFilter("AUTHENTIC")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    auditFilter === "AUTHENTIC"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                  }`}
+                >
+                  Authentic Match ({auditRows.filter((r) => r.status === "AUTHENTIC").length})
+                </button>
 
-              <button
-                onClick={() => setAuditFilter("DISCREPANCY")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  auditFilter === "DISCREPANCY"
-                    ? "bg-amber-600 text-white"
-                    : "bg-amber-50 text-amber-900 hover:bg-amber-100"
-                }`}
-              >
-                CGPA Discrepancies ({auditRows.filter((r) => r.status === "DISCREPANCY").length})
-              </button>
+                <button
+                  onClick={() => setAuditFilter("DISCREPANCY")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    auditFilter === "DISCREPANCY"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  }`}
+                >
+                  CGPA Discrepancies ({auditRows.filter((r) => r.status === "DISCREPANCY").length})
+                </button>
 
-              <button
-                onClick={() => setAuditFilter("UNREGISTERED")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  auditFilter === "UNREGISTERED"
-                    ? "bg-red-600 text-white"
-                    : "bg-red-50 text-red-800 hover:bg-red-100"
-                }`}
-              >
-                Forged / Unregistered ({auditRows.filter((r) => r.status === "UNREGISTERED").length})
-              </button>
+                <button
+                  onClick={() => setAuditFilter("UNREGISTERED")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    auditFilter === "UNREGISTERED"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-red-50 text-red-800 hover:bg-red-100"
+                  }`}
+                >
+                  Forged / Unregistered ({auditRows.filter((r) => r.status === "UNREGISTERED").length})
+                </button>
+              </div>
+
+              {/* Live Search Box */}
+              <div className="relative min-w-[260px]">
+                <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={auditSearch}
+                  onChange={(e) => setAuditSearch(e.target.value)}
+                  placeholder="Search candidate name or PRN..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-blue-500 font-medium"
+                />
+              </div>
             </div>
 
             {/* Discrepancy Matrix Table */}
@@ -1386,6 +1358,23 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                   });
                   setCurrentStudents(pendingUpload.students);
                   recalculateTree(pendingUpload.students);
+
+                  // Sync uploaded students into the bulk candidate audit table
+                  const newAuditEntries: CandidateAuditRecord[] = pendingUpload.students.map((s) => ({
+                    prn: s.prn,
+                    claimedName: s.fullName,
+                    claimedCgpa: s.cgpa,
+                    onChainName: s.fullName,
+                    onChainCgpa: s.cgpa,
+                    onChainUniversity: s.university || selectedInstitution?.name || "MGM University",
+                    status: "AUTHENTIC",
+                    flag: "Exact On-Chain Match",
+                  }));
+                  setAuditRows((prev) => {
+                    const existingPrns = new Set(newAuditEntries.map((e) => e.prn));
+                    return [...newAuditEntries, ...prev.filter((r) => !existingPrns.has(r.prn))];
+                  });
+
                   setAnchorSuccess(null);
                   setPendingUpload(null);
                 }}
