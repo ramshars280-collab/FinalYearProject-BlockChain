@@ -402,7 +402,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
     Papa.parse(file, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: "greedy",
+      transformHeader: (header: string) => header.trim().replace(/^\uFEFF/, ""),
       complete: (results) => {
         const errorsList: CsvRowError[] = [];
         const parsedStudents: StudentDegreeData[] = [];
@@ -411,36 +412,96 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
           const rowNumber = i + 2; // +1 for 0-index, +1 for CSV header line
           const rowErrors: string[] = [];
 
-          // 1. Validate PRN format & presence
-          const rawPrn = (row.prn || row.PRN || "").trim();
-          if (!rawPrn) {
-            rowErrors.push("Missing required field: PRN");
-          } else if (!/^[A-Z0-9_-]{3,30}$/i.test(rawPrn)) {
-            rowErrors.push(`Invalid PRN format "${rawPrn}" (must be alphanumeric, 3-30 characters)`);
+          // Create normalized key lookup dictionary (lowercase, stripped of all punctuation & spaces)
+          const norm: Record<string, string> = {};
+          for (const [k, v] of Object.entries(row)) {
+            const cleanKey = k.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+            norm[cleanKey] =
+              typeof v === "string"
+                ? v.trim()
+                : v !== null && v !== undefined
+                ? String(v).trim()
+                : "";
           }
 
-          // 2. Validate Full Name
-          const rawName = (row.fullName || row.FullName || row.name || row.Name || row.studentName || "").trim();
+          const getVal = (...keys: string[]): string => {
+            for (const k of keys) {
+              const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+              if (norm[cleanK] !== undefined && norm[cleanK] !== "") {
+                return norm[cleanK];
+              }
+            }
+            return "";
+          };
+
+          // Skip completely empty rows (common in Excel exports)
+          const hasAnyValue = Object.values(norm).some((val) => val !== "");
+          if (!hasAnyValue) {
+            return;
+          }
+
+          // 1. Validate PRN format & presence (support PRN, Roll No, Reg No, Student ID, etc.)
+          const rawPrn = getVal(
+            "prn",
+            "prnno",
+            "rollno",
+            "rollnumber",
+            "studentid",
+            "enrollmentno",
+            "regno",
+            "registrationno",
+            "id",
+            "candidateid"
+          );
+          if (!rawPrn) {
+            rowErrors.push("Missing required field: PRN (or Roll No / Student ID)");
+          } else if (!/^[A-Z0-9_./-]{2,40}$/i.test(rawPrn)) {
+            rowErrors.push(`Invalid PRN format "${rawPrn}" (must be alphanumeric, 2-40 characters)`);
+          }
+
+          // 2. Validate Full Name (support Full Name, Name, Student Name, etc.)
+          const rawName = getVal(
+            "fullname",
+            "studentfullname",
+            "studentname",
+            "name",
+            "candidatename"
+          );
           if (!rawName) {
             rowErrors.push("Missing required field: Student Full Name");
           } else if (rawName.length < 2) {
             rowErrors.push("Student name too short (minimum 2 characters)");
           }
 
-          // 3. Validate Degree
-          const rawDegree = (row.degree || row.Degree || row.degreeName || "").trim();
+          // 3. Validate Degree (support Degree, Degree / Program, Course, Program, etc. Defaults to Bachelor of Technology if omitted)
+          let rawDegree = getVal(
+            "degree",
+            "degreename",
+            "degreeprogram",
+            "program",
+            "programme",
+            "course"
+          );
           if (!rawDegree) {
-            rowErrors.push("Missing required field: Degree");
+            rawDegree = "Bachelor of Technology";
           }
 
-          // 4. Validate Branch
-          const rawBranch = (row.branch || row.Branch || row.major || row.department || "").trim();
+          // 4. Validate Branch / Major (support Branch, Branch / Major, Major, Department, Stream, Specialization)
+          const rawBranch = getVal(
+            "branch",
+            "branchmajor",
+            "major",
+            "department",
+            "specialization",
+            "stream",
+            "discipline"
+          );
           if (!rawBranch) {
             rowErrors.push("Missing required field: Branch / Major");
           }
 
           // 5. Validate CGPA in sane range (0.00 to 10.00)
-          const rawCgpaStr = row.cgpa !== undefined ? String(row.cgpa).trim() : (row.CGPA !== undefined ? String(row.CGPA).trim() : "");
+          const rawCgpaStr = getVal("cgpa", "gpa", "marks", "score", "percentage", "grade");
           const parsedCgpa = parseFloat(rawCgpaStr);
           if (rawCgpaStr === "" || isNaN(parsedCgpa)) {
             rowErrors.push("Missing or non-numeric CGPA");
@@ -448,8 +509,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
             rowErrors.push(`CGPA (${parsedCgpa}) out of valid range 0.00 - 10.00`);
           }
 
-          // 6. Validate Graduation Year (defaults to current year if 5-column CSV is used)
-          const rawYearStr = row.graduationYear !== undefined ? String(row.graduationYear).trim() : (row.year !== undefined ? String(row.year).trim() : (row.Year !== undefined ? String(row.Year).trim() : ""));
+          // 6. Validate Graduation Year (defaults to current year if omitted)
+          const rawYearStr = getVal("graduationyear", "gradyear", "year", "passingyear", "batchyear", "batch");
           let parsedYear = parseInt(rawYearStr, 10);
           if (rawYearStr === "" || isNaN(parsedYear)) {
             parsedYear = new Date().getFullYear();
@@ -471,10 +532,10 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               branch: rawBranch,
               cgpa: parsedCgpa,
               graduationYear: parsedYear,
-              issueDate: (row.issueDate || row.IssueDate || new Date().toISOString().split("T")[0]).trim(),
-              nheqfCredits: parseInt(row.creditsCompleted || row.Credits || row.nheqfCredits || "160", 10),
-              nheqfLevel: parseFloat(row.level || row.Level || row.nheqfLevel || "6.0"),
-              university: (row.university || row.University || selectedInstitution?.name || "MGM University").trim(),
+              issueDate: getVal("issuedate", "date", "graduationdate") || new Date().toISOString().split("T")[0],
+              nheqfCredits: parseInt(getVal("creditscompleted", "credits", "nheqfcredits", "totalcredits") || "160", 10),
+              nheqfLevel: parseFloat(getVal("level", "nheqflevel") || "6.0"),
+              university: getVal("university", "institution", "college") || selectedInstitution?.name || "MGM University",
               institutionCode: selectedInstitution?.code || "MGMU-ENG-01",
             });
           }
@@ -498,6 +559,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         }
       },
     });
+
+    e.target.value = "";
   };
 
   const handleAnchorOnChain = async () => {
