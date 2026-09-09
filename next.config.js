@@ -4,6 +4,20 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["better-sqlite3"],
   },
+  async redirects() {
+    return [
+      {
+        source: '/admin',
+        destination: '/issuer',
+        permanent: false,
+      },
+      {
+        source: '/verify',
+        destination: '/',
+        permanent: false,
+      },
+    ];
+  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
