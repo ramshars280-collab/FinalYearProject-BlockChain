@@ -300,6 +300,10 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
   const [csvErrors, setCsvErrors] = useState<CsvRowError[]>([]);
   const [csvSuccess, setCsvSuccess] = useState<{ fileName: string; count: number } | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{
+    fileName: string;
+    students: StudentDegreeData[];
+  } | null>(null);
   const [anchorError, setAnchorError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -551,18 +555,17 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         } else if (parsedStudents.length === 0) {
           setCsvErrors([{ rowNumber: 1, errors: ["CSV contains no student data rows"] }]);
           setCsvSuccess(null);
+          setPendingUpload(null);
           setCurrentStudents([]);
           setComputedTreeData(null);
           setAnchorSuccess(null);
         } else {
           setCsvErrors([]);
-          setCsvSuccess({
+          // Trigger confirmation alert modal: "Are you sure you want to upload this student list?"
+          setPendingUpload({
             fileName: file.name,
-            count: parsedStudents.length,
+            students: parsedStudents,
           });
-          setCurrentStudents(parsedStudents);
-          recalculateTree(parsedStudents);
-          setAnchorSuccess(null);
         }
       },
     });
@@ -1308,6 +1311,92 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
           }}
           batch={revocationModalBatch}
         />
+      )}
+
+      {/* Eye-Catching Confirmation Alert Modal: Are you sure you want to upload this student list? */}
+      {pendingUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative bg-white w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 text-center animate-in zoom-in-95 duration-200">
+            {/* Top Glowing Alert Icon */}
+            <div className="relative mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-white shadow-xl shadow-orange-500/30 ring-8 ring-orange-100">
+              <AlertTriangle className="h-8 w-8 animate-pulse" />
+            </div>
+
+            {/* Header Text */}
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs font-extrabold tracking-wide uppercase">
+                Action Confirmation Required
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Upload Student List?
+              </h3>
+              <p className="text-sm text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
+                Are you sure you want to upload and process this bulk student list?
+              </p>
+            </div>
+
+            {/* Batch Details Card */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5 text-xs shadow-inner">
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                  <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+                  Selected CSV File:
+                </span>
+                <span className="font-mono font-bold text-slate-900 truncate max-w-[210px] bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs" title={pendingUpload.fileName}>
+                  {pendingUpload.fileName}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-500 font-semibold">Total Students:</span>
+                <span className="font-extrabold text-emerald-950 bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-2xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  {pendingUpload.students.length} Valid Records
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-500 font-semibold">Consortium Authority:</span>
+                <span className="font-bold text-slate-800">
+                  {selectedInstitution?.name || "MGM University"}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Confirming will stage this batch and calculate the 32-byte cryptographic Merkle root for on-chain anchoring.
+            </p>
+
+            {/* Eye-Catching Action Buttons: YES / NO */}
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingUpload(null)}
+                className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl border-2 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+              >
+                <XCircle className="h-4 w-4 text-slate-500" />
+                <span>No, Cancel</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!pendingUpload) return;
+                  setCsvErrors([]);
+                  setCsvSuccess({
+                    fileName: pendingUpload.fileName,
+                    count: pendingUpload.students.length,
+                  });
+                  setCurrentStudents(pendingUpload.students);
+                  recalculateTree(pendingUpload.students);
+                  setAnchorSuccess(null);
+                  setPendingUpload(null);
+                }}
+                className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                <span>Yes, Upload List</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
