@@ -448,11 +448,11 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
             rowErrors.push(`CGPA (${parsedCgpa}) out of valid range 0.00 - 10.00`);
           }
 
-          // 6. Validate Graduation Year
+          // 6. Validate Graduation Year (defaults to current year if 5-column CSV is used)
           const rawYearStr = row.graduationYear !== undefined ? String(row.graduationYear).trim() : (row.year !== undefined ? String(row.year).trim() : (row.Year !== undefined ? String(row.Year).trim() : ""));
-          const parsedYear = parseInt(rawYearStr, 10);
+          let parsedYear = parseInt(rawYearStr, 10);
           if (rawYearStr === "" || isNaN(parsedYear)) {
-            rowErrors.push("Missing or non-numeric Graduation Year");
+            parsedYear = new Date().getFullYear();
           } else if (parsedYear < 1950 || parsedYear > 2100) {
             rowErrors.push(`Graduation Year (${parsedYear}) out of valid range 1950 - 2100`);
           }
