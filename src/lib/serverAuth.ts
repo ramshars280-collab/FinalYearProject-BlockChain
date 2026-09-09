@@ -57,8 +57,14 @@ export function verifyAdminCredentials(staffId: string, pass: string): AdminUser
 export function verifyStudentCredentials(prn: string, pass: string): StudentUser | null {
   const studentPassword = getStudentDefaultPassword();
   const cleanPrn = prn.trim().toUpperCase();
-  const record = SERVER_STUDENTS[cleanPrn];
-  if (record && pass === studentPassword) {
+
+  if (pass !== studentPassword) {
+    return null;
+  }
+
+  // 1. Static demo student records
+  if (SERVER_STUDENTS[cleanPrn]) {
+    const record = SERVER_STUDENTS[cleanPrn];
     return {
       role: 'STUDENT',
       prn: cleanPrn,
@@ -67,6 +73,40 @@ export function verifyStudentCredentials(prn: string, pass: string): StudentUser
       isWalletVerified: record.isWalletVerified,
     };
   }
+
+  // 2. Dynamically lookup from SQLite database batches
+  try {
+    const { getAllBatchesDb } = require('./db');
+    const batches = getAllBatchesDb();
+    for (const b of batches) {
+      const student = b.records?.find(
+        (s: any) => s.prn?.trim().toUpperCase() === cleanPrn
+      );
+      if (student) {
+        return {
+          role: 'STUDENT',
+          prn: cleanPrn,
+          fullName: student.fullName,
+          email: `${student.fullName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@mgmu.ac.in`,
+          isWalletVerified: false,
+        };
+      }
+    }
+  } catch (err) {
+    // Database lookup fallback
+  }
+
+  // 3. Fallback for any valid formatted PRN (allows testing arbitrary student numbers)
+  if (/^[A-Z0-9_-]{3,30}$/i.test(cleanPrn)) {
+    return {
+      role: 'STUDENT',
+      prn: cleanPrn,
+      fullName: `Student ${cleanPrn}`,
+      email: `${cleanPrn.toLowerCase()}@mgmu.ac.in`,
+      isWalletVerified: false,
+    };
+  }
+
   return null;
 }
 
