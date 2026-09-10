@@ -226,18 +226,40 @@ export default function StudentPortalPage() {
               </div>
 
               {/* Demo Auto-Fill Shortcut */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-[11px] text-blue-900 font-semibold">Demo Student PRN:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginPrn(DEMO_IDENTIFIERS.studentPrn);
-                  }}
-                  className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1"
-                >
-                  <Sparkles className="h-3 w-3 text-blue-600" />
-                  <span>Fill PRN ({DEMO_IDENTIFIERS.studentPrn})</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginPrn("PRN20200101");
+                    }}
+                    className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs"
+                  >
+                    <Sparkles className="h-3 w-3 text-blue-600" />
+                    <span>Aarav</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginPrn("PRN20200102");
+                    }}
+                    className="text-xs text-indigo-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-indigo-200 shadow-2xs"
+                  >
+                    <Sparkles className="h-3 w-3 text-indigo-600" />
+                    <span>Ananya</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginPrn("PRN20200103");
+                    }}
+                    className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs"
+                  >
+                    <Sparkles className="h-3 w-3 text-emerald-600" />
+                    <span>Rohan</span>
+                  </button>
+                </div>
               </div>
 
               {loginError && (

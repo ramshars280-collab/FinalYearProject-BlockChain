@@ -575,9 +575,18 @@ export default function DropzoneVerifier() {
                       setInputUrl("PRN20200102");
                       handleVerifyPastedUrl("PRN20200102");
                     }}
-                    className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold transition-all"
+                    className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-xs font-semibold transition-all"
                   >
                     PRN20200102 (Ananya Deshmukh)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInputUrl("PRN20200103");
+                      handleVerifyPastedUrl("PRN20200103");
+                    }}
+                    className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold transition-all"
+                  >
+                    PRN20200103 (Rohan Kulkarni)
                   </button>
                 </div>
               </div>
@@ -654,7 +663,21 @@ export default function DropzoneVerifier() {
                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    <span>MGM University (Valid)</span>
+                    <span>Aarav Sharma (CSE)</span>
+                  </button>
+                  <button
+                    onClick={() => loadFixture("/fixtures/valid_degree_ananya_deshmukh.json")}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Ananya Deshmukh (AI & DS)</span>
+                  </button>
+                  <button
+                    onClick={() => loadFixture("/fixtures/valid_degree_rohan_kulkarni.json")}
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Rohan Kulkarni (IT)</span>
                   </button>
                   <button
                     onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}

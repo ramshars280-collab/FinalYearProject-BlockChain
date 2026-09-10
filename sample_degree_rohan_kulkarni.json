@@ -1,0 +1,53 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://schema.org",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "id": "urn:uuid:degree-cert-prn20200103-2024",
+  "type": [
+    "VerifiableCredential",
+    "UniversityDegreeCredential"
+  ],
+  "issuer": {
+    "id": "did:ethr:11155111:0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+    "name": "MGM University, Chhatrapati Sambhajinagar",
+    "url": "https://blockchain.trust-registry.ac.in/verify",
+    "ethereumAddress": "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+    "institutionCode": "MGMU-ENG-01"
+  },
+  "issuanceDate": "2024-06-15T10:00:00.000Z",
+  "credentialSubject": {
+    "prn": "PRN20200103",
+    "fullName": "Rohan Kulkarni",
+    "degree": "Bachelor of Technology",
+    "branch": "Information Technology",
+    "cgpa": 7.92,
+    "graduationYear": 2024,
+    "issueDate": "2024-06-15",
+    "nheqfCredits": 160,
+    "nheqfLevel": 6,
+    "university": "MGM University, Chhatrapati Sambhajinagar",
+    "institutionCode": "MGMU-ENG-01",
+    "division": "First Class",
+    "id": "did:pkh:eip155:11155111:student-prn20200103"
+  },
+  "proof": {
+    "type": "EthereumMerkleProof2024",
+    "created": "2024-06-15T10:00:00.000Z",
+    "verificationMethod": "did:ethr:11155111:0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7#merkleRoot",
+    "merkleProof": {
+      "batchId": "MGM-2024-BTECH-BATCH01",
+      "leafIndex": 2,
+      "leafHash": "0xa7c045918678f7bf83897a32fce7f70e57ab16521745718ce4dc118598652e37",
+      "rootHash": "0xde333280396d785f7b5708372a601695a5840c99945e6e168347e0f97744eb33",
+      "proof": [
+        "0x543b2854201e59fa71cb2b49d423cb1681561f6f664855a8635eb063b6068539",
+        "0x9188c89c8d91fdd45e4bc1e573e97d0651b19aa5253a18bb57017cfd3d4c0a77"
+      ],
+      "contractAddress": "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+      "network": "Ethereum Sepolia",
+      "chainId": 11155111
+    }
+  }
+}
