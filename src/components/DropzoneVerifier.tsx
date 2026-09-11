@@ -12,6 +12,7 @@ import {
   Sparkles,
   RefreshCw,
   FileJson,
+  FileText,
   CheckCircle2,
   XCircle,
   Search,
@@ -686,6 +687,59 @@ export default function DropzoneVerifier() {
                     <XCircle className="h-3.5 w-3.5 text-red-600" />
                     <span>Tampered Sample (Invalid)</span>
                   </button>
+                </div>
+
+                {/* Pre-Generated Test PDF Degrees Suite */}
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
+                  <span className="text-slate-500 font-bold mr-1 flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Test Degree PDFs:</span>
+                  </span>
+                  <a
+                    href="/certificates_pdf/1_Authentic_Degree_Aarav_Sharma.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all flex items-center gap-1"
+                    title="100% Valid degree on blockchain"
+                  >
+                    <span>Aarav (Authentic PDF)</span>
+                  </a>
+                  <a
+                    href="/certificates_pdf/2_Authentic_Degree_Ananya_Deshmukh.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all flex items-center gap-1"
+                    title="100% Valid degree on blockchain"
+                  >
+                    <span>Ananya (Authentic PDF)</span>
+                  </a>
+                  <a
+                    href="/certificates_pdf/3_Tampered_GPA_Degree_Aarav_Sharma.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all flex items-center gap-1"
+                    title="Altered CGPA: 9.92 vs genuine 9.24"
+                  >
+                    <span>Tampered GPA (PDF)</span>
+                  </a>
+                  <a
+                    href="/certificates_pdf/4_Fake_Unregistered_Degree_Vikrant_Verma.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold transition-all flex items-center gap-1"
+                    title="Fabricated candidate not in university registry"
+                  >
+                    <span>Counterfeit (PDF)</span>
+                  </a>
+                  <a
+                    href="/certificates_pdf/5_Revoked_Degree_Pooja_Patil.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg font-semibold transition-all flex items-center gap-1"
+                    title="Degree revoked on blockchain"
+                  >
+                    <span>Revoked (PDF)</span>
+                  </a>
                 </div>
               </div>
             </div>

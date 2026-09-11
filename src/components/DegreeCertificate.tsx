@@ -22,6 +22,7 @@ import {
   Lock,
   Globe,
   X,
+  Download,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { W3CCredentialPayload, VerificationResult } from "../types";
@@ -198,12 +199,27 @@ export default function DegreeCertificate({
             <span>QR Code</span>
           </button>
 
+          <a
+            href={
+              subject?.prn?.toUpperCase() === "PRN20200102"
+                ? "/certificates_pdf/2_Authentic_Degree_Ananya_Deshmukh.pdf"
+                : subject?.prn?.toUpperCase() === "PRN20200104"
+                ? "/certificates_pdf/5_Revoked_Degree_Pooja_Patil.pdf"
+                : "/certificates_pdf/1_Authentic_Degree_Aarav_Sharma.pdf"
+            }
+            download
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-2xs hover:scale-102"
+          >
+            <Download className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Download Official PDF</span>
+          </a>
+
           <button
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102"
           >
             <Printer className="h-3.5 w-3.5" />
-            <span>Print Official Diploma</span>
+            <span>Print Diploma</span>
           </button>
         </div>
       </div>
