@@ -525,8 +525,8 @@ async function main() {
       statusClass: 'status-valid',
     },
     {
-      fileName: '2_Authentic_Degree_Ananya_Deshmukh.pdf',
-      studentName: 'Ananya Deshmukh',
+      fileName: '2_Authentic_Degree_Ananya_Malhotra.pdf',
+      studentName: 'Ananya Malhotra',
       prn: 'PRN20200102',
       degree: 'Bachelor of Technology',
       branch: 'Artificial Intelligence & Data Science',
@@ -633,9 +633,9 @@ FILES INCLUDED IN THIS DIRECTORY:
    - CGPA: 9.24 / 10.0 (Matches on-chain root)
    - QR Scans to: http://localhost:3000/?verify=MGM-2024-BTECH-BATCH01/0
 
-2. 2_Authentic_Degree_Ananya_Deshmukh.pdf
+2. 2_Authentic_Degree_Ananya_Malhotra.pdf
    - Status: 100% VALID & AUTHENTIC
-   - Student: Ananya Deshmukh (PRN20200102)
+   - Student: Ananya Malhotra (PRN20200102)
    - Degree: B.Tech Artificial Intelligence & Data Science
    - CGPA: 8.85 / 10.0 (Matches on-chain root)
    - QR Scans to: http://localhost:3000/?verify=MGM-2024-BTECH-BATCH01/1

@@ -1,7 +1,7 @@
 ========================================================================
 MGM UNIVERSITY - BLOCKCHAIN ACADEMIC DEGREE VERIFICATION TEST SUITE
 ========================================================================
-Generated on: 12/9/2026, 2:01:27 am
+Generated on: 12/9/2026, 2:08:44 am
 Design: Exact replica of DegreeCertificate.tsx (Guilloche border, seal, QR, Merkle anchor)
 
 FILES INCLUDED IN THIS DIRECTORY:
@@ -13,9 +13,9 @@ FILES INCLUDED IN THIS DIRECTORY:
    - CGPA: 9.24 / 10.0 (Matches on-chain root)
    - QR Scans to: http://localhost:3000/?verify=MGM-2024-BTECH-BATCH01/0
 
-2. 2_Authentic_Degree_Ananya_Deshmukh.pdf
+2. 2_Authentic_Degree_Ananya_Malhotra.pdf
    - Status: 100% VALID & AUTHENTIC
-   - Student: Ananya Deshmukh (PRN20200102)
+   - Student: Ananya Malhotra (PRN20200102)
    - Degree: B.Tech Artificial Intelligence & Data Science
    - CGPA: 8.85 / 10.0 (Matches on-chain root)
    - QR Scans to: http://localhost:3000/?verify=MGM-2024-BTECH-BATCH01/1

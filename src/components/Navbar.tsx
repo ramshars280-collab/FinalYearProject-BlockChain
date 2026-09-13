@@ -11,6 +11,7 @@ import {
   Layers,
   Wallet,
   LogOut,
+  LogIn,
   User,
   Shield,
 } from "lucide-react";
@@ -93,9 +94,17 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = [
-    { href: "/", label: "Public Verifier", icon: ShieldCheck },
+  // Three separate, role-specific nav link arrays
+  const publicLinks = [
+    { href: "/", label: "Verify a Degree", icon: ShieldCheck },
+    { href: "/student", label: "Login", icon: LogIn },
+  ];
+
+  const studentLinks = [
     { href: "/student", label: "Student Vault", icon: UserCheck },
+  ];
+
+  const adminLinks = [
     { href: "/issuer", label: "University Admin", icon: Layers },
   ];
 
@@ -135,42 +144,102 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* CENTER: Clean 3 Navigation Links */}
+          {/* CENTER: Role-Specific Navigation Links */}
           <nav className="hidden md:flex items-center gap-1.5">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? "text-white bg-blue-600 shadow-sm border border-blue-700"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
+            {/* 1. Public Visitor (Unauthenticated) */}
+            {(!isAuthenticated || !user) &&
+              publicLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? "text-white bg-blue-600 shadow-sm border border-blue-700"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+
+            {/* 2. Authenticated STUDENT */}
+            {isAuthenticated && user?.role === "STUDENT" &&
+              studentLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? "text-white bg-blue-600 shadow-sm border border-blue-700"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+
+            {/* 3. Authenticated EXAM_ADMIN */}
+            {isAuthenticated && user?.role === "EXAM_ADMIN" &&
+              adminLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? "text-white bg-blue-600 shadow-sm border border-blue-700"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
           </nav>
 
           {/* RIGHT: User Session Badge (if logged in) + Connect MetaMask Button */}
           <div className="flex items-center gap-3 shrink-0">
-            {isAuthenticated && user && (
+            {/* Student Desktop Session Badge */}
+            {isAuthenticated && user?.role === "STUDENT" && (
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs">
                 <div className="flex items-center gap-1.5 font-bold text-blue-950">
-                  {user.role === "STUDENT" ? (
-                    <User className="h-3.5 w-3.5 text-blue-600" />
-                  ) : (
-                    <Shield className="h-3.5 w-3.5 text-blue-600" />
-                  )}
+                  <User className="h-3.5 w-3.5 text-blue-600" />
                   <span className="hidden sm:inline truncate max-w-[140px]">
-                    {user.role === "STUDENT"
-                      ? `${(user as any).prn}`
-                      : "University Admin"}
+                    {(user as any).prn}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => logout()}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg text-xs font-bold transition-all"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-3 w-3" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
+
+            {/* Admin Desktop Session Badge */}
+            {isAuthenticated && user?.role === "EXAM_ADMIN" && (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs">
+                <div className="flex items-center gap-1.5 font-bold text-blue-950">
+                  <Shield className="h-3.5 w-3.5 text-blue-600" />
+                  <span className="hidden sm:inline truncate max-w-[140px]">
+                    University Admin
                   </span>
                 </div>
 
@@ -212,22 +281,82 @@ export default function Navbar() {
 
         {/* Mobile Navigation bar */}
         <div className="flex md:hidden border-t border-slate-200 py-2.5 gap-2 items-center justify-between overflow-x-auto">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                  isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
-                }`}
+          {/* Mobile 1: Unauthenticated / Public Visitor */}
+          {(!isAuthenticated || !user) &&
+            publicLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-slate-500"}`} />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+
+          {/* Mobile 2: Authenticated STUDENT */}
+          {isAuthenticated && user?.role === "STUDENT" && (
+            <>
+              {studentLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                onClick={() => logout()}
+                className="flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-red-700 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-all ml-auto"
               >
-                <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-slate-500"}`} />
-                <span>{link.label}</span>
-              </Link>
-            );
-          })}
+                <LogOut className="h-3.5 w-3.5 text-slate-500" />
+                <span>Sign Out</span>
+              </button>
+            </>
+          )}
+
+          {/* Mobile 3: Authenticated EXAM_ADMIN */}
+          {isAuthenticated && user?.role === "EXAM_ADMIN" && (
+            <>
+              {adminLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                onClick={() => logout()}
+                className="flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-red-700 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-all ml-auto"
+              >
+                <LogOut className="h-3.5 w-3.5 text-slate-500" />
+                <span>Sign Out</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

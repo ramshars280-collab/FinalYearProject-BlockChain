@@ -91,7 +91,7 @@ function PublicVerifierContent() {
         </h1>
 
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-          Cryptographically authenticate university degree diplomas in &lt;140ms with zero login, zero gas fees, and 100% DPDP Act Zero-PII on-chain privacy.
+          Cryptographically authenticate university degree diplomas in &lt;140ms with zero login, zero gas fees.
         </p>
       </div>
 

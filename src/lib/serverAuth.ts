@@ -28,8 +28,8 @@ const SERVER_STUDENTS: Record<string, { fullName: string; email: string; isWalle
     isWalletVerified: true,
   },
   'PRN20200102': {
-    fullName: 'Ananya Deshmukh',
-    email: 'ananya.deshmukh@mgmu.ac.in',
+    fullName: 'Ananya Malhotra',
+    email: 'ananya.malhotra@mgmu.ac.in',
     isWalletVerified: true,
   },
   'PRN20200103': {

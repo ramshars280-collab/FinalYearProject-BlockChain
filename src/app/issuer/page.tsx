@@ -563,10 +563,41 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         }
       }
 
+      // 1. Upload credential batch payload to Pinata IPFS
+      let realIpfsCid = "";
+      try {
+        const ipfsRes = await fetch("/api/ipfs/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            batchId: trimmedBatchId,
+            records: currentStudents,
+            merkleRoot: computedTreeData.rootHex || computedTreeData.root,
+            institutionName,
+          }),
+        });
+
+        const ipfsJson = await ipfsRes.json().catch(() => ({}));
+        if (!ipfsRes.ok || !ipfsJson.success || !ipfsJson.cid) {
+          setAnchorError(
+            ipfsJson.error || "Pinata IPFS upload failed. Please configure PINATA_API_KEY or PINATA_JWT in .env."
+          );
+          setIsAnchoring(false);
+          return;
+        }
+
+        realIpfsCid = `ipfs://${ipfsJson.cid}`;
+      } catch (ipfsErr: any) {
+        setAnchorError(`IPFS upload failed: ${ipfsErr?.message || "Failed to reach /api/ipfs/upload"}`);
+        setIsAnchoring(false);
+        return;
+      }
+
       const contractRes = await anchorMerkleBatch(
         trimmedBatchId,
         computedTreeData.root,
-        `ipfs://bafybeig${trimmedBatchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        realIpfsCid,
         signer
       );
       const txHash = contractRes.txHash;
@@ -575,7 +606,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       let newBatch: BatchRecord = {
         batchId: trimmedBatchId,
         merkleRoot: computedTreeData.rootHex || computedTreeData.root,
-        ipfsCid: `ipfs://bafybeig${trimmedBatchId.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+        ipfsCid: realIpfsCid,
         timestamp: Math.floor(Date.now() / 1000),
         issuer: selectedInstitution?.address || "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
         institutionName,

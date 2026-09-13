@@ -23,9 +23,9 @@ export const INITIAL_AUDIT_CANDIDATES: CandidateAuditRecord[] = [
   },
   {
     prn: "PRN20240002",
-    claimedName: "Ananya Deshmukh",
+    claimedName: "Ananya Malhotra",
     claimedCgpa: 9.15,
-    onChainName: "Ananya Deshmukh",
+    onChainName: "Ananya Malhotra",
     onChainCgpa: 9.15,
     onChainUniversity: "MGM University",
     status: "AUTHENTIC",

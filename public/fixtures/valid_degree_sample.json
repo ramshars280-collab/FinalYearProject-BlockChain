@@ -39,9 +39,9 @@
       "batchId": "MGM-2024-BTECH-BATCH01",
       "leafIndex": 0,
       "leafHash": "0x78cbf7ec4aa8904c81d73ea3330051d6e2c5bb2dcc1423b3d94e4ca5a89036df",
-      "rootHash": "0xde333280396d785f7b5708372a601695a5840c99945e6e168347e0f97744eb33",
+      "rootHash": "0x73c9d682d5dadeba35e6ad3bf62be75c3e3161bf0136fb5b9043f0f4d656a717",
       "proof": [
-        "0x4fdf2a78827d27ea591b49c232a8dd379da74fd1bc8c523daa8dbd81eb46bf6a",
+        "0x7d1d96d660eac8174496772c6e39668d80084a028ed9b867d78967841039278f",
         "0x51c7363ff2c21772d439d2950062bb3da13f5ad13db76831b6eee8335435ce23"
       ],
       "contractAddress": "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",

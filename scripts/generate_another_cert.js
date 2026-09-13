@@ -127,7 +127,7 @@ const INITIAL_STUDENTS_MGM = [
   },
   {
     prn: "PRN20200102",
-    fullName: "Ananya Deshmukh",
+    fullName: "Ananya Malhotra",
     degree: "Bachelor of Technology",
     branch: "Artificial Intelligence & Data Science",
     cgpa: 8.85,
@@ -218,5 +218,5 @@ function generateCertForIndex(index, slug) {
   console.log(`Saved: ${rootSamplePath}`);
 }
 
-generateCertForIndex(1, "ananya_deshmukh");
+generateCertForIndex(1, "ananya_malhotra");
 generateCertForIndex(2, "rohan_kulkarni");

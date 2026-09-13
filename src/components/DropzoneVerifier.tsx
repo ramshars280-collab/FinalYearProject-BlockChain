@@ -578,7 +578,7 @@ export default function DropzoneVerifier() {
                     }}
                     className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-xs font-semibold transition-all"
                   >
-                    PRN20200102 (Ananya Deshmukh)
+                    PRN20200102 (Ananya Malhotra)
                   </button>
                   <button
                     onClick={() => {
@@ -667,11 +667,11 @@ export default function DropzoneVerifier() {
                     <span>Aarav Sharma (CSE)</span>
                   </button>
                   <button
-                    onClick={() => loadFixture("/fixtures/valid_degree_ananya_deshmukh.json")}
+                    onClick={() => loadFixture("/fixtures/valid_degree_ananya_malhotra.json")}
                     className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Ananya Deshmukh (AI & DS)</span>
+                    <span>Ananya Malhotra (AI & DS)</span>
                   </button>
                   <button
                     onClick={() => loadFixture("/fixtures/valid_degree_rohan_kulkarni.json")}
@@ -705,7 +705,7 @@ export default function DropzoneVerifier() {
                     <span>Aarav (Authentic PDF)</span>
                   </a>
                   <a
-                    href="/certificates_pdf/2_Authentic_Degree_Ananya_Deshmukh.pdf"
+                    href="/certificates_pdf/2_Authentic_Degree_Ananya_Malhotra.pdf"
                     target="_blank"
                     rel="noreferrer"
                     className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all flex items-center gap-1"

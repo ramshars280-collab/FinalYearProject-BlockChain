@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { getSepoliaConfig, getStoredBatches, saveStoredBatches } from "./storage";
 import { verifyProofClientSide } from "./crypto";
+import { BatchRecord } from "../types";
 
 export const IDENTITY_REGISTRY_ABI = [
   "function bindIdentity(string calldata prn, uint256 timestamp, bytes calldata signature) external",
@@ -78,11 +79,31 @@ export async function verifyCredentialOnChain(
     console.warn("Direct Sepolia RPC call fell back to local registry:", error);
   }
 
-  // 2. Fallback to LocalStorage Merkle Anchor Registry
-  const batches = getStoredBatches();
-  const batch = batches.find(
-    (b) => b.batchId.toLowerCase() === batchId.toLowerCase()
-  );
+  // 2. Fallback to API / Database Registry
+  let batch: BatchRecord | null = null;
+  if (typeof window === "undefined") {
+    try {
+      const { getBatchByIdDb } = await import("./db");
+      batch = getBatchByIdDb(batchId) || null;
+    } catch (e) {
+      // server-side fallback
+    }
+  } else {
+    try {
+      const res = await fetch(`/api/batches/${encodeURIComponent(batchId)}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.batch) {
+          batch = data.batch;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch batch from API fallback:", err);
+    }
+  }
 
   if (!batch) {
     return {
@@ -94,7 +115,7 @@ export async function verifyCredentialOnChain(
   }
 
   const validProof = verifyProofClientSide(leafHash, proof, batch.merkleRoot);
-  const isRevoked = batch.revokedIndices.includes(leafIndex);
+  const isRevoked = Array.isArray(batch.revokedIndices) && batch.revokedIndices.includes(leafIndex);
 
   return {
     isValid: validProof,

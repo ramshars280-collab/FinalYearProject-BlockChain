@@ -202,7 +202,7 @@ export default function DegreeCertificate({
           <a
             href={
               subject?.prn?.toUpperCase() === "PRN20200102"
-                ? "/certificates_pdf/2_Authentic_Degree_Ananya_Deshmukh.pdf"
+                ? "/certificates_pdf/2_Authentic_Degree_Ananya_Malhotra.pdf"
                 : subject?.prn?.toUpperCase() === "PRN20200104"
                 ? "/certificates_pdf/5_Revoked_Degree_Pooja_Patil.pdf"
                 : "/certificates_pdf/1_Authentic_Degree_Aarav_Sharma.pdf"

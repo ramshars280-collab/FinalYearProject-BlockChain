@@ -119,7 +119,7 @@ npm start
 
 ### View 1: Public Drag-and-Drop / URL Verifier (`/`)
 - Choose between **Verify via URL** (enter PRN, short verification URL `?verify=batchId/leafIndex`, or direct URL) or **Upload File** (drop certificate JSON).
-- Try 1-click test buttons for **Aarav Sharma** (`PRN20200101`) or **Ananya Deshmukh** (`PRN20200102`).
+- Try 1-click test buttons for **Aarav Sharma** (`PRN20200101`) or **Ananya Malhotra** (`PRN20200102`).
 - Observe client-side verification in `<140ms`, confetti animation, authentic tamper-proof badge, and official degree card with scannable on-chain verification QR code.
 
 ### View 2: Student Portal (`/student`)

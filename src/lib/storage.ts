@@ -57,7 +57,7 @@ export const INITIAL_STUDENTS_MGM: StudentDegreeData[] = [
   },
   {
     prn: "PRN20200102",
-    fullName: "Ananya Deshmukh",
+    fullName: "Ananya Malhotra",
     degree: "Bachelor of Technology",
     branch: "Artificial Intelligence & Data Science",
     cgpa: 8.85,
