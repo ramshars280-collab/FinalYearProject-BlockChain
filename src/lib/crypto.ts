@@ -41,15 +41,24 @@ export function canonicalStringify(obj: any): string {
  */
 export function hashCredentialSubject(subject: StudentDegreeData): string {
   // Normalize fields to prevent minor whitespace / case discrepancies
+  const prn = (subject.prn || (subject as any).PRN || "").toString().trim().toUpperCase();
+  const fullName = (subject.fullName || (subject as any).name || "").toString().trim();
+  const branch = (subject.branch || "").toString().trim();
+  const degree = (subject.degree || "").toString().trim();
+  const issueDate = (subject.issueDate || "").toString().trim();
+  const university = (subject.university || "").toString().trim();
+  const graduationYear = Number(subject.graduationYear || (subject as any).year || 0);
+  const cgpa = Number(Number(subject.cgpa || 0).toFixed(2));
+
   const normalized: Record<string, any> = {
-    branch: subject.branch.trim(),
-    cgpa: Number(Number(subject.cgpa).toFixed(2)),
-    degree: subject.degree.trim(),
-    fullName: subject.fullName.trim(),
-    graduationYear: Number(subject.graduationYear),
-    issueDate: subject.issueDate.trim(),
-    prn: subject.prn.trim().toUpperCase(),
-    university: subject.university.trim(),
+    branch,
+    cgpa,
+    degree,
+    fullName,
+    graduationYear,
+    issueDate,
+    prn,
+    university,
   };
 
   if (subject.nheqfCredits !== undefined) {
@@ -59,7 +68,7 @@ export function hashCredentialSubject(subject: StudentDegreeData): string {
     normalized.nheqfLevel = Number(subject.nheqfLevel);
   }
   if (subject.institutionCode) {
-    normalized.institutionCode = subject.institutionCode.trim();
+    normalized.institutionCode = subject.institutionCode.toString().trim();
   }
 
   const canonical = canonicalStringify(normalized);
@@ -156,6 +165,8 @@ export function createW3CCredential(
 ): W3CCredentialPayload {
   const resolvedName = issuerName || subject.university || "Authorized Consortium University";
   const resolvedCode = institutionCode || subject.institutionCode || "MGMU-ENG-01";
+  const safePrn = (subject.prn || (subject as any).PRN || "unknown").toString().toLowerCase();
+  const safeYear = subject.graduationYear || (subject as any).year || new Date().getFullYear();
 
   return {
     "@context": [
@@ -163,7 +174,7 @@ export function createW3CCredential(
       "https://schema.org",
       "https://w3id.org/security/suites/ed25519-2020/v1",
     ],
-    id: `urn:uuid:degree-cert-${subject.prn.toLowerCase()}-${subject.graduationYear}`,
+    id: `urn:uuid:degree-cert-${safePrn}-${safeYear}`,
     type: ["VerifiableCredential", "UniversityDegreeCredential"],
     issuer: {
       id: `did:ethr:11155111:${issuerAddress}`,
@@ -175,7 +186,7 @@ export function createW3CCredential(
     issuanceDate: new Date().toISOString(),
     credentialSubject: {
       ...subject,
-      id: `did:pkh:eip155:11155111:student-${subject.prn.toLowerCase()}`,
+      id: `did:pkh:eip155:11155111:student-${safePrn}`,
     },
     proof: {
       type: "EthereumMerkleProof2024",

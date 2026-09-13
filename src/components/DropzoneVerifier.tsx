@@ -33,7 +33,6 @@ import { hashCredentialSubject, buildBatchMerkleTree, createW3CCredential } from
 import { verifyCredentialOnChain } from "../lib/contracts";
 import { verifyZkSelectiveProof } from "../lib/zkProof";
 import { getRevocationDetail, getStoredBatches, getSepoliaConfig } from "../lib/storage";
-import DegreeCertificate from "./DegreeCertificate";
 import QrScannerModal from "./QrScannerModal";
 
 export default function DropzoneVerifier() {
@@ -194,22 +193,102 @@ export default function DropzoneVerifier() {
     }
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setFileError(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    const fileName = file.name.toLowerCase();
+
+    // 1. PDF Degree Certificate Verification
+    if (fileName.endsWith(".pdf") || file.type === "application/pdf") {
+      setIsVerifying(true);
+      setVerificationStep(1);
+      setResult(null);
+      setCredential(null);
+
       try {
-        const text = e.target?.result as string;
-        const parsed = JSON.parse(text);
-        handleCredentialVerification(parsed);
-      } catch (err) {
-        setFileError("Unable to extract cryptographic certificate data from this file. Please check file format.");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        await new Promise((r) => setTimeout(r, 200));
+        setVerificationStep(2);
+
+        const res = await fetch("/api/verify/pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        await new Promise((r) => setTimeout(r, 250));
+        setVerificationStep(3);
+
+        const data = await res.json();
+        setIsVerifying(false);
+
+        if (!res.ok || !data.success) {
+          setFileError(
+            data.error ||
+              "Invalid certificate format: The uploaded PDF is not a recognized university degree certificate."
+          );
+          return;
+        }
+
+        if (data.credential) {
+          setCredential(data.credential);
+        }
+
+        const isFullyValid = data.isValid !== false && !data.isRevoked && !data.tamperDetected;
+
+        const verificationResult: VerificationResult = {
+          isValid: isFullyValid,
+          isRevoked: Boolean(data.isRevoked),
+          tamperDetected: Boolean(data.tamperDetected),
+          tamperReason: data.tamperReason,
+          computedLeaf: data.credential?.proof?.merkleProof?.leafHash,
+          matchedRoot: data.credential?.proof?.merkleProof?.rootHash,
+          batchId: data.pdfExtracted?.batchId,
+          leafIndex: data.pdfExtracted?.leafIndex,
+          credential: data.credential,
+          network: "Ethereum Sepolia (11155111)",
+          verifiedAt: new Date().toLocaleTimeString(),
+          issuingInstitutionName:
+            data.credential?.issuer?.name || "MGM University, Chhatrapati Sambhajinagar",
+          issuingInstitutionAddress: data.credential?.issuer?.ethereumAddress,
+        };
+
+        setResult(verificationResult);
+        if (isFullyValid) {
+          triggerConfetti();
+        }
+      } catch (err: any) {
+        setIsVerifying(false);
+        setFileError("Error communicating with verification service: " + (err?.message || "Unknown error"));
       }
-    };
-    reader.onerror = () => {
-      setFileError("Failed to read the file from your device.");
-    };
-    reader.readAsText(file);
+      return;
+    }
+
+    // 2. JSON W3C Verifiable Credential Payload
+    if (fileName.endsWith(".json") || file.type === "application/json") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const parsed = JSON.parse(text);
+          if (!parsed || (!parsed.credentialSubject && !parsed.type)) {
+            setFileError("Invalid format: The JSON file does not contain a valid W3C Verifiable Credential.");
+            return;
+          }
+          handleCredentialVerification(parsed);
+        } catch {
+          setFileError("Invalid JSON syntax: Unable to parse cryptographic credential file.");
+        }
+      };
+      reader.onerror = () => {
+        setFileError("Failed to read the file from your device.");
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    // 3. Unsupported format
+    setFileError("Unsupported file format. Please upload an official degree certificate PDF (.pdf) or W3C Credential (.json).");
   };
 
   const handleVerifyPastedUrl = async (rawInput?: string) => {
@@ -220,62 +299,63 @@ export default function DropzoneVerifier() {
       return;
     }
 
+    // 1. Is it an HTTP/HTTPS URL?
+    const isUrl = /^https?:\/\//i.test(target) || /^\/\//.test(target);
+
+    // 2. Is it a Student PRN? (e.g. PRN20200101, PRN20240051)
+    const isPrn = /^PRN[A-Za-z0-9_-]+$/i.test(target);
+
+    // If neither a valid URL nor a Student PRN:
+    if (!isUrl && !isPrn) {
+      setUrlError(
+        "Invalid format. Verification requires a valid verification URL (e.g. https://.../?verify=...) or a valid Student PRN (e.g. PRN20200101)."
+      );
+      return;
+    }
+
     try {
-      // 1. Check if target is a short verification URL or ID format:
-      // e.g. "?verify=batchId/leafIndex", "/api/verify/batchId/leafIndex", or "batchId/leafIndex"
-      let shortBatchId: string | null = null;
-      let shortLeafIndex: number | null = null;
-
-      if (target.includes("verify=") || target.includes("v=")) {
+      if (isUrl) {
+        let urlObj: URL;
         try {
-          const urlObj = target.startsWith("http") ? new URL(target) : new URL(target, window.location.origin);
-          const v = urlObj.searchParams.get("verify") || urlObj.searchParams.get("v");
-          if (v) {
-            const parts = v.replace(/^\/?api\/verify\//, "").split("/");
-            if (parts.length >= 2) {
-              shortBatchId = parts[0];
-              shortLeafIndex = parseInt(parts[1], 10);
-            }
-          }
-        } catch {}
-      }
-
-      if (!shortBatchId && target.includes("/api/verify/")) {
-        const match = target.match(/\/api\/verify\/([^/?#]+)\/(\d+)/);
-        if (match) {
-          shortBatchId = match[1];
-          shortLeafIndex = parseInt(match[2], 10);
-        }
-      }
-
-      if (!shortBatchId) {
-        const match = target.trim().match(/^([A-Za-z0-9_-]+)\/(\d+)$/);
-        if (match) {
-          shortBatchId = match[1];
-          shortLeafIndex = parseInt(match[2], 10);
-        }
-      }
-
-      if (shortBatchId && shortLeafIndex !== null && !isNaN(shortLeafIndex)) {
-        setIsVerifying(true);
-        const verified = await verifyByBatchAndLeaf(shortBatchId, shortLeafIndex);
-        setIsVerifying(false);
-        if (verified) return;
-        setUrlError(`No on-chain credential found for batch "${shortBatchId}" at leaf index #${shortLeafIndex}.`);
-        return;
-      }
-
-      // 2. If it's a URL, extract cred / data query parameter
-      if (target.includes("http://") || target.includes("https://") || target.includes("?") || target.includes("cred=") || target.includes("data=")) {
-        let credParam: string | null = null;
-        try {
-          const urlObj = target.startsWith("http") ? new URL(target) : new URL(target, window.location.origin);
-          credParam = urlObj.searchParams.get("cred") || urlObj.searchParams.get("data");
+          urlObj = new URL(target, typeof window !== "undefined" ? window.location.origin : undefined);
         } catch {
-          const match = target.match(/[?&](cred|data)=([^&#]+)/);
-          if (match) credParam = match[2];
+          setUrlError("Invalid URL format. Please provide a well-formed HTTP/HTTPS URL.");
+          return;
         }
 
+        // Check for ?verify=batchId/leafIndex or ?v=batchId/leafIndex
+        const v = urlObj.searchParams.get("verify") || urlObj.searchParams.get("v");
+        let shortBatchId: string | null = null;
+        let shortLeafIndex: number | null = null;
+
+        if (v) {
+          const parts = v.replace(/^\/?api\/verify\//, "").split("/");
+          if (parts.length >= 2) {
+            shortBatchId = parts[0];
+            shortLeafIndex = parseInt(parts[1], 10);
+          }
+        }
+
+        // Check path /api/verify/batchId/leafIndex
+        if (!shortBatchId && urlObj.pathname.includes("/api/verify/")) {
+          const match = urlObj.pathname.match(/\/api\/verify\/([^/?#]+)\/(\d+)/);
+          if (match) {
+            shortBatchId = match[1];
+            shortLeafIndex = parseInt(match[2], 10);
+          }
+        }
+
+        if (shortBatchId && shortLeafIndex !== null && !isNaN(shortLeafIndex)) {
+          setIsVerifying(true);
+          const verified = await verifyByBatchAndLeaf(shortBatchId, shortLeafIndex);
+          setIsVerifying(false);
+          if (verified) return;
+          setUrlError(`No on-chain credential found for batch "${shortBatchId}" at leaf index #${shortLeafIndex}.`);
+          return;
+        }
+
+        // Check for ?cred=... or ?data=...
+        const credParam = urlObj.searchParams.get("cred") || urlObj.searchParams.get("data");
         if (credParam) {
           let jsonStr = "";
           try {
@@ -287,53 +367,69 @@ export default function DropzoneVerifier() {
           handleCredentialVerification(parsed);
           return;
         }
-      }
 
-      // 3. Direct PRN / Roll Number lookup (e.g. PRN20200101)
-      const batches = getStoredBatches();
-      for (const batch of batches) {
-        const studentIndex = batch.records?.findIndex(
-          (s: any) => s.prn?.toLowerCase() === target.toLowerCase()
+        // URL does not contain verification parameters
+        setUrlError(
+          "Invalid verification URL: The URL does not contain academic degree verification parameters (expected '?verify=...' or '?cred=...')."
         );
-        if (studentIndex !== undefined && studentIndex !== -1 && batch.records?.[studentIndex]) {
-          const student = batch.records[studentIndex];
-          const treeData = buildBatchMerkleTree(batch.records);
-          const proofData = {
-            ...treeData.proofs[studentIndex],
-            batchId: batch.batchId,
-            contractAddress: getSepoliaConfig().credentialRegistryAddress,
-            network: "Ethereum Sepolia",
-          };
-          const cred = createW3CCredential(
-            student,
-            proofData,
-            batch.issuer,
-            batch.institutionName,
-            batch.institutionCode
-          );
-          handleCredentialVerification(cred);
-          return;
+        return;
+      }
+
+      if (isPrn) {
+        setIsVerifying(true);
+        // Direct PRN lookup: Query server batches first, then fallback to stored batches
+        let student: any = null;
+        let foundBatch: any = null;
+        let leafIdx = -1;
+
+        try {
+          const res = await fetch("/api/batches");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.batches && Array.isArray(data.batches)) {
+              for (const batch of data.batches) {
+                const idx = batch.records?.findIndex(
+                  (s: any) => s.prn?.trim().toLowerCase() === target.toLowerCase()
+                );
+                if (idx !== undefined && idx !== -1) {
+                  student = batch.records[idx];
+                  foundBatch = batch;
+                  leafIdx = idx;
+                  break;
+                }
+              }
+            }
+          }
+        } catch {}
+
+        if (!student) {
+          const localBatches = getStoredBatches();
+          for (const batch of localBatches) {
+            const idx = batch.records?.findIndex(
+              (s: any) => s.prn?.trim().toLowerCase() === target.toLowerCase()
+            );
+            if (idx !== undefined && idx !== -1) {
+              student = batch.records[idx];
+              foundBatch = batch;
+              leafIdx = idx;
+              break;
+            }
+          }
         }
-      }
 
-      // 4. Raw JSON object string
-      if (target.startsWith("{") && target.endsWith("}")) {
-        const parsed = JSON.parse(target);
-        handleCredentialVerification(parsed);
+        if (student && foundBatch && leafIdx !== -1) {
+          const verified = await verifyByBatchAndLeaf(foundBatch.batchId, leafIdx);
+          setIsVerifying(false);
+          if (verified) return;
+        }
+
+        setIsVerifying(false);
+        setUrlError(`Student PRN "${target}" was not found in the verified university degree registry.`);
         return;
       }
-
-      // 5. Base64 payload
-      try {
-        const jsonStr = decodeURIComponent(escape(atob(target)));
-        const parsed = JSON.parse(jsonStr);
-        handleCredentialVerification(parsed);
-        return;
-      } catch {}
-
-      setUrlError("No active on-chain credential found matching this URL, batch ID, or PRN. Please verify the link.");
     } catch (e: any) {
-      setUrlError("Invalid URL format or corrupted credential data.");
+      setIsVerifying(false);
+      setUrlError("Verification error: " + (e?.message || "Invalid input data."));
     }
   };
 
@@ -481,7 +577,7 @@ export default function DropzoneVerifier() {
               }`}
             >
               <Link2 className="h-4 w-4 text-blue-600" />
-              <span>Verify via URL</span>
+              <span>Verify via URL or PRN</span>
             </button>
 
             <button
@@ -496,8 +592,8 @@ export default function DropzoneVerifier() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <UploadCloud className="h-4 w-4 text-blue-600" />
-              <span>Upload File</span>
+              <FileText className="h-4 w-4 text-blue-600" />
+              <span>Verify via PDF</span>
             </button>
           </div>
 
@@ -511,10 +607,10 @@ export default function DropzoneVerifier() {
 
               <div className="max-w-md mx-auto space-y-1.5">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Verify via Credential URL
+                  Verify via Credential URL or PRN
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                  Paste the verification link from the student&apos;s resume, LinkedIn, or email.
+                  Paste the official verification URL or the student&apos;s Permanent Registration Number (PRN).
                 </p>
               </div>
 
@@ -548,7 +644,7 @@ export default function DropzoneVerifier() {
                     className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 shrink-0 hover:scale-102"
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    <span>{isVerifying ? "Verifying..." : "Verify URL"}</span>
+                    <span>{isVerifying ? "Verifying..." : "Verify Credential"}</span>
                   </button>
                 </div>
 
@@ -594,7 +690,7 @@ export default function DropzoneVerifier() {
             </div>
           )}
 
-          {/* TAB 2: UPLOAD CERTIFICATE FILE */}
+          {/* TAB 2: VERIFY VIA DEGREE PDF */}
           {activeInputTab === "upload" && (
             <div
               onDragEnter={handleDrag}
@@ -612,23 +708,23 @@ export default function DropzoneVerifier() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".json,.txt,application/json"
+                accept=".pdf,.json,application/pdf,application/json"
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                 className="hidden"
               />
 
               <div className="max-w-md mx-auto space-y-4">
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative group">
-                  <UploadCloud className="h-8 w-8 text-blue-600" />
+                  <FileText className="h-8 w-8 text-blue-600" />
                   <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
                 </div>
 
                 <div className="space-y-1">
                   <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                    Upload Certificate File
+                    Verify via Degree PDF
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                    Drag and drop your academic degree certificate file or browse from your device
+                    Drag and drop your official university degree certificate PDF (.pdf) or digital credential (.json)
                   </p>
                 </div>
 
@@ -644,7 +740,7 @@ export default function DropzoneVerifier() {
                     onClick={() => fileInputRef.current?.click()}
                     className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98"
                   >
-                    Select Certificate File
+                    Select Degree Certificate PDF
                   </button>
 
                   <button
@@ -834,15 +930,27 @@ export default function DropzoneVerifier() {
                 </div>
               </div>
 
-              {/* Explicit Issuing University & Consortium Attribution Badge */}
-              <div className="pt-3 border-t border-emerald-200/70 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {/* Privacy-Preserving Credential Summary Badge */}
+              <div className="pt-3 border-t border-emerald-200/70 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="bg-white/80 p-3 rounded-xl border border-emerald-200 space-y-0.5">
                   <span className="text-[10px] font-bold uppercase text-emerald-800 block">
                     Verified Issuing Institution:
                   </span>
                   <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-blue-700" />
-                    <span>{typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : typeof credential?.credentialSubject?.university === "string" ? credential.credentialSubject.university : "MGM University"}</span>
+                    <Building2 className="h-4 w-4 text-blue-700 shrink-0" />
+                    <span className="truncate">{typeof result.issuingInstitutionName === "string" ? result.issuingInstitutionName : typeof credential?.credentialSubject?.university === "string" ? credential.credentialSubject.university : "MGM University"}</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/80 p-3 rounded-xl border border-emerald-200 space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+                    Verified Degree Award:
+                  </span>
+                  <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Award className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <span className="truncate">
+                      {credential?.credentialSubject?.degree || "Bachelor of Technology"}
+                    </span>
                   </div>
                 </div>
 
@@ -850,11 +958,19 @@ export default function DropzoneVerifier() {
                   <span className="text-[10px] font-bold uppercase text-emerald-800 block">
                     Consortium On-Chain Authority:
                   </span>
-                  <div className="text-xs font-mono font-bold text-emerald-950 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span>Authenticated Inter-University Trust Registry</span>
+                  <div className="text-xs font-mono font-bold text-emerald-950 flex items-center gap-1.5 mt-0.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Authenticated Inter-University Registry</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Zero-PII Privacy Protection Notice */}
+              <div className="bg-emerald-100/60 border border-emerald-200/90 rounded-xl p-3 flex items-center gap-2.5 text-xs text-emerald-900">
+                <Lock className="h-4 w-4 text-emerald-700 shrink-0" />
+                <span>
+                  <strong>DPDP Act Zero-PII Privacy Protection:</strong> Candidate full transcript, grade marks, and sensitive personal identifiers are protected. Cryptographic Merkle verification confirms degree validity on Sepolia without exposing the student&apos;s private certificate.
+                </span>
               </div>
             </div>
           )}
@@ -935,15 +1051,6 @@ export default function DropzoneVerifier() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* Render Multi-Tab Official Certificate Card */}
-          {credential && (
-            <DegreeCertificate
-              credential={credential}
-              verification={result}
-              onShowQr={() => setIsQrModalOpen(true)}
-            />
           )}
         </div>
       )}

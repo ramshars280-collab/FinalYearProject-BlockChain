@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { getSepoliaConfig, getStoredBatches, saveStoredBatches } from "./storage";
+import { getSepoliaConfig } from "./storage";
 import { verifyProofClientSide } from "./crypto";
 import { BatchRecord } from "../types";
 
@@ -191,13 +191,30 @@ export async function revokeCredentialOnChain(
     }
   }
 
-  // Update local storage bitmap
-  const batches = getStoredBatches();
-  const batch = batches.find((b) => b.batchId.toLowerCase() === batchId.toLowerCase());
-  if (batch) {
-    if (!batch.revokedIndices.includes(leafIndex)) {
-      batch.revokedIndices.push(leafIndex);
-      saveStoredBatches(batches);
+  // Fallback to API / Database Registry
+  if (typeof window !== "undefined") {
+    const res = await fetch("/api/batches/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ batchId, leafIndex }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        throw new Error(
+          data.error || "Unauthorized (401): Only an authenticated Examination Administrator can revoke credentials."
+        );
+      }
+      throw new Error(data.error || `Revocation failed with status ${res.status}`);
+    }
+  } else {
+    try {
+      const { revokeBatchLeafDb } = await import("./db");
+      revokeBatchLeafDb(batchId, leafIndex);
+    } catch (e: any) {
+      console.warn("Server-side revoke fallback error:", e);
     }
   }
 

@@ -28,11 +28,13 @@ export default function BatchRevocationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTx, setSuccessTx] = useState<string | null>(null);
   const [isSimulated, setIsSimulated] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleRevoke = async () => {
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       let signer = null;
       if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -62,34 +64,11 @@ export default function BatchRevocationModal({
         officerStaffId: "COE-EXAM-DESK",
       });
 
-      // Synchronize revocation with server database
-      try {
-        const revokeRes = await fetch("/api/batches/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            batchId: batch.batchId,
-            leafIndex: selectedLeafIndex,
-            reasonCode,
-            reasonTitle: reasonTitleMap[reasonCode],
-            reasonDescription: reasonDescription || "Official administrative revocation recorded on Sepolia registry.",
-            supersededByHash: supersededByHash.trim() || undefined,
-            officerStaffId: "COE-EXAM-DESK",
-          }),
-        });
-        if (revokeRes.status === 401) {
-          alert("Unauthorized (401): Only an authenticated Examination Administrator can revoke credentials.");
-          return;
-        }
-      } catch (syncErr) {
-        console.error("Failed to synchronize revocation with server database:", syncErr);
-      }
-
       setSuccessTx(res.txHash);
       onRevokedSuccess();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Revocation failed:", e);
+      setErrorMessage(e?.message || "Failed to revoke credential.");
     } finally {
       setIsSubmitting(false);
     }
@@ -197,6 +176,13 @@ export default function BatchRevocationModal({
               </div>
             </div>
 
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+            )}
+
             <button
               onClick={handleRevoke}
               disabled={isSubmitting || batch.revokedIndices.includes(selectedLeafIndex)}
@@ -217,7 +203,7 @@ export default function BatchRevocationModal({
               </h4>
               <p className="text-xs text-slate-500 mt-1">
                 {isSimulated
-                  ? "Revocation recorded in local state registry. Any future verification checks will flag this degree as Revoked."
+                  ? "Revocation recorded in central registry database. Any future verification checks will flag this degree as Revoked."
                   : "Bitmap bit inverted on Sepolia. Any future verification checks will flag this degree as Revoked."}
               </p>
               <div className="mt-2 flex items-center justify-center">
