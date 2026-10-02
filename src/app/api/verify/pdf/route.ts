@@ -275,11 +275,14 @@ async function getCachedOcrWorker() {
     let matchedBatch: BatchRecord | null = null;
 
     if (extractedBatchId) {
-      matchedBatch = getBatchByIdDb(extractedBatchId);
+      const normalizedBatchId = extractedBatchId.replace(/BATCHOL|BATCH0L|BATCHOI|BATCH0I/gi, "BATCH01");
+      matchedBatch = getBatchByIdDb(normalizedBatchId) || getBatchByIdDb(extractedBatchId);
       if (!matchedBatch) {
         matchedBatch =
           initializeDefaultBatches().find(
-            (b) => b.batchId.toLowerCase() === extractedBatchId.toLowerCase()
+            (b) =>
+              b.batchId.toLowerCase() === normalizedBatchId.toLowerCase() ||
+              b.batchId.toLowerCase() === extractedBatchId.toLowerCase()
           ) || null;
       }
       if (!matchedBatch && extractedBatchId.toLowerCase().includes("batch02")) {
