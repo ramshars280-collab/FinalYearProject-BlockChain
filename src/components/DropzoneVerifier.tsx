@@ -716,8 +716,6 @@ export default function DropzoneVerifier() {
                   : "border-slate-300 hover:border-blue-500 hover:bg-slate-50/50"
               }`}
             >
-              {isVerifying && <div className="laser-scan-line" />}
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -726,48 +724,90 @@ export default function DropzoneVerifier() {
                 className="hidden"
               />
 
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative group">
-                  <FileText className="h-8 w-8 text-blue-600" />
-                  <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                    Verify via Degree PDF
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                    Drag and drop your official university degree certificate PDF (.pdf) or digital credential (.json)
-                  </p>
-                </div>
-
-                {fileError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-center gap-2 justify-center font-semibold">
-                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                    <span>{fileError}</span>
+              {isVerifying ? (
+                /* Dedicated Active Document Scanner Screen */
+                <div className="max-w-md mx-auto py-4 space-y-5">
+                  <div className="relative mx-auto w-64 h-40 bg-slate-900 rounded-2xl border-2 border-blue-500/50 shadow-2xl p-4 flex flex-col justify-between overflow-hidden">
+                    <div className="laser-scan-line" />
+                    <div className="flex items-center justify-between text-white/80 border-b border-white/10 pb-2">
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        <FileText className="h-4 w-4 text-blue-400" />
+                        <span>DOCUMENT SCANNER</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400 font-bold animate-pulse">ANALYZING...</span>
+                    </div>
+                    <div className="space-y-1.5 text-left font-mono text-[10px] text-slate-300">
+                      <div className="h-1.5 w-3/4 bg-blue-500/40 rounded-full animate-pulse" />
+                      <div className="h-1.5 w-1/2 bg-blue-400/30 rounded-full animate-pulse" />
+                      <div className="h-1.5 w-5/6 bg-blue-500/20 rounded-full animate-pulse" />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-blue-300 font-mono border-t border-white/10 pt-2">
+                      <span>SEPOLIA MERKLE PROOF</span>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                    </div>
                   </div>
-                )}
 
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98"
-                  >
-                    Select Degree Certificate PDF
-                  </button>
-
-                  <button
-                    onClick={() => setIsQrModalOpen(true)}
-                    className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-102 shadow-xs"
-                  >
-                    <QrCode className="h-4 w-4 text-blue-600" />
-                    <span>Scan QR Code</span>
-                  </button>
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-black text-slate-900 flex items-center justify-center gap-2">
+                      <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
+                      <span>Verifying Degree Certificate...</span>
+                    </h4>
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-600 font-medium">
+                      <span className="inline-block h-2 w-2 rounded-full bg-blue-600 animate-ping" />
+                      <span>
+                        {verificationStep === 1
+                          ? "Step 1/3: Extracting PDF Text & Claims..."
+                          : verificationStep === 2
+                          ? "Step 2/3: Validating Sepolia Merkle Proof..."
+                          : "Step 3/3: Running PyTorch ELA Forgery Scan..."}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                /* Standard Dropzone UI */
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative group">
+                    <FileText className="h-8 w-8 text-blue-600" />
+                    <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
+                  </div>
 
-                {/* Quick Demo Pre-Anchored Fixtures */}
-                <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-                  <span className="text-slate-500 font-bold mr-1">Demo File Samples:</span>
+                  <div className="space-y-1">
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                      Verify via Degree PDF
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                      Drag and drop your official university degree certificate PDF (.pdf) or digital credential (.json)
+                    </p>
+                  </div>
+
+                  {fileError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-center gap-2 justify-center font-semibold">
+                      <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      <span>{fileError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98"
+                    >
+                      Select Degree Certificate PDF
+                    </button>
+
+                    <button
+                      onClick={() => setIsQrModalOpen(true)}
+                      className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-102 shadow-xs"
+                    >
+                      <QrCode className="h-4 w-4 text-blue-600" />
+                      <span>Scan QR Code</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Demo Pre-Anchored Fixtures */}
+                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
+                    <span className="text-slate-500 font-bold mr-1">Demo File Samples:</span>
                   <button
                     onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
@@ -851,6 +891,7 @@ export default function DropzoneVerifier() {
                   </a>
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>
