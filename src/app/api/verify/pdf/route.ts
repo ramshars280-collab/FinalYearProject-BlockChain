@@ -169,6 +169,29 @@ function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
       rawText = "";
     }
 
+// Singleton OCR worker cache to avoid 5-second WebAssembly re-initialization overhead on every request
+let cachedOcrWorker: any = null;
+let isInitializingWorker = false;
+
+async function getCachedOcrWorker() {
+  if (cachedOcrWorker) return cachedOcrWorker;
+  if (isInitializingWorker) {
+    // Wait briefly if already initializing
+    await new Promise((r) => setTimeout(r, 300));
+    if (cachedOcrWorker) return cachedOcrWorker;
+  }
+  isInitializingWorker = true;
+  try {
+    const { createWorker } = await import("tesseract.js");
+    cachedOcrWorker = await createWorker("eng");
+  } catch (err) {
+    console.warn("Failed to initialize Tesseract worker:", err);
+  } finally {
+    isInitializingWorker = false;
+  }
+  return cachedOcrWorker;
+}
+
     // Rule 1: Scanned Document Detection & OCR Fallback Processing
     let isScannedPdf = false;
     let ocrExtracted = false;
@@ -177,20 +200,19 @@ function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
       isScannedPdf = true;
       try {
         console.log("📷 Zero-text / Scanned PDF detected. Executing Tesseract.js Optical Character Recognition (OCR)...");
-        const { createWorker } = await import("tesseract.js");
-        const worker = await createWorker("eng");
 
         const ocrBuffer = Buffer.from(forensicBuffer);
         const extractedImages = extractImagesFromPdf(ocrBuffer);
         const targetBuffer = extractedImages.length > 0 ? extractedImages[0] : ocrBuffer;
 
-        const { data } = await worker.recognize(targetBuffer);
-        await worker.terminate();
-
-        if (data && data.text && data.text.trim().length > 0) {
-          rawText = data.text;
-          ocrExtracted = true;
-          console.log(`✅ OCR Engine successfully extracted ${rawText.length} characters from scanned PDF.`);
+        const worker = await getCachedOcrWorker();
+        if (worker) {
+          const { data } = await worker.recognize(targetBuffer);
+          if (data && data.text && data.text.trim().length > 0) {
+            rawText = data.text;
+            ocrExtracted = true;
+            console.log(`✅ OCR Engine successfully extracted ${rawText.length} characters from scanned PDF.`);
+          }
         }
       } catch (ocrErr: any) {
         console.warn("⚠️ OCR processing encountered an exception:", ocrErr?.message || ocrErr);
