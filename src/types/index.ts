@@ -140,4 +140,13 @@ export interface VerificationResult {
   isSelectiveDisclosure?: boolean;
   issuingInstitutionName?: string;
   issuingInstitutionAddress?: string;
+  diagnosticCode?: string;
+  forensicScan?: {
+    status: "COMPLETED" | "UNAVAILABLE";
+    ai_confidence_score?: number;
+    verdict?: "AUTHENTIC" | "SUSPICIOUS" | "TAMPERED";
+    heatmap_base64?: string;
+    metadata?: any;
+    reason?: string;
+  };
 }

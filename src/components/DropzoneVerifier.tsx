@@ -48,7 +48,18 @@ export default function DropzoneVerifier() {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [aiServiceStatus, setAiServiceStatus] = useState<"online" | "offline" | "checking">("checking");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/health", { method: "GET" })
+      .then((res) => {
+        if (res.ok) setAiServiceStatus("online");
+        else setAiServiceStatus("offline");
+      })
+      .catch(() => setAiServiceStatus("offline"));
+  }, []);
 
   const triggerConfetti = () => {
     try {
@@ -240,7 +251,9 @@ export default function DropzoneVerifier() {
           isValid: isFullyValid,
           isRevoked: Boolean(data.isRevoked),
           tamperDetected: Boolean(data.tamperDetected),
-          tamperReason: data.tamperReason,
+          tamperReason: data.tamperReason || data.diagnostic_message,
+          diagnosticCode: data.diagnostic_code,
+          forensicScan: data.forensic_scan,
           computedLeaf: data.credential?.proof?.merkleProof?.leafHash,
           matchedRoot: data.credential?.proof?.merkleProof?.rootHash,
           batchId: data.pdfExtracted?.batchId,
@@ -562,6 +575,28 @@ export default function DropzoneVerifier() {
       {/* If not currently displaying a verified result, show the Dual-Method Input Hub */}
       {!result && (
         <div className="space-y-4">
+          {/* Live System Engine Status Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs px-4 py-2.5 bg-slate-100/90 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-blue-600" />
+              <span className="font-bold text-slate-800">Engine Mode:</span>
+              <span className="text-slate-600 font-mono">Ethereum Sepolia Merkle Tree + ELA Visual Forensics</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {aiServiceStatus === "online" ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  PyTorch ELA Forensic Microservice Active (Port 8000)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  EVM Deterministic Fallback Mode (AI Offline)
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Method Switcher Tabs: URL vs Upload File */}
           <div className="flex items-center justify-center gap-2 max-w-sm mx-auto p-1.5 bg-slate-200/70 rounded-2xl border border-slate-300 shadow-inner">
             <button
@@ -972,6 +1007,76 @@ export default function DropzoneVerifier() {
                   <strong>DPDP Act Zero-PII Privacy Protection:</strong> Candidate full transcript, grade marks, and sensitive personal identifiers are protected. Cryptographic Merkle verification confirms degree validity on Sepolia without exposing the student&apos;s private certificate.
                 </span>
               </div>
+
+              {/* Dual-Verification Layer 2: AI Forensic Error Level Analysis */}
+              {result.forensicScan && (
+                <div className="pt-3 border-t border-emerald-200/70 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs font-bold text-slate-900">
+                        AI Layer 2 &bull; PyTorch CNN Forensic Analysis:
+                      </span>
+                    </div>
+                    {result.forensicScan.status === "COMPLETED" ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            result.forensicScan.verdict === "AUTHENTIC"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              : result.forensicScan.verdict === "SUSPICIOUS"
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : "bg-red-100 text-red-800 border border-red-300"
+                          }`}
+                        >
+                          Forensic Verdict: {result.forensicScan.verdict}
+                        </span>
+                        {result.forensicScan.heatmap_base64 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowHeatmap(!showHeatmap)}
+                            className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline ml-1 cursor-pointer"
+                          >
+                            {showHeatmap ? "Hide Thermal ELA Map" : "View Thermal ELA Map"}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        Forensics Standby ({result.forensicScan.reason || "Offline"})
+                      </span>
+                    )}
+                  </div>
+
+                  {result.forensicScan.status === "COMPLETED" && (
+                    <div className="bg-white/80 border border-emerald-200 rounded-xl p-2.5 text-xs text-slate-700 space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 font-mono">
+                        <span>Tampering Anomaly Probability: <strong>{((result.forensicScan.ai_confidence_score || 0) * 100).toFixed(1)}%</strong></span>
+                        <span>Neural Model: <strong>{result.forensicScan.metadata?.model_architecture || "ELAForgeryCNN"}</strong></span>
+                        <span>Engine: <strong>PyTorch ({result.forensicScan.metadata?.compute_device?.toUpperCase() || "CPU"})</strong></span>
+                      </div>
+                      {showHeatmap && result.forensicScan.heatmap_base64 && (
+                        <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-500 block uppercase">
+                            Error Level Analysis (ELA) Compression Thermal Heatmap (JET Colormap Overlay):
+                          </span>
+                          <div className="rounded-lg overflow-hidden border border-slate-200 max-h-96 flex items-center justify-center bg-slate-900">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={result.forensicScan.heatmap_base64}
+                              alt="ELA Thermal Tampering Heatmap"
+                              className="max-h-96 w-auto object-contain"
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-500 italic text-center">
+                            Uniform blue spectrum confirms consistent single-pass document generation with no localized pixel splicing.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:all": "node scripts/start_all.js",
+    "start:ai": "python forgery_service/main.py",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -27,7 +29,8 @@
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

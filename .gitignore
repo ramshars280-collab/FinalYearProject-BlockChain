@@ -1,23 +1,19 @@
-# dependencies
+# Dependencies
 node_modules/
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
+# Testing & Build Outputs
 /coverage
-
-# next.js
 .next/
 /.next/
 out/
 /out/
-
-# production
 build/
 /build
 
-# hardhat
+# Hardhat & Smart Contract Cache
 cache/
 /cache
 artifacts/
@@ -25,30 +21,47 @@ artifacts/
 typechain/
 typechain-types/
 
-# misc
-.DS_Store
-*.pem
+# Python Cache & Virtual Environments
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+env/
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
+# Environment Variables & Secrets (NEVER COMMIT)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*
+!.env.example
+*.pem
+*.key
+*.pkcs12
+*.pfx
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# database
+# Database Files
 data/
 /data
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+
+# Sample Documents, Reports & Data Files (DO NOT COMMIT SAMPLE DATA)
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+*.csv
+scratch/
+/scratch
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
