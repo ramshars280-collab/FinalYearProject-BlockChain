@@ -575,28 +575,6 @@ export default function DropzoneVerifier() {
       {/* If not currently displaying a verified result, show the Dual-Method Input Hub */}
       {!result && (
         <div className="space-y-4">
-          {/* Live System Engine Status Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs px-4 py-2.5 bg-slate-100/90 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-blue-600" />
-              <span className="font-bold text-slate-800">Engine Mode:</span>
-              <span className="text-slate-600 font-mono">Ethereum Sepolia Merkle Tree + ELA Visual Forensics</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {aiServiceStatus === "online" ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  PyTorch ELA Forensic Microservice Active (Port 8000)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  EVM Deterministic Fallback Mode (AI Offline)
-                </span>
-              )}
-            </div>
-          </div>
-
           {/* Method Switcher Tabs: URL vs Upload File */}
           <div className="flex items-center justify-center gap-2 max-w-sm mx-auto p-1.5 bg-slate-200/70 rounded-2xl border border-slate-300 shadow-inner">
             <button

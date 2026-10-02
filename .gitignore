@@ -21,7 +21,7 @@ artifacts/
 typechain/
 typechain-types/
 
-# Python Cache & Virtual Environments
+# Python & OCR Cache
 __pycache__/
 *.pyc
 *.pyo
@@ -29,6 +29,7 @@ __pycache__/
 venv/
 .venv/
 env/
+*.traineddata
 
 # Environment Variables & Secrets (NEVER COMMIT)
 .env

@@ -132,33 +132,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
+  const images: Buffer[] = [];
+  let offset = 0;
+  while (offset < pdfBuffer.length - 3) {
+    if (pdfBuffer[offset] === 0xff && pdfBuffer[offset + 1] === 0xd8 && pdfBuffer[offset + 2] === 0xff) {
+      let eof = offset + 3;
+      while (eof < pdfBuffer.length - 1) {
+        if (pdfBuffer[eof] === 0xff && pdfBuffer[eof + 1] === 0xd9) {
+          images.push(pdfBuffer.subarray(offset, eof + 2));
+          offset = eof + 2;
+          break;
+        }
+        eof++;
+      }
+      if (eof >= pdfBuffer.length - 1) break;
+    } else {
+      offset++;
+    }
+  }
+  return images;
+}
+
     // 1. Text Layer Extraction via pdfjs-dist
     let rawText = "";
     try {
       const pdfjsLib = require("pdfjs-dist/build/pdf.js");
       const doc = await pdfjsLib.getDocument({ data }).promise;
-      if (doc.numPages < 1) {
-        return NextResponse.json(
-          {
-            success: false,
-            diagnostic_code: "SCANNED_DOCUMENT_REQUIRES_OCR" as DiagnosticCode,
-            error: "Scanned Document: The PDF contains no readable pages.",
-          },
-          { status: 422 }
-        );
+      if (doc && doc.numPages >= 1) {
+        const page = await doc.getPage(1);
+        const tc = await page.getTextContent();
+        rawText = tc.items.map((i: any) => i.str).join(" ");
       }
-      const page = await doc.getPage(1);
-      const tc = await page.getTextContent();
-      rawText = tc.items.map((i: any) => i.str).join(" ");
     } catch (parseErr: any) {
-      console.error("PDF text extraction error:", parseErr);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Unable to parse PDF content. Please ensure the document is a valid PDF.",
-        },
-        { status: 400 }
-      );
+      console.warn("PDF text layer extraction note (proceeding to OCR fallback):", parseErr?.message || parseErr);
+      rawText = "";
     }
 
     // Rule 1: Scanned Document Detection & OCR Fallback Processing
@@ -168,11 +176,15 @@ export async function POST(request: NextRequest) {
     if (!rawText || rawText.trim().length === 0) {
       isScannedPdf = true;
       try {
-        console.log("📷 Zero-text PDF detected. Executing Tesseract.js Optical Character Recognition (OCR)...");
+        console.log("📷 Zero-text / Scanned PDF detected. Executing Tesseract.js Optical Character Recognition (OCR)...");
         const { createWorker } = await import("tesseract.js");
         const worker = await createWorker("eng");
+
         const ocrBuffer = Buffer.from(forensicBuffer);
-        const { data } = await worker.recognize(ocrBuffer);
+        const extractedImages = extractImagesFromPdf(ocrBuffer);
+        const targetBuffer = extractedImages.length > 0 ? extractedImages[0] : ocrBuffer;
+
+        const { data } = await worker.recognize(targetBuffer);
         await worker.terminate();
 
         if (data && data.text && data.text.trim().length > 0) {
