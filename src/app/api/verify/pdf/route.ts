@@ -184,6 +184,9 @@ async function getCachedOcrWorker() {
   try {
     const { createWorker } = await import("tesseract.js");
     cachedOcrWorker = await createWorker("eng");
+    await cachedOcrWorker.setParameters({
+      tessedit_pageseg_mode: "6", // Fast uniform block text mode (under 1 second OCR)
+    });
   } catch (err) {
     console.warn("Failed to initialize Tesseract worker:", err);
   } finally {
