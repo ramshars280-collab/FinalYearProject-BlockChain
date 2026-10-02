@@ -169,7 +169,7 @@ function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
       rawText = "";
     }
 
-// Singleton OCR worker cache to avoid 5-second WebAssembly re-initialization overhead on every request
+// Singleton OCR worker cache to avoid WebAssembly re-initialization overhead
 let cachedOcrWorker: any = null;
 let isInitializingWorker = false;
 
@@ -183,12 +183,16 @@ async function getCachedOcrWorker() {
   isInitializingWorker = true;
   try {
     const { createWorker } = await import("tesseract.js");
-    cachedOcrWorker = await createWorker("eng");
+    const path = await import("path");
+    // Explicit workerPath prevents Next.js webpack from looking in .next/worker-script/node/index.js
+    const workerPath = path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker", "node", "index.js");
+
+    cachedOcrWorker = await createWorker("eng", 1, { workerPath });
     await cachedOcrWorker.setParameters({
       tessedit_pageseg_mode: "6", // Fast uniform block text mode (under 1 second OCR)
     });
   } catch (err) {
-    console.warn("Failed to initialize Tesseract worker:", err);
+    console.warn("Failed to initialize Tesseract worker with explicit workerPath:", err);
   } finally {
     isInitializingWorker = false;
   }
@@ -210,7 +214,12 @@ async function getCachedOcrWorker() {
 
         const worker = await getCachedOcrWorker();
         if (worker) {
-          const { data } = await worker.recognize(targetBuffer);
+          const ocrPromise = worker.recognize(targetBuffer);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("OCR scanning timeout (>5000ms)")), 5000)
+          );
+
+          const { data }: any = await Promise.race([ocrPromise, timeoutPromise]);
           if (data && data.text && data.text.trim().length > 0) {
             rawText = data.text;
             ocrExtracted = true;
@@ -218,7 +227,7 @@ async function getCachedOcrWorker() {
           }
         }
       } catch (ocrErr: any) {
-        console.warn("⚠️ OCR processing encountered an exception:", ocrErr?.message || ocrErr);
+        console.warn("⚠️ OCR processing encountered an exception or timeout:", ocrErr?.message || ocrErr);
       }
 
       // If OCR was unable to recover any text from the scanned image
