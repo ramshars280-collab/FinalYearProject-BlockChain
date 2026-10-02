@@ -728,7 +728,6 @@ export default function DropzoneVerifier() {
                 /* Dedicated Active Document Scanner Screen */
                 <div className="max-w-md mx-auto py-4 space-y-5">
                   <div className="relative mx-auto w-64 h-40 bg-slate-900 rounded-2xl border-2 border-blue-500/50 shadow-2xl p-4 flex flex-col justify-between overflow-hidden">
-                    <div className="laser-scan-line" />
                     <div className="flex items-center justify-between text-white/80 border-b border-white/10 pb-2">
                       <div className="flex items-center gap-2 text-xs font-bold">
                         <FileText className="h-4 w-4 text-blue-400" />
