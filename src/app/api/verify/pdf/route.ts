@@ -184,15 +184,14 @@ async function getCachedOcrWorker() {
   try {
     const { createWorker } = await import("tesseract.js");
     const path = await import("path");
-    // Explicit workerPath prevents Next.js webpack from looking in .next/worker-script/node/index.js
-    const workerPath = path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker", "node", "index.js");
+    const workerPath = path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker-script", "node", "index.js");
 
     cachedOcrWorker = await createWorker("eng", 1, { workerPath });
     await cachedOcrWorker.setParameters({
       tessedit_pageseg_mode: "6", // Fast uniform block text mode (under 1 second OCR)
     });
   } catch (err) {
-    console.warn("Failed to initialize Tesseract worker with explicit workerPath:", err);
+    console.warn("Failed to initialize Tesseract worker:", err);
   } finally {
     isInitializingWorker = false;
   }
