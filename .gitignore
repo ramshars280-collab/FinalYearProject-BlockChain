@@ -50,6 +50,12 @@ data/
 *.sqlite3
 
 # Sample Documents, Reports & Data Files (DO NOT COMMIT SAMPLE DATA)
+certificates_pdf/
+/certificates_pdf
+public/certificates_pdf/
+/public/certificates_pdf
+sample_data/
+/sample_data
 *.pdf
 *.docx
 *.pptx
