@@ -54,6 +54,8 @@ certificates_pdf/
 /certificates_pdf
 public/certificates_pdf/
 /public/certificates_pdf
+public/fixtures/
+/public/fixtures
 sample_data/
 /sample_data
 *.pdf
