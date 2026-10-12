@@ -58,6 +58,9 @@ public/fixtures/
 /public/fixtures
 sample_data/
 /sample_data
+sample_degree*.json
+sample_*.json
+*.sample.json
 *.pdf
 *.docx
 *.pptx
