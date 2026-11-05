@@ -1,0 +1,51 @@
+# Version Control
+.git
+.gitignore
+
+# Environment secrets and local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local application databases (must NEVER be baked into container images)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite*
+
+# Node.js dependencies and build artifacts
+node_modules
+.next
+.next_prod
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python caches and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+venv
+.venv
+forgery_service/__pycache__
+forgery_service/.pytest_cache
+forgery_service/venv
+forgery_service/checkpoints/*.pth
+
+# Project backups and scratch audit scripts
+backups
+scratch
+*.bak
+
+# Hardhat build artifacts
+contracts/artifacts
+contracts/cache
+
+# Documentation and temporary exports
+docs
+*.docx
+

@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { verifySessionToken } from '@/lib/serverAuth';
+import { getRequestId, jsonResponse } from '@/lib/observability';
 
 export async function GET(request: NextRequest) {
+  const requestId = getRequestId(request);
   const token = request.cookies.get('auth_session')?.value;
+
   if (!token) {
-    return NextResponse.json({ authenticated: false, user: null });
+    return jsonResponse({ authenticated: false, user: null, requestId }, { status: 200 }, requestId);
   }
 
   const user = verifySessionToken(token);
   if (!user) {
-    const response = NextResponse.json({ authenticated: false, user: null });
+    const response = jsonResponse({ authenticated: false, user: null, requestId }, { status: 200 }, requestId);
     response.cookies.delete('auth_session');
     return response;
   }
 
-  return NextResponse.json({ authenticated: true, user });
+  return jsonResponse({ authenticated: true, user, requestId }, { status: 200 }, requestId);
 }

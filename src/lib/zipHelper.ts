@@ -24,6 +24,7 @@ export async function generateCredentialsZip(
     timestamp: new Date().toISOString(),
     totalCertificates: credentials.length,
     issuer: credentials[0]?.issuer,
+    institute: credentials[0]?.credentialSubject?.institute || undefined,
     merkleRoot: credentials[0]?.proof.merkleProof?.rootHash,
     contractAddress: credentials[0]?.proof.merkleProof?.contractAddress,
   };

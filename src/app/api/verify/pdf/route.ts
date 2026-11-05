@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBatchByIdDb, getCredentialByPrnDb } from "@/lib/db";
+import { getBatchByIdDb, getCredentialByPrnDb, isDatabaseUnavailableError } from "@/lib/db";
 import { normalizePRN } from "@/lib/prnUtils";
 import {
   INITIAL_STUDENTS_MGM_BATCH2,
@@ -11,7 +11,10 @@ import {
   createW3CCredential,
   hashCredentialSubject,
 } from "@/lib/crypto";
-import { verifyCredentialOnChain } from "@/lib/contracts";
+import { verifyCredentialOnChain, verifyBatchAnchorEvidence } from "@/lib/contracts";
+import { getAIForensicEndpoint, validateAIForensicUrl } from "@/lib/aiConfig";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { getRequestId, jsonResponse, logger } from "@/lib/observability";
 import { BatchRecord, StudentDegreeData, W3CCredentialPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +34,15 @@ export type DiagnosticCode =
   | "SCANNED_DOCUMENT_REQUIRES_OCR";
 
 interface ForensicScanResult {
-  status: "COMPLETED" | "UNAVAILABLE";
+  status: "COMPLETED" | "UNAVAILABLE" | "QUEUED";
   ai_confidence_score?: number;
-  verdict?: "AUTHENTIC" | "SUSPICIOUS" | "TAMPERED";
+  verdict?: "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
   heatmap_base64?: string;
   metadata?: any;
   reason?: string;
 }
+
+
 
 /**
  * Communicates with the Python FastAPI PyTorch CNN microservice with a strict 3000ms timeout.
@@ -48,6 +53,16 @@ async function callAIForensicMicroservice(
   fileBuffer: ArrayBuffer,
   fileName: string
 ): Promise<ForensicScanResult> {
+  const endpoint = getAIForensicEndpoint();
+  const validation = validateAIForensicUrl(endpoint);
+
+  if (!validation.valid) {
+    return {
+      status: "UNAVAILABLE",
+      reason: validation.error || "Invalid AI forensic service URL configuration",
+    };
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 3000);
 
@@ -56,7 +71,7 @@ async function callAIForensicMicroservice(
     const blob = new Blob([Buffer.from(fileBuffer)], { type: "application/pdf" });
     formData.append("file", blob, fileName);
 
-    const res = await fetch("http://127.0.0.1:8000/detect-tampering", {
+    const res = await fetch(endpoint, {
       method: "POST",
       body: formData,
       signal: controller.signal,
@@ -91,46 +106,41 @@ async function callAIForensicMicroservice(
   }
 }
 
-export async function POST(request: NextRequest) {
+// Module-level Singleton OCR worker cache to avoid repeated initialization and memory leaks
+let cachedOcrWorker: any = null;
+let isInitializingWorker = false;
+
+async function getCachedOcrWorker() {
+  if (cachedOcrWorker) return cachedOcrWorker;
+  if (isInitializingWorker) {
+    await new Promise((r) => setTimeout(r, 300));
+    if (cachedOcrWorker) return cachedOcrWorker;
+  }
+  isInitializingWorker = true;
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const { createWorker } = await import("tesseract.js");
+    const path = await import("path");
+    const workerPath = path.join(
+      process.cwd(),
+      "node_modules",
+      "tesseract.js",
+      "src",
+      "worker-script",
+      "node",
+      "index.js"
+    );
 
-    if (!file) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No file uploaded. Please select an official degree certificate PDF.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const fileName = file.name.toLowerCase();
-    const isPdf = fileName.endsWith(".pdf") || file.type === "application/pdf";
-
-    if (!isPdf) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Invalid file format. Only university degree certificate documents in PDF format (.pdf) are supported.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    // Clone arrayBuffer before pdfjs-dist transfers/detaches the buffer
-    const forensicBuffer = arrayBuffer.slice(0);
-    const data = new Uint8Array(arrayBuffer);
-
-    if (data.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "The uploaded PDF file is empty (0 bytes)." },
-        { status: 400 }
-      );
-    }
+    cachedOcrWorker = await createWorker("eng", 1, { workerPath });
+    await cachedOcrWorker.setParameters({
+      tessedit_pageseg_mode: "6", // Fast uniform block text mode (under 1 second OCR)
+    });
+  } catch (err) {
+    console.warn("Failed to initialize Tesseract worker:", err);
+  } finally {
+    isInitializingWorker = false;
+  }
+  return cachedOcrWorker;
+}
 
 function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
   const images: Buffer[] = [];
@@ -154,11 +164,139 @@ function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
   return images;
 }
 
-    // 1. Text Layer Extraction via pdfjs-dist
+/** Maximum permitted PDF upload size: 10MB */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/** Maximum permitted PDF pages */
+const MAX_PDF_PAGES = 5;
+
+export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
+  const startTime = Date.now();
+  const skipAi = request.nextUrl.searchParams.get("skip_ai") === "true";
+  try {
+    const clientIp = getClientIp(request);
+    // Rate limit: 30 requests per minute per IP to protect resource-intensive PDF and AI forensic processing
+    const rateLimit = checkRateLimit(`verify_pdf:${clientIp}`, { maxRequests: 30, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      logger.warn('PDF verification rate limit exceeded', {
+        requestId,
+        route: '/api/verify/pdf',
+        method: 'POST',
+        statusCode: 429,
+        durationMs: Date.now() - startTime,
+        details: { clientIp },
+      });
+      return jsonResponse(
+        {
+          success: false,
+          error: "Too many verification requests. Please try again later.",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+          requestId,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+            "X-RateLimit-Limit": String(rateLimit.totalLimit),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(Math.ceil(rateLimit.resetTime / 1000)),
+          },
+        },
+        requestId
+      );
+    }
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return jsonResponse(
+        {
+          success: false,
+          error: "No file uploaded. Please select an official degree certificate PDF.",
+          requestId,
+        },
+        { status: 400 },
+        requestId
+      );
+    }
+
+    const fileName = file.name.toLowerCase();
+    const isPdf = fileName.endsWith(".pdf") || file.type === "application/pdf";
+
+    if (!isPdf) {
+      return jsonResponse(
+        {
+          success: false,
+          error:
+            "Invalid file format. Only university degree certificate documents in PDF format (.pdf) are supported.",
+          requestId,
+        },
+        { status: 400 },
+        requestId
+      );
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return jsonResponse(
+        {
+          success: false,
+          error: `File size exceeds the maximum allowed limit of 10MB. Current size: ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
+          requestId,
+        },
+        { status: 413 },
+        requestId
+      );
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    // Clone arrayBuffer before pdfjs-dist transfers/detaches the buffer
+    const forensicBuffer = arrayBuffer.slice(0);
+    const data = new Uint8Array(arrayBuffer);
+
+    if (data.length === 0) {
+      return jsonResponse(
+        { success: false, error: "The uploaded PDF file is empty (0 bytes).", requestId },
+        { status: 400 },
+        requestId
+      );
+    }
+
+    // Magic-byte header verification: Valid PDF must start with '%PDF-' (0x25, 0x50, 0x44, 0x46, 0x2D)
+    if (
+      data.length < 5 ||
+      data[0] !== 0x25 ||
+      data[1] !== 0x50 ||
+      data[2] !== 0x44 ||
+      data[3] !== 0x46 ||
+      data[4] !== 0x2d
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          error: "Invalid document structure: File does not contain a valid PDF magic header (%PDF-).",
+          requestId,
+        },
+        { status: 400 },
+        requestId
+      );
+    }
+
+    // 1. Text Layer Extraction & Page Count Enforcement via pdfjs-dist
     let rawText = "";
     try {
       const pdfjsLib = require("pdfjs-dist/build/pdf.js");
       const doc = await pdfjsLib.getDocument({ data }).promise;
+      if (doc && doc.numPages > MAX_PDF_PAGES) {
+        return jsonResponse(
+          {
+            success: false,
+            error: `PDF exceeds maximum allowed page count (${MAX_PDF_PAGES} pages). Uploaded document has ${doc.numPages} pages.`,
+            requestId,
+          },
+          { status: 400 },
+          requestId
+        );
+      }
       if (doc && doc.numPages >= 1) {
         const page = await doc.getPage(1);
         const tc = await page.getTextContent();
@@ -168,35 +306,6 @@ function extractImagesFromPdf(pdfBuffer: Buffer): Buffer[] {
       console.warn("PDF text layer extraction note (proceeding to OCR fallback):", parseErr?.message || parseErr);
       rawText = "";
     }
-
-// Singleton OCR worker cache to avoid WebAssembly re-initialization overhead
-let cachedOcrWorker: any = null;
-let isInitializingWorker = false;
-
-async function getCachedOcrWorker() {
-  if (cachedOcrWorker) return cachedOcrWorker;
-  if (isInitializingWorker) {
-    // Wait briefly if already initializing
-    await new Promise((r) => setTimeout(r, 300));
-    if (cachedOcrWorker) return cachedOcrWorker;
-  }
-  isInitializingWorker = true;
-  try {
-    const { createWorker } = await import("tesseract.js");
-    const path = await import("path");
-    const workerPath = path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker-script", "node", "index.js");
-
-    cachedOcrWorker = await createWorker("eng", 1, { workerPath });
-    await cachedOcrWorker.setParameters({
-      tessedit_pageseg_mode: "6", // Fast uniform block text mode (under 1 second OCR)
-    });
-  } catch (err) {
-    console.warn("Failed to initialize Tesseract worker:", err);
-  } finally {
-    isInitializingWorker = false;
-  }
-  return cachedOcrWorker;
-}
 
     // Rule 1: Scanned Document Detection & OCR Fallback Processing
     let isScannedPdf = false;
@@ -231,14 +340,16 @@ async function getCachedOcrWorker() {
 
       // If OCR was unable to recover any text from the scanned image
       if (!rawText || rawText.trim().length === 0) {
-        return NextResponse.json(
+        return jsonResponse(
           {
             success: false,
             diagnostic_code: "SCANNED_DOCUMENT_REQUIRES_OCR" as DiagnosticCode,
             error:
               "Scanned Document Detected: This PDF contains flat raster images without an embedded digital text layer. OCR processing did not detect readable text.",
+            requestId,
           },
-          { status: 422 }
+          { status: 422 },
+          requestId
         );
       }
     }
@@ -258,20 +369,18 @@ async function getCachedOcrWorker() {
       rawText.match(/Master of Technology/i) ||
       rawText.match(/Degree of\s+([A-Za-z\s&]+)/i);
 
-    const isWatermarkedTampered = /TAMPERED|FRAUD|ALTERED/i.test(rawText);
-    const isWatermarkedFake = /COUNTERFEIT|UNREGISTERED|FORGED/i.test(rawText);
-    const isWatermarkedRevoked = /REVOKED BY EXAM AUTHORITY|REVOKED/i.test(rawText);
-
     // If neither batch ID nor PRN was found in the text
     if (!batchMatch && !prnMatch) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           success: false,
           diagnostic_code: "RECORD_NOT_IN_DATABASE" as DiagnosticCode,
           error:
             "Unrecognized Academic Document: No verifiable university Permanent Registration Number (PRN) or Batch identifier found in document text.",
+          requestId,
         },
-        { status: 400 }
+        { status: 400 },
+        requestId
       );
     }
 
@@ -287,7 +396,7 @@ async function getCachedOcrWorker() {
 
     if (extractedBatchId) {
       const normalizedBatchId = extractedBatchId.replace(/BATCHOL|BATCH0L|BATCHOI|BATCH0I/gi, "BATCH01");
-      matchedBatch = getBatchByIdDb(normalizedBatchId) || getBatchByIdDb(extractedBatchId);
+      matchedBatch = (await getBatchByIdDb(normalizedBatchId)) || (await getBatchByIdDb(extractedBatchId));
       if (!matchedBatch) {
         matchedBatch =
           initializeDefaultBatches().find(
@@ -303,7 +412,7 @@ async function getCachedOcrWorker() {
           merkleRoot: rootHex,
           ipfsCid: "QmYoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco",
           timestamp: 1718870400,
-          issuer: "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+          issuer: "0x71c56538b15294500b73F8472B4fe963D4e58Bef",
           institutionName: "MGM University, Chhatrapati Sambhajinagar",
           institutionCode: "MGMU-ENG-01",
           totalCredentials: INITIAL_STUDENTS_MGM_BATCH2.length,
@@ -315,20 +424,25 @@ async function getCachedOcrWorker() {
 
     // PRN-based lookup fallback if batch not matched yet
     if (!matchedBatch && normalizedPrn) {
-      const dbCred = getCredentialByPrnDb(normalizedPrn);
+      const dbCred = await getCredentialByPrnDb(normalizedPrn);
       if (dbCred) {
-        matchedBatch = getBatchByIdDb(dbCred.batchId);
+        matchedBatch = await getBatchByIdDb(dbCred.batchId);
         extractedLeafIndex = dbCred.leafIndex;
       }
     }
 
-    // Trigger AI Forensic Microservice asynchronously alongside deterministic checks
-    const forensicPromise = callAIForensicMicroservice(forensicBuffer, file.name);
+    // Trigger AI Forensic Microservice asynchronously alongside deterministic checks (deferred when skip_ai=true)
+    const forensicPromise: Promise<ForensicScanResult> = skipAi
+      ? Promise.resolve({
+          status: "QUEUED" as const,
+          reason: "AI forensic analysis deferred to independent forensic runner",
+        })
+      : callAIForensicMicroservice(forensicBuffer, file.name);
 
-    // Rule 2: Unregistered Issuer / Counterfeit Batch
-    if (!matchedBatch || isWatermarkedFake || (extractedBatchId && extractedBatchId.includes("FAKE"))) {
+    // Rule 2: Unregistered Issuer / Counterfeit Batch (Deterministic Database Check)
+    if (!matchedBatch) {
       const forensic = await forensicPromise;
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         diagnostic_code: "UNREGISTERED_ISSUER" as DiagnosticCode,
         diagnostic_message: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' was never anchored or registered on the Ethereum credential registry.`,
@@ -336,7 +450,7 @@ async function getCachedOcrWorker() {
         isRevoked: false,
         isUnregistered: true,
         tamperDetected: true,
-        tamperReason: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' is not authorized on Ethereum Sepolia.`,
+        tamperReason: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' is not authorized on blockchain registry.`,
         forensic_scan: forensic,
         pdfExtracted: {
           batchId: extractedBatchId,
@@ -344,7 +458,8 @@ async function getCachedOcrWorker() {
           prn: normalizedPrn,
           cgpa: extractedCgpa,
         },
-      });
+        requestId,
+      }, { status: 200 }, requestId);
     }
 
     // Resolve Leaf Index
@@ -366,7 +481,7 @@ async function getCachedOcrWorker() {
       extractedLeafIndex >= matchedBatch.records.length
     ) {
       const forensic = await forensicPromise;
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         diagnostic_code: "RECORD_NOT_IN_DATABASE" as DiagnosticCode,
         diagnostic_message: `Record Not Found: Candidate registration (${normalizedPrn || "UNKNOWN"}) does not exist in certified batch '${matchedBatch.batchId}'.`,
@@ -382,7 +497,8 @@ async function getCachedOcrWorker() {
           prn: normalizedPrn,
           cgpa: extractedCgpa,
         },
-      });
+        requestId,
+      }, { status: 200 }, requestId);
     }
 
     const genuineStudent: StudentDegreeData = matchedBatch.records[extractedLeafIndex];
@@ -390,9 +506,9 @@ async function getCachedOcrWorker() {
     // Rule 4: Claim Mismatch - CGPA
     if (extractedCgpa !== undefined && genuineStudent.cgpa !== undefined) {
       const genuineCgpa = parseFloat(String(genuineStudent.cgpa));
-      if (Math.abs(extractedCgpa - genuineCgpa) > 0.01 || isWatermarkedTampered) {
+      if (Math.abs(extractedCgpa - genuineCgpa) > 0.01) {
         const forensic = await forensicPromise;
-        return NextResponse.json({
+        return jsonResponse({
           success: true,
           diagnostic_code: "CLAIM_MISMATCH_CGPA" as DiagnosticCode,
           diagnostic_message: `Cryptographic Claim Mismatch: Document presents CGPA ${extractedCgpa}, but genuine on-chain Merkle tree anchors CGPA ${genuineCgpa}.`,
@@ -408,7 +524,8 @@ async function getCachedOcrWorker() {
             prn: normalizedPrn || genuineStudent.prn,
             cgpa: extractedCgpa,
           },
-        });
+          requestId,
+        }, { status: 200 }, requestId);
       }
     }
 
@@ -420,7 +537,7 @@ async function getCachedOcrWorker() {
       !extractedDegree.toLowerCase().includes(genuineStudent.degree.toLowerCase())
     ) {
       const forensic = await forensicPromise;
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         diagnostic_code: "CLAIM_MISMATCH_DEGREE" as DiagnosticCode,
         diagnostic_message: `Cryptographic Claim Mismatch: Document claims '${extractedDegree}', but certified record anchors '${genuineStudent.degree}'.`,
@@ -436,7 +553,8 @@ async function getCachedOcrWorker() {
           prn: normalizedPrn || genuineStudent.prn,
           cgpa: extractedCgpa,
         },
-      });
+        requestId,
+      }, { status: 200 }, requestId);
     }
 
     // 4. On-Chain Merkle Proof Verification & Revocation
@@ -445,11 +563,26 @@ async function getCachedOcrWorker() {
     const leafHash = hashCredentialSubject(genuineStudent);
     const config = getSepoliaConfig();
 
+    let isVerifiedOnChain = false;
+    if (matchedBatch.status === "ANCHORED" && matchedBatch.txHash) {
+      try {
+        const evidence = await verifyBatchAnchorEvidence(
+          matchedBatch.batchId,
+          matchedBatch.merkleRoot,
+          matchedBatch.txHash
+        );
+        isVerifiedOnChain = evidence.isVerifiedOnChain;
+      } catch {
+        isVerifiedOnChain = false;
+      }
+    }
+
     const proofData = {
       ...leafProof,
       batchId: matchedBatch.batchId,
-      contractAddress: config.credentialRegistryAddress,
-      network: "Ethereum Sepolia",
+      contractAddress: isVerifiedOnChain ? config.credentialRegistryAddress : "",
+      network: isVerifiedOnChain ? "Ethereum Sepolia" : "Local Institutional Registry",
+      ...(isVerifiedOnChain ? { chainId: 11155111 } : {}),
     };
 
     const credential: W3CCredentialPayload = createW3CCredential(
@@ -471,10 +604,10 @@ async function getCachedOcrWorker() {
     // Rule 6: Merkle Proof Invalid
     if (!onChainResult.isValid) {
       const forensic = await forensicPromise;
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         diagnostic_code: "MERKLE_PROOF_INVALID" as DiagnosticCode,
-        diagnostic_message: `Cryptographic Merkle Proof Failure: Computed leaf hash does not verify against on-chain root (${onChainResult.rootHash}).`,
+        diagnostic_message: `Cryptographic Merkle Proof Failure: Computed leaf hash does not verify against ${onChainResult.source === "SEPOLIA_RPC" ? "on-chain" : "registered"} root (${onChainResult.rootHash}).`,
         isValid: false,
         isRevoked: false,
         isUnregistered: false,
@@ -488,24 +621,29 @@ async function getCachedOcrWorker() {
           prn: normalizedPrn || genuineStudent.prn,
           cgpa: extractedCgpa,
         },
-      });
+        requestId,
+      }, { status: 200 }, requestId);
     }
 
-    // Rule 7: Credential Revoked
+    // Rule 7: Credential Revoked (Deterministic on-chain bitmap and database registry check)
     const isRevokedOnChain =
       Boolean(onChainResult.isRevoked) ||
       Boolean(
         Array.isArray(matchedBatch.revokedIndices) &&
           matchedBatch.revokedIndices.includes(extractedLeafIndex)
-      ) ||
-      isWatermarkedRevoked;
+      );
 
     if (isRevokedOnChain) {
       const forensic = await forensicPromise;
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         diagnostic_code: "CREDENTIAL_REVOKED" as DiagnosticCode,
-        diagnostic_message: "Revocation Alert: This academic credential was officially revoked on Ethereum Sepolia.",
+        diagnostic_message:
+          onChainResult.source === "SEPOLIA_RPC" || onChainResult.source === "LOCAL_RPC"
+            ? `Revocation Alert: This academic credential was officially revoked on ${
+                onChainResult.source === "LOCAL_RPC" ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"
+              }.`
+            : "Revocation Alert: This academic credential was officially revoked in the University Examination Authority registry.",
         isValid: false,
         isRevoked: true,
         isUnregistered: false,
@@ -518,39 +656,61 @@ async function getCachedOcrWorker() {
           prn: normalizedPrn || genuineStudent.prn,
           cgpa: extractedCgpa,
         },
-      });
+        requestId,
+      }, { status: 200 }, requestId);
     }
 
-    // Rule 8: AI Forensic Visual Tampering Check
+    // 5. Dual-Verification Resolution: Cryptographic Truth + AI Forensic Heuristic
+    // Cryptographic Merkle proof on blockchain is the authoritative source of truth.
+    // The probabilistic ELA heuristic provides visual forensic context without overriding verified cryptographic proof.
     const forensic = await forensicPromise;
-    const isTamperedByScore = typeof forensic.ai_confidence_score === "number" && forensic.ai_confidence_score > AI_TAMPERING_THRESHOLD;
+    const isTamperedByScore =
+      typeof forensic.ai_confidence_score === "number" &&
+      forensic.ai_confidence_score > AI_TAMPERING_THRESHOLD;
 
-    if (forensic.status === "COMPLETED" && (forensic.verdict === "TAMPERED" || isTamperedByScore)) {
-      return NextResponse.json({
-        success: true,
-        diagnostic_code: "VISUAL_FORGERY_DETECTED" as DiagnosticCode,
-        diagnostic_message: `AI Forgery Alert: PyTorch ELA neural network detected localized image splicing and compression anomalies (anomaly score: ${forensic.ai_confidence_score} > ${AI_TAMPERING_THRESHOLD}).`,
-        isValid: false,
-        isRevoked: false,
-        isUnregistered: false,
-        tamperDetected: true,
-        tamperReason: "Neural network identified localized pixel compression anomalies.",
-        credential,
-        forensic_scan: forensic,
-        pdfExtracted: {
-          batchId: matchedBatch.batchId,
-          leafIndex: extractedLeafIndex,
-          prn: normalizedPrn || genuineStudent.prn,
-          cgpa: extractedCgpa,
-        },
-      });
+    const networkName =
+      onChainResult.source === "LOCAL_RPC"
+        ? "Hardhat Local (31337)"
+        : onChainResult.source === "SEPOLIA_RPC"
+        ? "Ethereum Sepolia (11155111)"
+        : "institutional registry";
+
+    // Truthfully distinguish forensic states: LOW ANOMALY, SUSPICIOUS, HIGH ANOMALY, UNAVAILABLE
+    const normalizedVerdict =
+      forensic.verdict === "AUTHENTIC"
+        ? "LOW ANOMALY"
+        : forensic.verdict === "TAMPERED"
+        ? "HIGH ANOMALY"
+        : forensic.verdict;
+
+    const normalizedForensic: ForensicScanResult = {
+      ...forensic,
+      ...(normalizedVerdict ? { verdict: normalizedVerdict } : {}),
+    };
+
+    let forensicSummary = "";
+    if (forensic.status === "COMPLETED") {
+      if (normalizedVerdict === "LOW ANOMALY") {
+        forensicSummary = "ELA forensic scan indicates consistent JPEG compression residuals (LOW ANOMALY).";
+      } else if (normalizedVerdict === "SUSPICIOUS") {
+        forensicSummary = `Note: ELA forensic scan flagged moderate compression variance (SUSPICIOUS, anomaly score: ${forensic.ai_confidence_score}); cryptographic proof remains authoritative.`;
+      } else if (normalizedVerdict === "HIGH ANOMALY" || isTamperedByScore) {
+        forensicSummary = `Advisory: ELA forensic scan flagged elevated compression anomalies (HIGH ANOMALY, anomaly score: ${forensic.ai_confidence_score}); on-chain cryptographic anchor remains authoritative.`;
+      } else {
+        forensicSummary = `ELA forensic verdict: ${normalizedVerdict}.`;
+      }
+    } else if (forensic.status === "QUEUED") {
+      forensicSummary = "AI forensic analysis deferred to independent forensic runner; verified via on-chain Merkle root.";
+    } else {
+      forensicSummary = `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via on-chain Merkle root.`;
     }
 
-    // Rule 9: Fully Verified
-    return NextResponse.json({
+    const diagnosticMessage = `Fully Verified: Cryptographic Merkle proof matches ${networkName}, claims certified, and credential active. ${forensicSummary}`;
+
+    return jsonResponse({
       success: true,
       diagnostic_code: "FULLY_VERIFIED" as DiagnosticCode,
-      diagnostic_message: "Fully Verified: Cryptographic Merkle proof matches Ethereum Sepolia, claims certified, credential active, and AI forensic scan authentic.",
+      diagnostic_message: diagnosticMessage,
       isValid: true,
       isRevoked: false,
       isUnregistered: false,
@@ -564,22 +724,34 @@ async function getCachedOcrWorker() {
         isRevoked: onChainResult.isRevoked,
         issuingInstitutionName: onChainResult.issuingInstitutionName,
       },
-      forensic_scan: forensic,
+      onChainCheck: onChainResult,
+      forensic_scan: normalizedForensic,
       pdfExtracted: {
         batchId: matchedBatch.batchId,
         leafIndex: extractedLeafIndex,
         prn: normalizedPrn || genuineStudent.prn,
         cgpa: extractedCgpa,
       },
-    });
+      requestId,
+    }, { status: 200 }, requestId);
   } catch (err: any) {
-    console.error("PDF dual-verification route error:", err);
-    return NextResponse.json(
+    const isDbDown = isDatabaseUnavailableError(err);
+    const statusCode = isDbDown ? 503 : 500;
+    logger.error("PDF dual-verification route error", err, {
+      requestId,
+      route: "/api/verify/pdf",
+      method: "POST",
+      statusCode,
+      durationMs: Date.now() - startTime,
+    });
+    return jsonResponse(
       {
         success: false,
-        error: err?.message || "Internal server error executing PDF dual-verification",
+        error: isDbDown ? "Database service unavailable" : "Internal server error executing PDF dual-verification",
+        requestId,
       },
-      { status: 500 }
+      { status: statusCode },
+      requestId
     );
   }
 }

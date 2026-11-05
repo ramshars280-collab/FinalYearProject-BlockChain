@@ -3,9 +3,16 @@ import { StudentDegreeData, W3CCredentialPayload, SelectiveDisclosureProof, Batc
 import { canonicalStringify } from "./crypto";
 
 /**
- * Generates a DPDP Act-compliant Selective Disclosure credential.
- * Allows a student to cryptographically prove assertions (e.g., CGPA >= 7.5)
- * or selectively disclose certain fields while redacting others.
+ * Experimental Educational Prototype: DPDP Act-Compliant Selective Disclosure Engine
+ * 
+ * IMPORTANT ARCHITECTURAL DISCLOSURE:
+ * Demonstrates privacy-preserving selective attribute disclosure and cryptographic
+ * range commitments (e.g. CGPA >= 7.5) with PII redaction under India DPDP Act principles.
+ * 
+ * Cryptographic Mechanism:
+ * Uses salted Keccak-256 cryptographic commitments against authentic Merkle roots.
+ * This is an experimental educational prototype illustrating DPDP zero-PII disclosure
+ * concepts, not a production-trusted Groth16 zk-SNARK proving pipeline.
  */
 export function generateSelectiveDisclosureProof(
   originalCredential: W3CCredentialPayload,
@@ -82,7 +89,9 @@ export function generateSelectiveDisclosureProof(
     proof: {
       type: "SelectiveDisclosureProof2024",
       created: new Date().toISOString(),
-      verificationMethod: originalCredential.proof.verificationMethod,
+      ...(originalCredential.proof.verificationMethod
+        ? { verificationMethod: originalCredential.proof.verificationMethod }
+        : {}),
       zkProof: selectiveProof,
       selectiveProof,
       merkleProof: originalCredential.proof.merkleProof,
@@ -119,7 +128,7 @@ export async function verifyZkSelectiveProof(credential: W3CCredentialPayload): 
   let batch: BatchRecord | null = null;
   if (typeof window === "undefined") {
     const { getBatchByIdDb } = await import("./db");
-    batch = getBatchByIdDb(merkleProof.batchId);
+    batch = await getBatchByIdDb(merkleProof.batchId);
   } else {
     try {
       const res = await fetch(`/api/batches/${encodeURIComponent(merkleProof.batchId)}`, {
@@ -279,7 +288,7 @@ export async function verifyZkSelectiveProof(credential: W3CCredentialPayload): 
 
   return {
     isValid: true,
-    message: `Verified: ${proof.attributeName.toUpperCase()} ${proof.assertionType} ${proof.thresholdValue} against authentic batch "${batch.batchId}" (DPDP Selective Disclosure Standard)`,
+    message: `[Experimental Prototype Verified] ${proof.attributeName.toUpperCase()} ${proof.assertionType} ${proof.thresholdValue} against authentic batch "${batch.batchId}" (DPDP Selective Disclosure Standard)`,
     threshold: proof.thresholdValue,
     assertionType: proof.assertionType,
     actualCgpa: realCgpa,

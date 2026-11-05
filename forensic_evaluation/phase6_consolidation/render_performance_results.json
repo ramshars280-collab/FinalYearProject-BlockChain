@@ -1,0 +1,51 @@
+{
+  "task_metadata": {
+    "task_id": "P6-T13",
+    "task_name": "Render Free Deployment & Controlled Remote Validation",
+    "official_phase": "Phase 6 - AI Forensic Evaluation",
+    "timestamp": "2026-11-04T01:31:00+05:30",
+    "target_platform": "Render Free Web Service",
+    "instance_type": "Free (0.1 vCPU, 512 MB RAM, $0/month)",
+    "status": "PAUSED_FOR_USER_AUTHORIZATION"
+  },
+  "pre_deployment_verification": {
+    "dockerfile_path": "forgery_service/Dockerfile",
+    "build_context": "forgery_service",
+    "python_version": "3.11-slim-bookworm",
+    "port_handling": "DYNAMIC_HOST_PROVIDED (${PORT:-8000})",
+    "health_check_path": "/health",
+    "client_env_variable": "AI_FORENSIC_SERVICE_URL",
+    "zero_budget_verified": true
+  },
+  "deployment_parameters": {
+    "service_type": "Web Service",
+    "runtime": "Docker",
+    "root_directory": "forgery_service",
+    "dockerfile_path": "Dockerfile",
+    "instance": "Free ($0.00/month)",
+    "health_check_path": "/health"
+  },
+  "remote_measurements": {
+    "public_https_url": "PENDING_USER_DEPLOYMENT",
+    "cold_start_latency_seconds": "PENDING_LIVE_URL",
+    "warm_health_check_latency_ms": {
+      "min": null,
+      "median": null,
+      "avg": null,
+      "max": null
+    },
+    "inference_latency_ms": {
+      "min": null,
+      "median": null,
+      "avg": null,
+      "max": null
+    },
+    "two_concurrent_requests_result": "PENDING_LIVE_URL",
+    "remote_memory_usage_mb": "PENDING_LIVE_URL"
+  },
+  "phase6_completion_status": {
+    "phase6_complete": false,
+    "closure_condition": "Awaiting live public HTTPS URL from Render to execute remote latency and concurrency validation."
+  }
+}
+

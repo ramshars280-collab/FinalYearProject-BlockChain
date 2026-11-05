@@ -104,8 +104,7 @@ export function buildBatchMerkleTree(records: StudentDegreeData[]) {
       rootHash: rootHex,
       proof: proofHex,
       contractAddress: "",
-      network: "sepolia",
-      chainId: 11155111,
+      network: "Local Institutional Registry",
     };
   });
 
@@ -154,32 +153,91 @@ export function verifyProofClientSide(
 }
 
 /**
- * Builds a full W3C-compliant JSON-LD document with embedded Merkle proof.
+ * Generates an RFC 4122 compliant UUID v4 string using cryptographically secure randomness.
+ * Supports Next.js browser client (Web Crypto API) and Node.js server runtimes.
+ * Never falls back to pseudo-random numbers or predictable counters.
+ */
+export function generateUUIDv4(): string {
+  // Access standard Web Crypto API across browser (window.crypto / msCrypto) and Node.js (globalThis.crypto)
+  const webCrypto =
+    typeof globalThis !== "undefined"
+      ? globalThis.crypto || (globalThis as any).msCrypto
+      : typeof window !== "undefined"
+      ? (window as any).crypto || (window as any).msCrypto
+      : undefined;
+
+  // 1. Primary path: crypto.randomUUID() (Modern browsers in secure contexts & Node.js 19+)
+  if (webCrypto && typeof webCrypto.randomUUID === "function") {
+    return webCrypto.randomUUID();
+  }
+
+  // 2. Universal CSPRNG fallback: crypto.getRandomValues() (All modern browsers & Node.js Web Crypto)
+  if (webCrypto && typeof webCrypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    webCrypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // RFC 4122 Version 4 (0100xxxx)
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 Variant 1 (10xxxxxx)
+    const hex = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+
+  // 3. Fail-closed: Throw explicit error if no cryptographically secure random source is available
+  throw new Error(
+    "Cryptographically secure random number generator is unavailable in the current runtime environment."
+  );
+}
+
+/**
+ * Builds a W3C-style JSON-LD document with embedded Keccak-256 Merkle proof.
+ * 
+ * Identity Architecture (Strict Separation of Three Concerns):
+ * -------------------------------------------------------------
+ * 1. Issuer Identity (Authority Wallet):
+ *    Identified by `issuer.ethereumAddress` (<issuerAddress>) and `issuer.name`.
+ *    Represents the University / Examination Cell signing authority wallet.
+ *    Separated from decentralized identifiers (DIDs) as no ERC-1056 DID registry
+ *    or resolvable DID document is deployed on Sepolia for this address.
+ *    Never conflated with the Credential Registry smart contract.
+ * 
+ * 2. Institutional Storage & Verification (Local Registry):
+ *    Institutional database custody and local client/server Keccak-256 Merkle proof verification.
+ *    No automatic claim of Ethereum anchoring or external registry resolution.
+ * 
+ * 3. Blockchain Registry (Smart Contract):
+ *    The CredentialRegistry contract address (when configured) resides strictly in
+ *    `proof.merkleProof.contractAddress`. It is NOT assigned as a DID verificationMethod
+ *    because raw Ethereum smart contracts lack DID resolution documents. A credential
+ *    is only treated as Ethereum-anchored when on-chain bytecode, transaction receipt,
+ *    and Merkle root anchoring events are verified.
+ * 
+ * Proof Suite Specification:
+ * - Proof type `EthereumMerkleProof2024` is a project-specific custom proof suite for
+ *   EVM-anchored Keccak-256 Merkle trees, not a standardized W3C working group suite.
+ * - `verificationMethod` is omitted in accordance with the W3C VC Data Model when no
+ *   dereferenceable DID verification method document exists, preventing fabricated URNs.
  */
 export function createW3CCredential(
   subject: StudentDegreeData,
   merkleProof: MerkleProofData,
-  issuerAddress: string = "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+  issuerAddress: string = "0x8D0cC3553e9d812797B986F15427835A2930a301",
   issuerName?: string,
   institutionCode?: string
 ): W3CCredentialPayload {
   const resolvedName = issuerName || subject.university || "Authorized Consortium University";
   const resolvedCode = institutionCode || subject.institutionCode || "MGMU-ENG-01";
   const safePrn = (subject.prn || (subject as any).PRN || "unknown").toString().toLowerCase();
-  const safeYear = subject.graduationYear || (subject as any).year || new Date().getFullYear();
 
   return {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
       "https://schema.org",
-      "https://w3id.org/security/suites/ed25519-2020/v1",
     ],
-    id: `urn:uuid:degree-cert-${safePrn}-${safeYear}`,
+    id: `urn:uuid:${generateUUIDv4()}`,
     type: ["VerifiableCredential", "UniversityDegreeCredential"],
     issuer: {
-      id: `did:ethr:11155111:${issuerAddress}`,
       name: resolvedName,
-      url: "https://blockchain.trust-registry.ac.in/verify",
       ethereumAddress: issuerAddress,
       institutionCode: resolvedCode,
     },
@@ -191,7 +249,8 @@ export function createW3CCredential(
     proof: {
       type: "EthereumMerkleProof2024",
       created: new Date().toISOString(),
-      verificationMethod: `did:ethr:11155111:${merkleProof.contractAddress}#merkleRoot`,
+      // verificationMethod omitted: No fabricated institutional URN or unsupported contract DID method.
+      // The smart contract reference resides strictly in merkleProof.contractAddress.
       merkleProof: {
         ...merkleProof,
       },

@@ -1,0 +1,79 @@
+# Docker Compose Orchestration for SOET VeriTrust
+# Next.js Web Application + Python FastAPI AI Forensic Microservice + Persistent SQLite Storage
+
+version: '3.8'
+
+services:
+  # Next.js 14 Web Application & API Gateway
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: veritrust-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_PATH=/app/data/veritrust.db
+      - ALLOW_AUTO_SEED=${ALLOW_AUTO_SEED:-false}
+      - AI_FORENSIC_SERVICE_URL=http://forgery-service:8000
+      - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET is required. Generate with 'openssl rand -hex 32' in .env}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required. Set in .env}
+      - STUDENT_DEFAULT_PASSWORD=${STUDENT_DEFAULT_PASSWORD}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
+      - NEXT_PUBLIC_CREDENTIAL_REGISTRY=${NEXT_PUBLIC_CREDENTIAL_REGISTRY:-0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7}
+      - NEXT_PUBLIC_IDENTITY_REGISTRY=${NEXT_PUBLIC_IDENTITY_REGISTRY:-0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512}
+      - NEXT_PUBLIC_SEPOLIA_RPC=${NEXT_PUBLIC_SEPOLIA_RPC:-https://ethereum-sepolia-rpc.publicnode.com}
+      - NEXT_PUBLIC_CHAIN_ID=${NEXT_PUBLIC_CHAIN_ID:-11155111}
+      - PINATA_JWT=${PINATA_JWT:-}
+      - PINATA_API_KEY=${PINATA_API_KEY:-}
+      - PINATA_SECRET_API_KEY=${PINATA_SECRET_API_KEY:-}
+    volumes:
+      # Named persistent volume guarantees SQLite database files persist across container rebuilds/recreation
+      - veritrust-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      # Service started ensures internal DNS is resolved without blocking main app if AI service is degraded
+      forgery-service:
+        condition: service_started
+    networks:
+      - veritrust-net
+
+  # Python FastAPI AI Forensic Microservice (Error Level Analysis & CNN)
+  forgery-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: veritrust-ai
+    restart: unless-stopped
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000,http://web:3000
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Internal microservice is isolated on internal network without public host port mapping
+    networks:
+      - veritrust-net
+
+volumes:
+  # Isolated persistent volume for SQLite database and WAL journal files
+  veritrust-data:
+    name: veritrust-persistent-db-volume
+
+networks:
+  veritrust-net:
+    driver: bridge
+

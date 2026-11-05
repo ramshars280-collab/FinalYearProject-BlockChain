@@ -1,0 +1,115 @@
+{
+  "task_metadata": {
+    "task_id": "P6-T12",
+    "task_name": "Hosting Feasibility Correction & Deployment Configuration Audit",
+    "official_phase": "Phase 6 - AI Forensic Evaluation",
+    "audit_date": "2026-11-04",
+    "status": "COMPLETED",
+    "zero_budget_rule_strictly_enforced": true
+  },
+  "corrected_provider_evaluations": [
+    {
+      "provider": "Render",
+      "tier": "Free Web Service",
+      "genuinely_free": true,
+      "docker_support": true,
+      "ram_limit_mb": 512,
+      "cpu_limit": "0.1 vCPU (Shared)",
+      "sleep_after_inactivity_minutes": 15,
+      "cold_start_delay_seconds": "50s - 90s",
+      "payment_details_required": false,
+      "doc_url": "https://render.com/docs/free",
+      "date_checked": "2026-11-04",
+      "suitability_verdict": "TECHNICALLY_POSSIBLE_BUT_RESOURCE_RISKY",
+      "risk_summary": "512MB RAM leaves only 226MB headroom above measured 286MB peak inference. Concurrency > 1 request risks OOM kill."
+    },
+    {
+      "provider": "Hugging Face Spaces",
+      "sdk": "Docker",
+      "genuinely_free": false,
+      "docker_support": true,
+      "ram_limit_mb": 16384,
+      "payment_details_required": true,
+      "subscription_required": "Hugging Face PRO ($9/month) or Team",
+      "doc_url": "https://huggingface.co/docs/hub/spaces-overview",
+      "date_checked": "2026-11-04",
+      "suitability_verdict": "NOT_ELIGIBLE_UNDER_FREE_PLAN",
+      "policy_correction": "Docker Spaces are no longer free; creation is restricted to paid tiers requiring a credit card."
+    },
+    {
+      "provider": "Koyeb",
+      "tier": "Free Tier",
+      "genuinely_free": false,
+      "docker_support": true,
+      "ram_limit_mb": 512,
+      "payment_details_required": true,
+      "pre_authorization_hold_usd": 29.0,
+      "doc_url": "https://koyeb.com/docs",
+      "date_checked": "2026-11-04",
+      "suitability_verdict": "NOT_ELIGIBLE_UNDER_FREE_PLAN"
+    },
+    {
+      "provider": "Fly.io",
+      "tier": "Free Trial (Deprecated Free Tier)",
+      "genuinely_free": false,
+      "docker_support": true,
+      "trial_limit": "2 compute hours or 7 days",
+      "payment_details_required": true,
+      "doc_url": "https://fly.io/docs/about/pricing",
+      "date_checked": "2026-11-04",
+      "suitability_verdict": "NOT_ELIGIBLE_UNDER_FREE_PLAN"
+    },
+    {
+      "provider": "Railway",
+      "tier": "Trial",
+      "genuinely_free": false,
+      "payment_details_required": true,
+      "doc_url": "https://docs.railway.com",
+      "date_checked": "2026-11-04",
+      "suitability_verdict": "NOT_ELIGIBLE_UNDER_FREE_PLAN"
+    }
+  ],
+  "resource_suitability_benchmark": {
+    "measured_local_idle_rss_mb": 182,
+    "measured_local_peak_inference_rss_mb": 286,
+    "measured_local_inference_latency_ms": [220, 450],
+    "render_free_tier_headroom_mb": 226,
+    "render_free_tier_headroom_percent": 44.1,
+    "estimated_concurrency_failure_threshold": 2
+  },
+  "docker_configuration_audit": {
+    "root_dockerfile_ai": {
+      "path": "Dockerfile.ai",
+      "build_context": ".",
+      "port_handling": "DYNAMIC (${PORT:-8000})",
+      "healthcheck": "DYNAMIC curl (${PORT:-8000})",
+      "non_root_user": "appuser (UID 1001)",
+      "status": "VERIFIED_COMPLIANT"
+    },
+    "subdir_dockerfile": {
+      "path": "forgery_service/Dockerfile",
+      "build_context": "forgery_service",
+      "port_handling": "DYNAMIC (${PORT:-8000})",
+      "healthcheck": "DYNAMIC curl (${PORT:-8000})",
+      "non_root_user": "appuser (UID 1000)",
+      "status": "VERIFIED_COMPLIANT"
+    },
+    "redundancy_verdict": "NON_CONFLICTING_DUAL_TARGETING"
+  },
+  "environment_configuration_audit": {
+    "exact_variable_name": "AI_FORENSIC_SERVICE_URL",
+    "server_side_only": true,
+    "browser_leak_detected": false,
+    "localhost_fallback": "http://127.0.0.1:8000",
+    "https_support": true,
+    "client_timeout_ms": 3000,
+    "graceful_degradation_verified": true
+  },
+  "final_hosting_recommendation": {
+    "outcome": "TECHNICALLY_POSSIBLE_BUT_RESOURCE_RISKY",
+    "selected_provider": "Render Free Web Service",
+    "zero_budget_compliance": true,
+    "operational_safeguard": "Next.js 3000ms AbortController automatically absorbs cold-start delays and OOM terminations, falling back to UNAVAILABLE without affecting cryptographic verification on Sepolia Ethereum."
+  }
+}
+

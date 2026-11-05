@@ -7,6 +7,8 @@ node_modules/
 # Testing & Build Outputs
 /coverage
 .next/
+.next_prod/
+/.next_prod/
 /.next/
 out/
 /out/
@@ -48,6 +50,7 @@ data/
 *.db-shm
 *.sqlite
 *.sqlite3
+/backups/
 
 # Sample Documents, Reports & Data Files (DO NOT COMMIT SAMPLE DATA)
 certificates_pdf/
@@ -77,3 +80,9 @@ next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local deployment configurations and backups
+src/contracts/*.local.json
+src/contracts/*.local.backup.json
+src/contracts/*.backup.json
+*.bak

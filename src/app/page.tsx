@@ -91,56 +91,13 @@ function PublicVerifierContent() {
         </h1>
 
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-          Cryptographically authenticate university degree diplomas in &lt;140ms with zero login, zero gas fees.
+          Cryptographically authenticate university degree diplomas with zero login and zero gas fees.
         </p>
       </div>
 
       {/* Central Public Verification Hub (Directly in Hero Space like Blockcerts) */}
       <div className="max-w-4xl mx-auto">
         <DropzoneVerifier />
-      </div>
-
-      {/* Live Blockchain Metrics Bar (Positioned below Verifier) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-5xl mx-auto">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            Verification Latency
-          </span>
-          <div className="text-2xl font-black text-blue-700 font-mono">
-            &lt; 140 ms
-          </div>
-          <span className="text-[10px] text-emerald-700 font-bold">Client-Side O(1)</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            Gas Efficiency
-          </span>
-          <div className="text-2xl font-black text-blue-700 font-mono">
-            99.8% Saved
-          </div>
-          <span className="text-[10px] text-slate-500 font-medium">Single O(1) Tx for 1,000+</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            DPDP Privacy Score
-          </span>
-          <div className="text-2xl font-black text-blue-700 font-mono">
-            100% Zero-PII
-          </div>
-          <span className="text-[10px] text-blue-800 font-bold">Selective Disclosure</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center space-y-1 shadow-xs">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
-            Accredited Node
-          </span>
-          <div className="text-2xl font-black text-blue-700 font-mono" suppressHydrationWarning>
-            MGM University
-          </div>
-          <span className="text-[10px] text-emerald-700 font-bold">Node MGMU-ENG-01</span>
-        </div>
       </div>
 
       {/* PROMINENT UNIVERSITY REGISTRATION & CONSORTIUM ONBOARDING BANNER */}
@@ -252,7 +209,7 @@ function PublicVerifierContent() {
                 <td className="p-3.5 font-bold text-slate-900">Single Point of Failure</td>
                 <td className="p-3.5 text-red-600">Physical loss / Flood / Fire</td>
                 <td className="p-3.5 text-red-600">Server outage / DB ransom attacks</td>
-                <td className="p-3.5 font-bold text-emerald-800 bg-blue-50/50">Zero (Ethereum Sepolia Consensus)</td>
+                <td className="p-3.5 font-bold text-emerald-800 bg-blue-50/50">Zero (Ethereum Consensus)</td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold text-slate-900">Revocation Handling</td>
@@ -276,10 +233,10 @@ function PublicVerifierContent() {
               <span>Accredited Issuing Authority</span>
             </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Registered University &amp; Sepolia Trust Node
+              Registered University &amp; Blockchain Trust Node
             </h2>
             <p className="text-xs text-slate-500">
-              Accredited university node actively issuing cryptographically verifiable degree credentials on Ethereum Sepolia.
+              Accredited university node actively issuing cryptographically verifiable degree credentials on Ethereum-compatible blockchain networks.
             </p>
           </div>
 

@@ -1,9 +1,17 @@
 import { ethers } from "ethers";
 
 /**
- * Groth16 Zero-Knowledge Proving & Verification Engine
- * Implements zk-SNARK proof structure, verifying key validation,
- * and Groth16 proof generation for academic degree range assertions.
+ * Experimental Educational Prototype: Groth16 zk-SNARK Data Structure & Verification Model
+ * 
+ * IMPORTANT ARCHITECTURAL DISCLOSURE:
+ * This module is an educational demonstration prototype illustrating the schema,
+ * proof point representation (pi_a, pi_b, pi_c over BN128), and range assertion
+ * interfaces of a Groth16 zero-knowledge proof.
+ * 
+ * It does NOT implement a complete, production-trusted Groth16 proving and verification
+ * pipeline (e.g. no trusted ceremony .zkey or elliptic curve pairing evaluation).
+ * Proof points are deterministically modeled for academic demonstration and W3C
+ * credential schema integration testing.
  */
 
 export interface Groth16ProofPoints {
@@ -111,7 +119,7 @@ export function verifyZkSnarkGroth16Proof(
 
     return {
       isValid: true,
-      message: `Groth16 zk-SNARK Proof Verified: CGPA >= ${payload.publicSignals.thresholdCgpaScaled / 100} over BN128 elliptic curve.`,
+      message: `[Experimental Prototype] Demonstration Groth16 zk-SNARK payload verified: CGPA >= ${payload.publicSignals.thresholdCgpaScaled / 100} (Simulated BN128 Structure).`,
     };
   } catch (err: any) {
     return { isValid: false, message: `Groth16 verification error: ${err?.message || "Invalid ZK proof format"}` };

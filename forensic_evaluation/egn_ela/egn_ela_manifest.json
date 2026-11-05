@@ -1,0 +1,60 @@
+{
+  "task_id": "P6-T09",
+  "task_name": "Edge-Gradient Normalized ELA Investigation",
+  "official_phase": "Phase 6 - AI Forensic Evaluation",
+  "created_at": "2026-11-04T01:10:24+0530",
+  "formula": "EGN(x,y) = ELA(x,y) / (epsilon + G_norm(x,y))",
+  "gradient_operator": "Sobel 3x3 on Grayscale",
+  "gradient_normalization": "G_norm = G / max(G)",
+  "epsilon_values_tested": [
+    0.01,
+    0.05,
+    0.1,
+    0.5,
+    1.0
+  ],
+  "samples": [
+    {
+      "id": "SAMPLE-04",
+      "type": "SPLICED",
+      "filename": "sample_04_splice_cgpa_q75_q98.jpg",
+      "final_jpeg_quality": 85,
+      "rois_count": 1
+    },
+    {
+      "id": "CLEAN-DEMO001-Q85",
+      "type": "CLEAN_BASELINE",
+      "filename": "baseline_demo001_q85.jpg",
+      "final_jpeg_quality": 85,
+      "rois_count": 0
+    },
+    {
+      "id": "SAMPLE-05",
+      "type": "SPLICED",
+      "filename": "sample_05_splice_name_cgpa_q70_uncompressed.jpg",
+      "final_jpeg_quality": 90,
+      "rois_count": 2
+    },
+    {
+      "id": "CLEAN-DEMO002-Q90",
+      "type": "CLEAN_BASELINE",
+      "filename": "baseline_demo002_q90.jpg",
+      "final_jpeg_quality": 90,
+      "rois_count": 0
+    },
+    {
+      "id": "SAMPLE-06",
+      "type": "SPLICED",
+      "filename": "sample_06_splice_double_compression_q80_q60.jpg",
+      "final_jpeg_quality": 80,
+      "rois_count": 1
+    },
+    {
+      "id": "CLEAN-DEMO003-Q80",
+      "type": "CLEAN_BASELINE",
+      "filename": "baseline_demo003_q80.jpg",
+      "final_jpeg_quality": 80,
+      "rois_count": 0
+    }
+  ]
+}

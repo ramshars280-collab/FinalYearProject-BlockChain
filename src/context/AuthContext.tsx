@@ -79,7 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         saveUserSession(data.user);
         return { success: true };
       }
-      return { success: false, error: data.error || "Authentication failed" };
+      return {
+        success: false,
+        error: data.error || "Authentication failed",
+      };
     } catch (err: any) {
       return { success: false, error: "Unable to connect to authentication server" };
     }

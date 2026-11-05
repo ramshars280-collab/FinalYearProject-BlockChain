@@ -1,4 +1,4 @@
-export type UserRole = "STUDENT" | "EXAM_ADMIN";
+export type UserRole = "STUDENT" | "EXAM_ADMIN" | "ISSUER";
 
 export interface StudentUser {
   role: "STUDENT";
@@ -23,3 +23,19 @@ export interface AuthState {
   isAuthenticated: boolean;
   role: UserRole | null;
 }
+
+export type StudentAccountStatus = "PENDING_ACTIVATION" | "ACTIVE" | "LOCKED";
+
+export interface StudentAccountRecord {
+  prn: string;
+  passwordHash: string | null;
+  activationTokenHash: string | null;
+  activationExpiresAt: number | null;
+  status: StudentAccountStatus;
+  failedAttempts: number;
+  lockedUntil: number;
+  createdAt: number;
+  activatedAt: number | null;
+  lastLoginAt: number | null;
+}
+

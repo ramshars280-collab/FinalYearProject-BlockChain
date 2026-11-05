@@ -1,5 +1,6 @@
 import { BatchRecord, IdentityBindingRecord, W3CCredentialPayload, ConsortiumInstitution, StudentDegreeData } from "../types";
 import { buildBatchMerkleTree, createW3CCredential, hashCredentialSubject } from "./crypto";
+import { getNetworkConfig, isSupportedChainId, SupportedChainId } from "../contracts";
 
 
 
@@ -9,7 +10,7 @@ export const CONSORTIUM_UNIVERSITIES: ConsortiumInstitution[] = [
     name: "MGM University",
     shortName: "MGMU",
     code: "MGMU-ENG-01",
-    address: "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+    address: "0x8D0cC3553e9d812797B986F15427835A2930a301",
     city: "Chhatrapati Sambhajinagar",
     state: "Maharashtra, India",
     establishedAct: "Established under Maharashtra Act No. XXVI of 2019",
@@ -28,9 +29,12 @@ export interface SepoliaConfig {
 
 export const DEFAULT_SEPOLIA_CONFIG: SepoliaConfig = {
   credentialRegistryAddress:
-    process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY || "0x89205A3A3b2A69De6Dbf7f01ED13B2108B2c43e7",
+    process.env.NEXT_PUBLIC_CREDENTIAL_REGISTRY || "0xe7Cc39AF2ACC1dd637C863aB5DB18aC904b76Bc4",
   identityRegistryAddress:
-    process.env.NEXT_PUBLIC_IDENTITY_REGISTRY || "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    process.env.NEXT_PUBLIC_IDENTITY_REGISTRY &&
+    process.env.NEXT_PUBLIC_IDENTITY_REGISTRY.trim().toLowerCase() !== "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+      ? process.env.NEXT_PUBLIC_IDENTITY_REGISTRY.trim()
+      : "0xa8e6B6bAEa48F78eBFeE5967B9836779691c0971",
   rpcUrl:
     process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ||
     process.env.NEXT_PUBLIC_SEPOLIA_RPC ||
@@ -178,15 +182,62 @@ export function getInstitutionByAddress(address: string): ConsortiumInstitution 
   return all.find((u) => u.address.toLowerCase() === address.toLowerCase());
 }
 
+export const OBSOLETE_BATCH_IDS = [
+  "MGM-2024-BTECH-BATCH012",
+  "MGM-2024-BTECH-BATCH013",
+  "MGMU-2026-BATCH-TEST99",
+  "MGMU-ZK-VERIFY-TEST2026",
+  "ISOLATED-SESSION-BATCH-1789192481618",
+  "BATCH-ISO-1789305151559",
+];
+
+export function sanitizeObsoleteStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    // 1. Sanitize batches in localStorage
+    const rawBatches = localStorage.getItem(STORAGE_KEYS.BATCHES);
+    if (rawBatches) {
+      const parsed: BatchRecord[] = JSON.parse(rawBatches);
+      const filtered = parsed.filter((b) => !OBSOLETE_BATCH_IDS.includes(b.batchId));
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(filtered));
+      }
+    }
+
+    // 2. Sanitize revocations in localStorage
+    const rawRev = localStorage.getItem(STORAGE_KEYS.REVOCATIONS);
+    if (rawRev) {
+      const revs: Record<string, any> = JSON.parse(rawRev);
+      let changed = false;
+      for (const k of Object.keys(revs)) {
+        if (OBSOLETE_BATCH_IDS.some((bid) => k.startsWith(bid))) {
+          delete revs[k];
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.REVOCATIONS, JSON.stringify(revs));
+      }
+    }
+
+    // 3. Purge obsolete student vault cache key if present
+    localStorage.removeItem(STORAGE_KEYS.STUDENT_VAULT);
+  } catch (e) {
+    console.warn("Storage sanitization error:", e);
+  }
+}
+
 export function getStoredBatches(): BatchRecord[] {
   if (typeof window === "undefined") return [];
   try {
+    sanitizeObsoleteStorage();
     const raw = localStorage.getItem(STORAGE_KEYS.BATCHES);
     if (!raw) {
       const initial = initializeDefaultBatches();
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed: BatchRecord[] = JSON.parse(raw);
+    return parsed.filter((b) => !OBSOLETE_BATCH_IDS.includes(b.batchId));
   } catch (e) {
     console.error("Failed to load batches:", e);
     return [];
@@ -248,15 +299,43 @@ export function saveIdentityBinding(record: IdentityBindingRecord) {
   localStorage.setItem(STORAGE_KEYS.IDENTITIES, JSON.stringify(current));
 }
 
-export function getSepoliaConfig(): SepoliaConfig {
+export function getSepoliaConfig(targetChainId?: number): SepoliaConfig {
+  const activeChainId = targetChainId ?? (Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 11155111);
+
+  if (activeChainId === 31337) {
+    const localCfg = getNetworkConfig(31337);
+    return {
+      credentialRegistryAddress: localCfg.credentialRegistry,
+      identityRegistryAddress: localCfg.identityRegistry,
+      rpcUrl: localCfg.rpcUrl,
+      chainId: 31337,
+      isSimulatedNetwork: false,
+    };
+  }
+
   if (typeof window === "undefined") return DEFAULT_SEPOLIA_CONFIG;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SEPOLIA_CONFIG);
-    return raw ? { ...DEFAULT_SEPOLIA_CONFIG, ...JSON.parse(raw) } : DEFAULT_SEPOLIA_CONFIG;
+    const parsed = raw ? { ...DEFAULT_SEPOLIA_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_SEPOLIA_CONFIG };
+    // Auto-migrate away from legacy placeholders to active Sepolia contracts
+    if (
+      parsed.identityRegistryAddress?.toLowerCase() === "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc" ||
+      parsed.identityRegistryAddress?.toLowerCase() === "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+    ) {
+      parsed.identityRegistryAddress = "0xa8e6B6bAEa48F78eBFeE5967B9836779691c0971";
+      localStorage.setItem(STORAGE_KEYS.SEPOLIA_CONFIG, JSON.stringify(parsed));
+    }
+    if (parsed.credentialRegistryAddress?.toLowerCase() === "0x89205a3a3b2a69de6dbf7f01ed13b2108b2c43e7") {
+      parsed.credentialRegistryAddress = "0xe7Cc39AF2ACC1dd637C863aB5DB18aC904b76Bc4";
+      localStorage.setItem(STORAGE_KEYS.SEPOLIA_CONFIG, JSON.stringify(parsed));
+    }
+    return parsed;
   } catch (e) {
     return DEFAULT_SEPOLIA_CONFIG;
   }
 }
+
+export const getBlockchainConfig = getSepoliaConfig;
 
 export function saveSepoliaConfig(config: Partial<SepoliaConfig>) {
   if (typeof window === "undefined") return;

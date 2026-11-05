@@ -1,0 +1,689 @@
+{
+  "title": "SOET VeriTrust Quality-Matched ELA Evaluation Report",
+  "created_at": "2026-11-04T01:03:26+0530",
+  "summary": "Fair matched-baseline subtraction across identical JPEG quality exports and blind anomaly evaluation.",
+  "pair_evaluations": [
+    {
+      "pair_id": "PAIR-01",
+      "spliced_id": "SAMPLE-04",
+      "clean_baseline_id": "CLEAN-DEMO001-Q85",
+      "final_jpeg_quality": 85,
+      "dimensions": [
+        1684,
+        1190
+      ],
+      "grids": {
+        "8x8": {
+          "roi_tiles_count": 6,
+          "non_roi_tiles_count": 58,
+          "clean": {
+            "roi_mean": 0.6504,
+            "non_roi_mean": 0.4491,
+            "global_mean": 0.4677
+          },
+          "spliced": {
+            "roi_mean": 0.5089,
+            "non_roi_mean": 0.2831,
+            "global_mean": 0.3039
+          },
+          "signed_diff": {
+            "roi_mean": -0.1415,
+            "non_roi_mean": -0.1661,
+            "max_positive": 0.1494,
+            "max_negative": -0.652
+          },
+          "abs_diff": {
+            "roi_mean": 0.2297,
+            "non_roi_mean": 0.1713,
+            "max": 0.652,
+            "excess_abs_anomaly": 0.0585
+          },
+          "vis_file": "diff_sample-04_vs_clean-demo001-q85_8x8.png"
+        },
+        "16x16": {
+          "roi_tiles_count": 12,
+          "non_roi_tiles_count": 244,
+          "clean": {
+            "roi_mean": 1.2936,
+            "non_roi_mean": 0.4288,
+            "global_mean": 0.4677
+          },
+          "spliced": {
+            "roi_mean": 1.0234,
+            "non_roi_mean": 0.2697,
+            "global_mean": 0.3039
+          },
+          "signed_diff": {
+            "roi_mean": -0.2702,
+            "non_roi_mean": -0.159,
+            "max_positive": 0.4146,
+            "max_negative": -1.3067
+          },
+          "abs_diff": {
+            "roi_mean": 0.4602,
+            "non_roi_mean": 0.1669,
+            "max": 1.3067,
+            "excess_abs_anomaly": 0.2932
+          },
+          "vis_file": "diff_sample-04_vs_clean-demo001-q85_16x16.png"
+        }
+      }
+    },
+    {
+      "pair_id": "PAIR-02",
+      "spliced_id": "SAMPLE-05",
+      "clean_baseline_id": "CLEAN-DEMO002-Q90",
+      "final_jpeg_quality": 90,
+      "dimensions": [
+        1684,
+        1190
+      ],
+      "grids": {
+        "8x8": {
+          "roi_tiles_count": 10,
+          "non_roi_tiles_count": 54,
+          "clean": {
+            "roi_mean": 0.1062,
+            "non_roi_mean": 0.1897,
+            "global_mean": 0.1762
+          },
+          "spliced": {
+            "roi_mean": 0.0956,
+            "non_roi_mean": 0.1874,
+            "global_mean": 0.1727
+          },
+          "signed_diff": {
+            "roi_mean": -0.0106,
+            "non_roi_mean": -0.0023,
+            "max_positive": 0.084,
+            "max_negative": -0.1703
+          },
+          "abs_diff": {
+            "roi_mean": 0.0257,
+            "non_roi_mean": 0.0302,
+            "max": 0.1703,
+            "excess_abs_anomaly": -0.0045
+          },
+          "vis_file": "diff_sample-05_vs_clean-demo002-q90_8x8.png"
+        },
+        "16x16": {
+          "roi_tiles_count": 28,
+          "non_roi_tiles_count": 228,
+          "clean": {
+            "roi_mean": 0.1519,
+            "non_roi_mean": 0.18,
+            "global_mean": 0.1762
+          },
+          "spliced": {
+            "roi_mean": 0.1371,
+            "non_roi_mean": 0.1779,
+            "global_mean": 0.1727
+          },
+          "signed_diff": {
+            "roi_mean": -0.0147,
+            "non_roi_mean": -0.0022,
+            "max_positive": 0.1929,
+            "max_negative": -0.4314
+          },
+          "abs_diff": {
+            "roi_mean": 0.0594,
+            "non_roi_mean": 0.0336,
+            "max": 0.4314,
+            "excess_abs_anomaly": 0.0258
+          },
+          "vis_file": "diff_sample-05_vs_clean-demo002-q90_16x16.png"
+        }
+      }
+    },
+    {
+      "pair_id": "PAIR-03",
+      "spliced_id": "SAMPLE-06",
+      "clean_baseline_id": "CLEAN-DEMO003-Q80",
+      "final_jpeg_quality": 80,
+      "dimensions": [
+        1684,
+        1190
+      ],
+      "grids": {
+        "8x8": {
+          "roi_tiles_count": 6,
+          "non_roi_tiles_count": 58,
+          "clean": {
+            "roi_mean": 0.3204,
+            "non_roi_mean": 0.293,
+            "global_mean": 0.2951
+          },
+          "spliced": {
+            "roi_mean": 0.2756,
+            "non_roi_mean": 0.2643,
+            "global_mean": 0.265
+          },
+          "signed_diff": {
+            "roi_mean": -0.0448,
+            "non_roi_mean": -0.0286,
+            "max_positive": 0.0214,
+            "max_negative": -0.207
+          },
+          "abs_diff": {
+            "roi_mean": 0.052,
+            "non_roi_mean": 0.0287,
+            "max": 0.207,
+            "excess_abs_anomaly": 0.0233
+          },
+          "vis_file": "diff_sample-06_vs_clean-demo003-q80_8x8.png"
+        },
+        "16x16": {
+          "roi_tiles_count": 12,
+          "non_roi_tiles_count": 244,
+          "clean": {
+            "roi_mean": 0.6417,
+            "non_roi_mean": 0.2792,
+            "global_mean": 0.2951
+          },
+          "spliced": {
+            "roi_mean": 0.5528,
+            "non_roi_mean": 0.2519,
+            "global_mean": 0.265
+          },
+          "signed_diff": {
+            "roi_mean": -0.0889,
+            "non_roi_mean": -0.0273,
+            "max_positive": 0.0596,
+            "max_negative": -0.4608
+          },
+          "abs_diff": {
+            "roi_mean": 0.1075,
+            "non_roi_mean": 0.0276,
+            "max": 0.4608,
+            "excess_abs_anomaly": 0.0799
+          },
+          "vis_file": "diff_sample-06_vs_clean-demo003-q80_16x16.png"
+        }
+      }
+    }
+  ],
+  "blind_anomaly_summary": {
+    "SAMPLE-04": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 2.5807,
+          "std": 3.346,
+          "z_score": 4.033,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 2.5045,
+          "std": 3.2021,
+          "z_score": 3.898,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 2.4621,
+          "std": 3.1712,
+          "z_score": 3.823,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 9,
+          "bbox": [
+            947,
+            744,
+            1052,
+            818
+          ],
+          "mean": 2.4389,
+          "std": 3.1404,
+          "z_score": 3.782,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 2.4109,
+          "std": 3.0412,
+          "z_score": 3.732,
+          "overlaps_roi": false
+        }
+      ]
+    },
+    "CLEAN-DEMO001-Q85": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 3.6225,
+          "std": 4.7033,
+          "z_score": 3.79,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 3.5961,
+          "std": 4.5484,
+          "z_score": 3.758,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 3.5905,
+          "std": 4.6657,
+          "z_score": 3.752,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 3.5594,
+          "std": 4.4735,
+          "z_score": 3.714,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 5,
+          "bbox": [
+            526,
+            744,
+            632,
+            818
+          ],
+          "mean": 3.4984,
+          "std": 4.5427,
+          "z_score": 3.641,
+          "overlaps_roi": false
+        }
+      ]
+    },
+    "SAMPLE-05": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 2.752,
+          "std": 3.3331,
+          "z_score": 4.858,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 2.7118,
+          "std": 3.3825,
+          "z_score": 4.782,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 2.7076,
+          "std": 3.277,
+          "z_score": 4.774,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 2.6631,
+          "std": 3.3005,
+          "z_score": 4.691,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 3,
+          "bbox": [
+            316,
+            744,
+            421,
+            818
+          ],
+          "mean": 2.6087,
+          "std": 3.3908,
+          "z_score": 4.588,
+          "overlaps_roi": false
+        }
+      ]
+    },
+    "CLEAN-DEMO002-Q90": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 3.0352,
+          "std": 3.9571,
+          "z_score": 4.932,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 3.027,
+          "std": 3.9942,
+          "z_score": 4.917,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 3.0013,
+          "std": 3.9004,
+          "z_score": 4.873,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 2.9259,
+          "std": 3.8501,
+          "z_score": 4.743,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 5,
+          "bbox": [
+            526,
+            744,
+            632,
+            818
+          ],
+          "mean": 2.9024,
+          "std": 3.6407,
+          "z_score": 4.702,
+          "overlaps_roi": false
+        }
+      ]
+    },
+    "SAMPLE-06": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 3.4345,
+          "std": 4.1342,
+          "z_score": 4.783,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 3.3745,
+          "std": 4.0198,
+          "z_score": 4.692,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 5,
+          "bbox": [
+            526,
+            744,
+            632,
+            818
+          ],
+          "mean": 3.3335,
+          "std": 3.899,
+          "z_score": 4.63,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 3.2759,
+          "std": 3.9381,
+          "z_score": 4.543,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 3.2354,
+          "std": 3.9114,
+          "z_score": 4.482,
+          "overlaps_roi": false
+        }
+      ]
+    },
+    "CLEAN-DEMO003-Q80": {
+      "top_10_roi_hits": 0,
+      "top_10_non_roi_false_positives": 10,
+      "top_1_tile_is_roi": false,
+      "top_3_tiles_roi_hits": 0,
+      "highest_roi_rank": null,
+      "top_tiles_sample": [
+        {
+          "row": 10,
+          "col": 6,
+          "bbox": [
+            632,
+            744,
+            737,
+            818
+          ],
+          "mean": 3.8093,
+          "std": 4.5652,
+          "z_score": 4.803,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 10,
+          "bbox": [
+            1052,
+            744,
+            1158,
+            818
+          ],
+          "mean": 3.7363,
+          "std": 4.5835,
+          "z_score": 4.703,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 11,
+          "bbox": [
+            1158,
+            744,
+            1263,
+            818
+          ],
+          "mean": 3.6645,
+          "std": 4.3824,
+          "z_score": 4.605,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 4,
+          "bbox": [
+            421,
+            744,
+            526,
+            818
+          ],
+          "mean": 3.6473,
+          "std": 4.3986,
+          "z_score": 4.582,
+          "overlaps_roi": false
+        },
+        {
+          "row": 10,
+          "col": 8,
+          "bbox": [
+            842,
+            744,
+            947,
+            818
+          ],
+          "mean": 3.5614,
+          "std": 4.3008,
+          "z_score": 4.464,
+          "overlaps_roi": false
+        }
+      ]
+    }
+  },
+  "visualizations": {
+    "diff_panels": [
+      "diff_sample-04_vs_clean-demo001-q85_16x16.png",
+      "diff_sample-05_vs_clean-demo002-q90_16x16.png",
+      "diff_sample-06_vs_clean-demo003-q80_16x16.png"
+    ],
+    "blind_ranking_panel": "blind_anomaly_rankings_16x16.png"
+  }
+}

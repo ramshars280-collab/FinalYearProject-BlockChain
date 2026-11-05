@@ -5,6 +5,7 @@ import { X, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { BatchRecord } from "../types";
 import { revokeCredentialOnChain } from "../lib/contracts";
 import { saveRevocationRecord, RevocationReasonCode } from "../lib/storage";
+import { useWeb3 } from "../context/Web3Context";
 
 interface BatchRevocationModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function BatchRevocationModal({
   batch,
   onRevokedSuccess,
 }: BatchRevocationModalProps) {
+  const { selectedAppChainId } = useWeb3();
   const [selectedLeafIndex, setSelectedLeafIndex] = useState<number>(0);
   const [reasonCode, setReasonCode] = useState<RevocationReasonCode>("CLERICAL_CORRECTION");
   const [reasonDescription, setReasonDescription] = useState<string>(
@@ -58,7 +60,11 @@ export default function BatchRevocationModal({
         leafIndex: selectedLeafIndex,
         reasonCode,
         reasonTitle: reasonTitleMap[reasonCode],
-        reasonDescription: reasonDescription || "Official administrative revocation recorded on Sepolia registry.",
+        reasonDescription:
+          reasonDescription ||
+          `Official administrative revocation recorded on ${
+            selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"
+          } registry.`,
         supersededByHash: supersededByHash.trim() || undefined,
         revokedAt: new Date().toISOString().slice(0, 10),
         officerStaffId: "COE-EXAM-DESK",
@@ -103,7 +109,7 @@ export default function BatchRevocationModal({
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
-                Revoking a credential marks it invalid permanently on Sepolia without requiring any tree recalculation or touching other student degrees.
+                Revoking a credential marks it invalid permanently on {selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"} without requiring any tree recalculation or touching other student degrees.
               </span>
             </div>
 
@@ -204,7 +210,7 @@ export default function BatchRevocationModal({
               <p className="text-xs text-slate-500 mt-1">
                 {isSimulated
                   ? "Revocation recorded in central registry database. Any future verification checks will flag this degree as Revoked."
-                  : "Bitmap bit inverted on Sepolia. Any future verification checks will flag this degree as Revoked."}
+                  : `Bitmap bit inverted on ${selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}. Any future verification checks will flag this degree as Revoked.`}
               </p>
               <div className="mt-2 flex items-center justify-center">
                 {isSimulated ? (
@@ -213,7 +219,7 @@ export default function BatchRevocationModal({
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-[11px] font-bold">
-                    ✓ Confirmed On-Chain (Sepolia)
+                    ✓ Confirmed On-Chain ({selectedAppChainId === 31337 ? "Hardhat Local" : "Sepolia"})
                   </span>
                 )}
               </div>

@@ -56,13 +56,13 @@ export default function MerkleTreeVisualizer({
         </div>
       </div>
 
-      {/* Root Node Display (Sepolia Anchor) */}
+      {/* Root Node Display (Blockchain Anchor) */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 to-blue-950 border border-blue-800 p-5 shadow-md text-white">
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] uppercase font-bold tracking-widest text-blue-200 bg-blue-800/80 border border-blue-700 px-2 py-0.5 rounded-full">
-                Merkle Root (Sepolia State Commitment)
+                Merkle Root (Blockchain State Commitment)
               </span>
               <span className="text-[10px] text-emerald-300 font-mono font-semibold flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -165,15 +165,21 @@ export default function MerkleTreeVisualizer({
           </div>
 
           <div className="space-y-2 font-mono text-xs pt-1">
-            {proofs[selectedLeafIndex].proof?.map((p: string, pIdx: number) => (
-              <div
-                key={pIdx}
-                className="flex items-center justify-between bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-slate-300"
-              >
-                <span className="text-blue-400 font-semibold">Sibling Hash #{pIdx + 1}:</span>
-                <span className="truncate max-w-md text-white font-medium">{p.slice(0, 12)}••••••••{p.slice(-8)}</span>
+            {proofs[selectedLeafIndex].proof?.length === 0 ? (
+              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 text-slate-300 text-xs">
+                Single-leaf batch: Leaf hash matches the anchored Merkle root directly (0 sibling hops required).
               </div>
-            ))}
+            ) : (
+              proofs[selectedLeafIndex].proof?.map((p: string, pIdx: number) => (
+                <div
+                  key={pIdx}
+                  className="flex items-center justify-between bg-slate-800 p-2.5 rounded-xl border border-slate-700 text-slate-300"
+                >
+                  <span className="text-blue-400 font-semibold">Sibling Hash #{pIdx + 1}:</span>
+                  <span className="truncate max-w-md text-white font-medium">{p.slice(0, 12)}••••••••{p.slice(-8)}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

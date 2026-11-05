@@ -1,22 +1,108 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken } from '@/lib/serverAuth';
+import { NextRequest } from 'next/server';
+import { verifySessionToken, validateCsrfProtection } from '@/lib/serverAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { getRequestId, jsonResponse, logger, parseJsonBody } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const requestId = getRequestId(request);
+
   try {
-    // 1. Session verification: Only authenticated Examination Authorities can pin credentials
+    // 1. Verify CSRF protection for mutating IPFS pin requests
+    const csrfCheck = validateCsrfProtection(request);
+    if (!csrfCheck.valid) {
+      logger.warn('IPFS upload failed CSRF validation', {
+        requestId,
+        route: '/api/ipfs/upload',
+        method: 'POST',
+        statusCode: 403,
+        durationMs: Date.now() - startTime,
+        details: { reason: csrfCheck.reason },
+      });
+      return jsonResponse(
+        { success: false, error: 'CSRF validation failed: ' + csrfCheck.reason, requestId },
+        { status: 403 },
+        requestId
+      );
+    }
+
+    // 2. Session verification: Only authenticated Examination Authorities can pin credentials
     const sessionCookie = request.cookies.get('auth_session')?.value;
     const user = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
     if (!user || user.role !== 'EXAM_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Examination Authority login required.' },
-        { status: 401 }
+      logger.warn('Unauthorized IPFS upload attempt', {
+        requestId,
+        route: '/api/ipfs/upload',
+        method: 'POST',
+        statusCode: 401,
+        durationMs: Date.now() - startTime,
+      });
+      return jsonResponse(
+        { success: false, error: 'Unauthorized: Examination Authority login required.', requestId },
+        { status: 401 },
+        requestId
       );
     }
 
-    // 2. Server credentials check
+    // 3. Rate limit: 10 requests per minute per IP for resource-intensive IPFS pinning
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`ipfs_upload:${clientIp}`, { maxRequests: 10, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      logger.warn('IPFS upload rate limit exceeded', {
+        requestId,
+        route: '/api/ipfs/upload',
+        method: 'POST',
+        statusCode: 429,
+        durationMs: Date.now() - startTime,
+        details: { clientIp },
+      });
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Too many IPFS upload requests. Please try again later.',
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+          requestId,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimit.retryAfterSeconds),
+            'X-RateLimit-Limit': String(rateLimit.totalLimit),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetTime / 1000)),
+          },
+        },
+        requestId
+      );
+    }
+
+    // 4. Request payload validation using safe JSON parsing
+    const parsedBody = await parseJsonBody<{
+      batchId?: string;
+      records?: any[];
+      merkleRoot?: string;
+      institutionName?: string;
+      customPayload?: any;
+    }>(request, requestId, { route: '/api/ipfs/upload', method: 'POST', startTime });
+
+    if (!parsedBody.success) {
+      return parsedBody.response;
+    }
+
+    const { batchId, records, merkleRoot, institutionName, customPayload } = parsedBody.data;
+
+    if (!batchId || typeof batchId !== 'string') {
+      return jsonResponse(
+        { success: false, error: 'Missing required field: batchId', requestId },
+        { status: 400 },
+        requestId
+      );
+    }
+
+    // 5. Server credentials check
     const pinataJwt = process.env.PINATA_JWT?.trim();
     const pinataApiKey = process.env.PINATA_API_KEY?.trim();
     const pinataSecretApiKey = process.env.PINATA_SECRET_API_KEY?.trim();
@@ -25,24 +111,15 @@ export async function POST(request: NextRequest) {
     const hasApiKeyPair = Boolean(pinataApiKey && pinataSecretApiKey);
 
     if (!hasJwt && !hasApiKeyPair) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           success: false,
           error:
             'PINATA_API_KEY or PINATA_JWT is not configured in the server environment (.env). Real IPFS pinning requires valid Pinata credentials.',
+          requestId,
         },
-        { status: 500 }
-      );
-    }
-
-    // 3. Request payload validation
-    const body = await request.json();
-    const { batchId, records, merkleRoot, institutionName, customPayload } = body;
-
-    if (!batchId || typeof batchId !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing required field: batchId' },
-        { status: 400 }
+        { status: 500 },
+        requestId
       );
     }
 
@@ -69,7 +146,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // 4. Set headers based on available auth scheme
+    // 6. Set headers based on available auth scheme
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -81,7 +158,7 @@ export async function POST(request: NextRequest) {
       headers['pinata_secret_api_key'] = pinataSecretApiKey!;
     }
 
-    // 5. Upload to Pinata pinJSONToIPFS
+    // 7. Upload to Pinata pinJSONToIPFS
     const pinataResponse = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
       method: 'POST',
       headers,
@@ -96,27 +173,49 @@ export async function POST(request: NextRequest) {
         pinataData.error ||
         pinataData.message ||
         `Pinata returned status code ${pinataResponse.status}`;
-      return NextResponse.json(
-        { success: false, error: `Pinata IPFS Pinning Error: ${errorMsg}` },
-        { status: pinataResponse.status >= 400 && pinataResponse.status < 500 ? pinataResponse.status : 502 }
+      return jsonResponse(
+        { success: false, error: `Pinata IPFS Pinning Error: ${errorMsg}`, requestId },
+        { status: pinataResponse.status >= 400 && pinataResponse.status < 500 ? pinataResponse.status : 502 },
+        requestId
       );
     }
 
     const cid = pinataData.IpfsHash;
 
-    return NextResponse.json({
-      success: true,
-      cid,
-      ipfsUri: `ipfs://${cid}`,
-      gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cid}`,
-      pinSize: pinataData.PinSize,
-      timestamp: pinataData.Timestamp,
+    logger.info('Batch payload pinned to IPFS successfully', {
+      requestId,
+      route: '/api/ipfs/upload',
+      method: 'POST',
+      statusCode: 200,
+      durationMs: Date.now() - startTime,
+      details: { batchId, cid },
     });
+
+    return jsonResponse(
+      {
+        success: true,
+        cid,
+        ipfsUri: `ipfs://${cid}`,
+        gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cid}`,
+        pinSize: pinataData.PinSize,
+        timestamp: pinataData.Timestamp,
+        requestId,
+      },
+      { status: 200 },
+      requestId
+    );
   } catch (error: any) {
-    console.error('[Pinata IPFS Route Error]:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Unexpected server error during IPFS upload' },
-      { status: 500 }
+    logger.error('Unexpected error during IPFS upload', error, {
+      requestId,
+      route: '/api/ipfs/upload',
+      method: 'POST',
+      statusCode: 500,
+      durationMs: Date.now() - startTime,
+    });
+    return jsonResponse(
+      { success: false, error: 'Unexpected server error during IPFS upload', requestId },
+      { status: 500 },
+      requestId
     );
   }
 }

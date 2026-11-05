@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Sparkles, Shield, EyeOff, Check, Download, ArrowRight } from "lucide-react";
+import { X, Sparkles, Shield, EyeOff, Check, Download, ArrowRight, Info } from "lucide-react";
 import { W3CCredentialPayload } from "../types";
 import { generateZkSelectiveProof } from "../lib/zkProof";
 import { downloadFile } from "../lib/zipHelper";
@@ -48,17 +48,30 @@ export default function ZkProofModal({
           <X className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex items-center gap-2.5 mb-3">
           <div className="p-2.5 bg-purple-100 text-purple-800 rounded-xl">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Selective Disclosure Credential
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900">
+                Selective Disclosure Credential
+              </h3>
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-[10px] font-black uppercase tracking-wider">
+                Experimental Prototype
+              </span>
+            </div>
             <p className="text-xs text-slate-500">
               India DPDP Act (Zero-PII &amp; Selective Attribute Proofs)
             </p>
+          </div>
+        </div>
+
+        {/* Prototype Transparency Notice */}
+        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2 mb-4 leading-relaxed">
+          <Info className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+          <div className="text-[11px] text-amber-900">
+            <strong>Educational Demonstration Notice:</strong> This feature demonstrates privacy-preserving selective disclosure and range assertions under DPDP Act principles using cryptographic salted commitments. It is an experimental educational prototype and does not implement a complete, production-trusted Groth16 zk-SNARK ceremony.
           </div>
         </div>
 
@@ -126,17 +139,17 @@ export default function ZkProofModal({
           <button
             onClick={handleGenerate}
             disabled={Number(subject.cgpa) < thresholdCgpa}
-            className="w-full mt-5 py-2.5 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
+            className="w-full mt-5 py-2.5 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
           >
             <Sparkles className="h-4 w-4" />
-            <span>Generate Selective Disclosure Credential</span>
+            <span>Generate Selective Disclosure Credential (Prototype)</span>
           </button>
         ) : (
           <div className="mt-5 space-y-3">
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-start gap-2">
               <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Selective Disclosure Credential Created!</span>
+                <span className="font-bold">Selective Disclosure Credential Created (Experimental Prototype)!</span>
                 <p className="text-[11px] text-emerald-800 mt-0.5">
                   Commitment: {generatedProofCred.proof.zkProof?.commitmentHash.slice(0, 18)}...
                 </p>
@@ -145,7 +158,7 @@ export default function ZkProofModal({
 
             <button
               onClick={handleDownload}
-              className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
+              className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
               <Download className="h-4 w-4" />
               <span>Download Selective Disclosure JSON</span>

@@ -49,16 +49,92 @@ export default function DropzoneVerifier() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [aiServiceStatus, setAiServiceStatus] = useState<"online" | "offline" | "checking">("checking");
+  const [aiReadiness, setAiReadiness] = useState<
+    "checking" | "warming_up" | "online" | "busy" | "unavailable"
+  >("checking");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const hasAutoTriggeredRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Background AI Readiness & Pre-Warming State Machine (Max 120s Bounded Polling)
+  const isMountedRef = useRef(true);
+  const isPollingRef = useRef(false);
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const warmupStartTimeRef = useRef<number>(Date.now());
+
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/health", { method: "GET" })
-      .then((res) => {
-        if (res.ok) setAiServiceStatus("online");
-        else setAiServiceStatus("offline");
-      })
-      .catch(() => setAiServiceStatus("offline"));
+    isMountedRef.current = true;
+    warmupStartTimeRef.current = Date.now();
+
+    const checkHealth = async () => {
+      if (!isMountedRef.current || isPollingRef.current) return;
+
+      const elapsed = Date.now() - warmupStartTimeRef.current;
+      if (elapsed > 120_000) {
+        if (isMountedRef.current) {
+          setAiReadiness("unavailable");
+        }
+        return; // Bounded retry deadline reached (120s) - stop polling
+      }
+
+      isPollingRef.current = true;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const res = await fetch("/api/ai/health", {
+          method: "GET",
+          signal: controller.signal,
+        });
+
+        if (!isMountedRef.current) return;
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.status === "online") {
+            if (data.is_busy) {
+              setAiReadiness("busy");
+              // Continue polling every 5s while busy until worker clears
+              pollTimeoutRef.current = setTimeout(checkHealth, 5000);
+            } else {
+              setAiReadiness("online");
+              // Service is warmed and ready! Stop aggressive polling.
+            }
+            return;
+          }
+        }
+
+        // Service offline or warming up (50-90s Render Free cold start window)
+        if (elapsed <= 120_000) {
+          setAiReadiness("warming_up");
+          pollTimeoutRef.current = setTimeout(checkHealth, 5000);
+        } else {
+          setAiReadiness("unavailable");
+        }
+      } catch (err: any) {
+        if (!isMountedRef.current) return;
+        if (err?.name === "AbortError") return;
+
+        if (Date.now() - warmupStartTimeRef.current <= 120_000) {
+          setAiReadiness("warming_up");
+          pollTimeoutRef.current = setTimeout(checkHealth, 5000);
+        } else {
+          setAiReadiness("unavailable");
+        }
+      } finally {
+        isPollingRef.current = false;
+      }
+    };
+
+    checkHealth();
+
+    return () => {
+      isMountedRef.current = false;
+      hasAutoTriggeredRef.current = true;
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
   }, []);
 
   const triggerConfetti = () => {
@@ -204,81 +280,104 @@ export default function DropzoneVerifier() {
     }
   };
 
+  const executePdfVerification = async (file: File) => {
+    if (!isMountedRef.current || isVerifying) return; // Prevent duplicate concurrent executions or unmounted calls
+    setIsVerifying(true);
+    setVerificationStep(1);
+    setResult(null);
+    setCredential(null);
+    setFileError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await new Promise((r) => setTimeout(r, 200));
+      if (!isMountedRef.current) return;
+      setVerificationStep(2);
+
+      const res = await fetch("/api/verify/pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      await new Promise((r) => setTimeout(r, 250));
+      if (!isMountedRef.current) return;
+      setVerificationStep(3);
+
+      const data = await res.json();
+      if (!isMountedRef.current) return;
+      setIsVerifying(false);
+
+      if (!res.ok || !data.success) {
+        if (!isMountedRef.current) return;
+        setFileError(
+          data.error ||
+            "Invalid certificate format: The uploaded PDF is not a recognized university degree certificate."
+        );
+        return;
+      }
+
+      if (data.credential) {
+        setCredential(data.credential);
+      }
+
+      const isFullyValid = data.isValid !== false && !data.isRevoked && !data.tamperDetected;
+
+      const verificationResult: VerificationResult = {
+        isValid: isFullyValid,
+        isRevoked: Boolean(data.isRevoked),
+        tamperDetected: Boolean(data.tamperDetected),
+        tamperReason: data.tamperReason || data.diagnostic_message,
+        diagnosticCode: data.diagnostic_code,
+        forensicScan: data.forensic_scan,
+        computedLeaf: data.credential?.proof?.merkleProof?.leafHash,
+        matchedRoot: data.credential?.proof?.merkleProof?.rootHash,
+        batchId: data.pdfExtracted?.batchId,
+        leafIndex: data.pdfExtracted?.leafIndex,
+        credential: data.credential,
+        network: "Ethereum Sepolia (11155111)",
+        verifiedAt: new Date().toLocaleTimeString(),
+        issuingInstitutionName:
+          data.credential?.issuer?.name || "MGM University, Chhatrapati Sambhajinagar",
+        issuingInstitutionAddress: data.credential?.issuer?.ethereumAddress,
+      };
+
+      if (!isMountedRef.current) return;
+      setResult(verificationResult);
+      if (isFullyValid) {
+        triggerConfetti();
+      }
+    } catch (err: any) {
+      if (!isMountedRef.current) return;
+      setIsVerifying(false);
+      setFileError("Error communicating with verification service: " + (err?.message || "Unknown error"));
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
+    if (isVerifying) return; // Prevent duplicate concurrent submissions
     setFileError(null);
     const fileName = file.name.toLowerCase();
 
     // 1. PDF Degree Certificate Verification
     if (fileName.endsWith(".pdf") || file.type === "application/pdf") {
-      setIsVerifying(true);
-      setVerificationStep(1);
-      setResult(null);
-      setCredential(null);
-
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        await new Promise((r) => setTimeout(r, 200));
-        setVerificationStep(2);
-
-        const res = await fetch("/api/verify/pdf", {
-          method: "POST",
-          body: formData,
-        });
-
-        await new Promise((r) => setTimeout(r, 250));
-        setVerificationStep(3);
-
-        const data = await res.json();
-        setIsVerifying(false);
-
-        if (!res.ok || !data.success) {
-          setFileError(
-            data.error ||
-              "Invalid certificate format: The uploaded PDF is not a recognized university degree certificate."
-          );
-          return;
-        }
-
-        if (data.credential) {
-          setCredential(data.credential);
-        }
-
-        const isFullyValid = data.isValid !== false && !data.isRevoked && !data.tamperDetected;
-
-        const verificationResult: VerificationResult = {
-          isValid: isFullyValid,
-          isRevoked: Boolean(data.isRevoked),
-          tamperDetected: Boolean(data.tamperDetected),
-          tamperReason: data.tamperReason || data.diagnostic_message,
-          diagnosticCode: data.diagnostic_code,
-          forensicScan: data.forensic_scan,
-          computedLeaf: data.credential?.proof?.merkleProof?.leafHash,
-          matchedRoot: data.credential?.proof?.merkleProof?.rootHash,
-          batchId: data.pdfExtracted?.batchId,
-          leafIndex: data.pdfExtracted?.leafIndex,
-          credential: data.credential,
-          network: "Ethereum Sepolia (11155111)",
-          verifiedAt: new Date().toLocaleTimeString(),
-          issuingInstitutionName:
-            data.credential?.issuer?.name || "MGM University, Chhatrapati Sambhajinagar",
-          issuingInstitutionAddress: data.credential?.issuer?.ethereumAddress,
-        };
-
-        setResult(verificationResult);
-        if (isFullyValid) {
-          triggerConfetti();
-        }
-      } catch (err: any) {
-        setIsVerifying(false);
-        setFileError("Error communicating with verification service: " + (err?.message || "Unknown error"));
+      if (aiReadiness === "online") {
+        setPendingFile(null);
+        hasAutoTriggeredRef.current = true;
+        executePdfVerification(file);
+      } else {
+        // AI is checking, warming_up, busy, or unavailable:
+        // Preserve selected file and display waiting / fallback message without starting PDF verification yet
+        hasAutoTriggeredRef.current = false;
+        setPendingFile(file);
       }
       return;
     }
 
     // 2. JSON W3C Verifiable Credential Payload
     if (fileName.endsWith(".json") || file.type === "application/json") {
+      setPendingFile(null);
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -303,6 +402,17 @@ export default function DropzoneVerifier() {
     // 3. Unsupported format
     setFileError("Unsupported file format. Please upload an official degree certificate PDF (.pdf) or W3C Credential (.json).");
   };
+
+  // Auto-trigger verification when AI engine transitions to online and a PDF is pending
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (aiReadiness === "online" && pendingFile && !isVerifying && !hasAutoTriggeredRef.current) {
+      hasAutoTriggeredRef.current = true;
+      const fileToVerify = pendingFile;
+      setPendingFile(null);
+      executePdfVerification(fileToVerify);
+    }
+  }, [aiReadiness, pendingFile, isVerifying]);
 
   const handleVerifyPastedUrl = async (rawInput?: string) => {
     setUrlError(null);
@@ -720,7 +830,12 @@ export default function DropzoneVerifier() {
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.json,application/pdf,application/json"
-                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    handleFileUpload(e.target.files[0]);
+                  }
+                  e.target.value = "";
+                }}
                 className="hidden"
               />
 
@@ -741,7 +856,7 @@ export default function DropzoneVerifier() {
                       <div className="h-1.5 w-5/6 bg-blue-500/20 rounded-full animate-pulse" />
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-blue-300 font-mono border-t border-white/10 pt-2">
-                      <span>SEPOLIA MERKLE PROOF</span>
+                      <span>CRYPTOGRAPHIC MERKLE PROOF</span>
                       <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-400" />
                     </div>
                   </div>
@@ -757,10 +872,146 @@ export default function DropzoneVerifier() {
                         {verificationStep === 1
                           ? "Step 1/3: Extracting PDF Text & Claims..."
                           : verificationStep === 2
-                          ? "Step 2/3: Validating Sepolia Merkle Proof..."
-                          : "Step 3/3: Running PyTorch ELA Forgery Scan..."}
+                          ? "Step 2/3: Validating Cryptographic Merkle Proof..."
+                          : aiReadiness === "warming_up"
+                          ? "Step 3/3: Evaluating Cryptographic Proof (AI is warming up in background)..."
+                          : "Step 3/3: Evaluating Visual ELA Compression Residuals..."}
                       </span>
                     </div>
+                  </div>
+                </div>
+              ) : pendingFile ? (
+                /* Pending File Waiting / Fallback UI */
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-xs relative">
+                    <FileText className="h-8 w-8 text-blue-600" />
+                    {aiReadiness === "unavailable" ? (
+                      <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-slate-400 ring-4 ring-white" />
+                    ) : (
+                      <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-amber-500 ring-4 ring-white animate-pulse" />
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 max-w-full truncate">
+                      <FileText className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                      <span className="font-semibold truncate">{pendingFile.name}</span>
+                      <span className="text-slate-500 shrink-0">({(pendingFile.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+
+                    {aiReadiness === "unavailable" ? (
+                      <div className="space-y-2 pt-2">
+                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                          AI Forensic Analysis Unavailable
+                        </h3>
+                        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                          The AI forensic microservice could not be contacted within the 120s time limit. You can proceed with authoritative on-chain cryptographic Merkle verification without AI.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 pt-2">
+                        <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center justify-center gap-2">
+                          <RefreshCw className="h-4 w-4 text-amber-600 animate-spin" />
+                          <span>Certificate Queued for Verification</span>
+                        </h3>
+                        <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                          {aiReadiness === "busy"
+                            ? "The AI forensic engine is currently processing another document. Verification will begin automatically once current inference finishes."
+                            : "Waiting for the AI forensic engine to wake up before verifying (Render Free cold start takes ~50–90s). Verification will start automatically as soon as it is online."}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Compact AI Status Badge */}
+                    <div className="flex items-center justify-center pt-1 pb-1">
+                      <div
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                          aiReadiness === "warming_up"
+                            ? "bg-amber-50 text-amber-800 border-amber-200/80 shadow-2xs"
+                            : aiReadiness === "busy"
+                            ? "bg-blue-50 text-blue-800 border-blue-200/80 shadow-2xs"
+                            : aiReadiness === "checking"
+                            ? "bg-slate-50 text-slate-700 border-slate-200/80"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}
+                      >
+                        {aiReadiness === "warming_up" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-amber-600 animate-spin shrink-0" />
+                            <span>AI engine is waking up...</span>
+                          </>
+                        )}
+                        {aiReadiness === "busy" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-blue-600 animate-spin shrink-0" />
+                            <span>AI engine busy with another document...</span>
+                          </>
+                        )}
+                        {aiReadiness === "checking" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-slate-500 animate-spin shrink-0" />
+                            <span>Checking AI forensic service...</span>
+                          </>
+                        )}
+                        {aiReadiness === "unavailable" && (
+                          <>
+                            <AlertCircle className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                            <span>AI forensic service offline</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {fileError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs flex items-center gap-2 justify-center font-semibold">
+                      <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      <span>{fileError}</span>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    {aiReadiness === "unavailable" ? (
+                      <button
+                        onClick={() => {
+                          if (isVerifying || !pendingFile) return;
+                          hasAutoTriggeredRef.current = true;
+                          const f = pendingFile;
+                          setPendingFile(null);
+                          executePdfVerification(f);
+                        }}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 flex items-center gap-2"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Verify Cryptographically (Without AI)</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (isVerifying || !pendingFile) return;
+                          hasAutoTriggeredRef.current = true;
+                          const f = pendingFile;
+                          setPendingFile(null);
+                          executePdfVerification(f);
+                        }}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all hover:scale-102 active:scale-98 flex items-center gap-2"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Verify On-Chain Now (Skip AI Scan)</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setPendingFile(null);
+                        hasAutoTriggeredRef.current = false;
+                        setFileError(null);
+                      }}
+                      className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold transition-all hover:scale-102 shadow-2xs"
+                    >
+                      Cancel / Choose Different File
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -771,13 +1022,65 @@ export default function DropzoneVerifier() {
                     <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-white animate-pulse" />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                       Verify via Degree PDF
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
                       Drag and drop your official university degree certificate PDF (.pdf) or digital credential (.json)
                     </p>
+
+                    {/* Compact Professional AI Service Readiness Indicator */}
+                    <div className="flex items-center justify-center pt-1 pb-1">
+                      <div
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                          aiReadiness === "online"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200/80 shadow-2xs"
+                            : aiReadiness === "warming_up"
+                            ? "bg-amber-50 text-amber-800 border-amber-200/80 shadow-2xs"
+                            : aiReadiness === "busy"
+                            ? "bg-blue-50 text-blue-800 border-blue-200/80 shadow-2xs"
+                            : aiReadiness === "checking"
+                            ? "bg-slate-50 text-slate-700 border-slate-200/80"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}
+                      >
+                        {aiReadiness === "online" && (
+                          <>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                            </span>
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <span>AI forensic engine is online and ready.</span>
+                          </>
+                        )}
+                        {aiReadiness === "warming_up" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-amber-600 animate-spin shrink-0" />
+                            <span>AI forensic engine is waking up. This may take around 50–90 seconds.</span>
+                          </>
+                        )}
+                        {aiReadiness === "busy" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-blue-600 animate-spin shrink-0" />
+                            <span>AI forensic engine is processing another document. Please wait.</span>
+                          </>
+                        )}
+                        {aiReadiness === "checking" && (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 text-slate-500 animate-spin shrink-0" />
+                            <span>Checking AI forensic service...</span>
+                          </>
+                        )}
+                        {aiReadiness === "unavailable" && (
+                          <>
+                            <AlertCircle className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                            <span>AI forensic analysis is currently unavailable.</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {fileError && (

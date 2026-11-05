@@ -1,0 +1,144 @@
+{
+  "consolidation_metadata": {
+    "task_id": "P6-T10",
+    "task_name": "AI Forensic Evidence Consolidation & Phase 6 Readiness Audit",
+    "official_phase": "Phase 6 - AI Forensic Evaluation",
+    "created_at": "2026-11-04T01:16:00+05:30",
+    "audit_type": "READ_ONLY_CONSOLIDATION",
+    "roadmap_structure_preserved": true,
+    "phase6_ready_to_close": false,
+    "closure_blocker": "Public HTTPS hosting and free-tier remote cold-start measurement pending"
+  },
+  "capability_inventory_summary": {
+    "total_capabilities_audited": 15,
+    "implemented_and_tested": 10,
+    "architecture_skeleton_untrained": 2,
+    "pending_cloud_deployment": 3,
+    "core_capabilities": [
+      {
+        "name": "PDF Rasterization",
+        "status": "IMPLEMENTED_AND_TESTED",
+        "library": "pypdfium2 scale 2.0 (~144 DPI)",
+        "memory_mode": "IN_MEMORY"
+      },
+      {
+        "name": "ELA Residual Engine",
+        "status": "IMPLEMENTED_AND_TESTED",
+        "probe_quality": 90,
+        "metric": "Euclidean channel norm"
+      },
+      {
+        "name": "ELAForgeryCNN Architecture",
+        "status": "ARCHITECTURE_UNTRAINED",
+        "checkpoint_present": false,
+        "checkpoint_status": "MISSING: No trained checkpoint found"
+      },
+      {
+        "name": "Model Health Reporting",
+        "status": "IMPLEMENTED_AND_TESTED",
+        "endpoint": "GET /health",
+        "is_model_trained": false,
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED"
+      },
+      {
+        "name": "Verdict Terminology",
+        "status": "IMPLEMENTED_AND_TESTED",
+        "labels": ["LOW ANOMALY", "SUSPICIOUS", "HIGH ANOMALY", "UNAVAILABLE"],
+        "truthful_heuristic": true
+      },
+      {
+        "name": "Next.js Health Proxy",
+        "status": "IMPLEMENTED_AND_TESTED",
+        "route": "/api/ai/health",
+        "timeout_ms": 4000
+      },
+      {
+        "name": "Cryptographic Decoupling",
+        "status": "VERIFIED_PRIMARY",
+        "merkle_proof_authoritative": true,
+        "ai_override_possible": false
+      }
+    ]
+  },
+  "consolidated_experimental_findings": {
+    "p6_t06_global_ela": {
+      "finding": "Canvas area dilution",
+      "spliced_area_percent": "1.34% to 3.5%",
+      "global_scores": {
+        "sample_01_clean_q95": 0.2388,
+        "sample_02_clean_q90": 0.2339,
+        "sample_03_clean_q80": 0.2351,
+        "sample_04_splice_cgpa": 0.2372,
+        "sample_05_splice_name": 0.2341,
+        "sample_06_splice_double": 0.2366
+      },
+      "conclusion": "Global averaging masks localized modifications"
+    },
+    "p6_t06_t07_tiled_ela": {
+      "finding": "Localized spatial isolation resolves dilution in supervised setting",
+      "grid_tested": ["8x8", "16x16"],
+      "sample_04_results_16x16": {
+        "roi_mean": 1.0234,
+        "non_roi_mean": 0.2697,
+        "internal_elevation_ratio": "3.79x"
+      },
+      "limitation": "Natural typography (seals, bold headers) generates tile residuals up to 4.53, overshadowing the splice in blind ranking"
+    },
+    "p6_t07_reproducibility_audit": {
+      "defects_identified": [
+        "Hardcoded text values in Markdown report",
+        "Division by negative near-zero numbers creating pseudo-positive ratio artifacts (e.g. 6.68x)",
+        "Unfair baseline comparison between Sample 04 (Q85) and Sample 01 (Q95)"
+      ]
+    },
+    "p6_t08_quality_matched_ela": {
+      "matched_pairs": [
+        {"spliced": "SAMPLE-04", "clean": "CLEAN-DEMO001-Q85", "quality": 85, "excess_abs_anomaly": 0.2932},
+        {"spliced": "SAMPLE-05", "clean": "CLEAN-DEMO002-Q90", "quality": 90, "excess_abs_anomaly": 0.0258},
+        {"spliced": "SAMPLE-06", "clean": "CLEAN-DEMO003-Q80", "quality": 80, "excess_abs_anomaly": 0.0799}
+      ],
+      "blind_ranking_results_16x16": {
+        "sample_04_highest_roi_rank": 13,
+        "sample_05_highest_roi_rank": 25,
+        "sample_06_highest_roi_rank": 17,
+        "top_10_roi_hits_all_samples": 0,
+        "top_10_false_positive_rate_clean_certs": "100%"
+      }
+    },
+    "p6_t09_egn_ela": {
+      "formula": "EGN(x,y) = ELA(x,y) / (epsilon + G_norm(x,y))",
+      "tested_epsilons": [0.01, 0.05, 0.10, 0.50, 1.00],
+      "failure_mode": "Low-gradient background noise explosion",
+      "clean_demo001_epsilon_001": {
+        "rank_1_tile": "Blank margin at Row 13, Col 12 (mean: 76.2)",
+        "rank_2_tile": "Blank margin at Row 13, Col 3 (mean: 74.5)"
+      },
+      "conclusion": "EGN-ELA does not achieve blind detection and must not enter production"
+    }
+  },
+  "cryptographic_boundary_audit": {
+    "merkle_verification_authoritative": true,
+    "ai_override_prevented": true,
+    "ai_outage_handling": "GRACEFUL_DEGRADATION",
+    "ui_heuristic_warning_displayed": true,
+    "experimental_code_isolated": true
+  },
+  "hosting_readiness_checklist": {
+    "local_fastapi_service": "RUNNING_PORT_8000",
+    "docker_container_configuration": "CONFIGURED",
+    "public_https_hosting": "NOT_DEPLOYED",
+    "external_health_check": "NOT_CONFIGURED",
+    "remote_cold_start_measurement": "NOT_MEASURED",
+    "local_inference_latency_ms": "220-450ms",
+    "concurrent_request_load_test": "PENDING"
+  },
+  "phase6_master_plan_gap_analysis": {
+    "trained_checkpoint_transparency": "VERIFIED",
+    "honest_heuristic_path_chosen": "VERIFIED",
+    "cryptographic_decoupling": "VERIFIED",
+    "truthful_verdict_terminology": "VERIFIED",
+    "reproducible_evaluation_dataset": "VERIFIED",
+    "free_host_deployment_and_cold_start_measurement": "BLOCKED"
+  }
+}
+

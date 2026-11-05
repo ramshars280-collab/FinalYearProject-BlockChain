@@ -21,6 +21,7 @@ export interface StudentDegreeData {
   issueDate: string;
   nheqfCredits?: number;
   nheqfLevel?: number;
+  institute?: string;
   university: string;
   institutionCode?: string;
   seatNumber?: string;
@@ -35,7 +36,7 @@ export interface MerkleProofData {
   proof: string[];
   contractAddress: string;
   network: string;
-  chainId: number;
+  chainId?: number;
 }
 
 export interface W3CCredentialPayload {
@@ -43,9 +44,9 @@ export interface W3CCredentialPayload {
   id: string;
   type: string[];
   issuer: {
-    id: string;
+    id?: string;
     name: string;
-    url: string;
+    url?: string;
     ethereumAddress: string;
     institutionCode?: string;
   };
@@ -56,7 +57,7 @@ export interface W3CCredentialPayload {
   proof: {
     type: "EthereumMerkleProof2024" | "EIP712Signature2024" | "ZkSelectiveProof2024" | "SelectiveDisclosureProof2024";
     created: string;
-    verificationMethod: string;
+    verificationMethod?: string;
     merkleProof?: MerkleProofData;
     zkProof?: SelectiveDisclosureProof;
     selectiveProof?: SelectiveDisclosureProof;
@@ -79,6 +80,8 @@ export interface SelectiveDisclosureProof {
 
 export type ZkSelectiveProof = SelectiveDisclosureProof;
 
+export type BatchStatus = "PENDING_ANCHOR" | "ANCHORED" | "INSTITUTIONAL_STORED" | "ANCHOR_FAILED";
+
 export interface BatchRecord {
   batchId: string;
   merkleRoot: string;
@@ -90,6 +93,11 @@ export interface BatchRecord {
   totalCredentials: number;
   revokedIndices: number[];
   records: StudentDegreeData[];
+  status?: BatchStatus;
+  txHash?: string;
+  anchoredAt?: number;
+  isVerifiedOnChain?: boolean;
+  onChainReason?: string;
 }
 
 export interface IdentityBindingRecord {
@@ -142,11 +150,16 @@ export interface VerificationResult {
   issuingInstitutionAddress?: string;
   diagnosticCode?: string;
   forensicScan?: {
-    status: "COMPLETED" | "UNAVAILABLE";
+    status: "COMPLETED" | "UNAVAILABLE" | "QUEUED";
     ai_confidence_score?: number;
-    verdict?: "AUTHENTIC" | "SUSPICIOUS" | "TAMPERED";
+    verdict?: "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
     heatmap_base64?: string;
     metadata?: any;
     reason?: string;
   };
+  verificationSource?: "SEPOLIA_RPC" | "LOCAL_RPC" | "STORAGE_REGISTRY";
+  isLocalMerkleValid?: boolean;
+  isOnChainAnchored?: boolean;
+  batchStatus?: BatchStatus;
+  anchoringStatusNote?: string;
 }

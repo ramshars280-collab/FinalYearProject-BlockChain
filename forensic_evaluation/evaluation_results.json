@@ -1,0 +1,133 @@
+{
+  "evaluation_title": "Controlled Synthetic ELA Forensic Evaluation Results",
+  "timestamp": "2026-11-04T00:43:35+0530",
+  "model_status": {
+    "model_architecture": "ELAForgeryCNN",
+    "is_model_trained": false,
+    "checkpoint_path": null,
+    "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+    "compute_device": "cpu",
+    "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED"
+  },
+  "thresholds": {
+    "low_anomaly_threshold": 0.35,
+    "high_anomaly_threshold": 0.65
+  },
+  "sample_count": 6,
+  "results": [
+    {
+      "sample_id": "SAMPLE-01",
+      "filename": "sample_01_baseline_q95.jpg",
+      "category": "CLEAN_BASELINE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-001.pdf",
+      "modification_method": "Single-pass headless browser render to bitmap, compressed once as JPEG.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 95,
+        "splice_patch_quality": null,
+        "final_export_quality": 95
+      },
+      "evaluation_notes": "Clean baseline representing high-quality single-pass export. Uniform compression history across all 8x8 DCT grid blocks. Expected ELA result: LOW ANOMALY / baseline variance.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.2392,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 2.15,
+      "high_error_pixel_ratio": 0.0003,
+      "latency_ms": 325.13
+    },
+    {
+      "sample_id": "SAMPLE-02",
+      "filename": "sample_02_baseline_q90.jpg",
+      "category": "CLEAN_BASELINE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-002.pdf",
+      "modification_method": "Single-pass headless browser render to bitmap, compressed once as JPEG at standard ELA quality.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 90,
+        "splice_patch_quality": null,
+        "final_export_quality": 90
+      },
+      "evaluation_notes": "Standard reference quality baseline. Uniform compression error across document elements. Expected ELA result: LOW ANOMALY / baseline variance.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.2346,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 1.09,
+      "high_error_pixel_ratio": 0.0003,
+      "latency_ms": 297.03
+    },
+    {
+      "sample_id": "SAMPLE-03",
+      "filename": "sample_03_baseline_q80.jpg",
+      "category": "CLEAN_BASELINE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-003.pdf",
+      "modification_method": "Single-pass headless browser render to bitmap, compressed once as JPEG at medium quality.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 80,
+        "splice_patch_quality": null,
+        "final_export_quality": 80
+      },
+      "evaluation_notes": "Medium-quality single-pass web export baseline. Lower initial quality introduces higher baseline quantization noise, but remains uniform across all regions.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.236,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 1.39,
+      "high_error_pixel_ratio": 0.0002,
+      "latency_ms": 261.08
+    },
+    {
+      "sample_id": "SAMPLE-04",
+      "filename": "sample_04_splice_cgpa_q75_q98.jpg",
+      "category": "SYNTHETIC_SPLICE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-001.pdf",
+      "modification_method": "Localized patch splice: Base document compressed at Q=75; forged CGPA patch ('Cumulative CGPA of 9.95') compressed at Q=98; composite resaved at Q=85.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 75,
+        "splice_patch_quality": 98,
+        "final_export_quality": 85
+      },
+      "evaluation_notes": "Introduces physical quantization error mismatch between high-frequency patch and coarse background blocks. Expected ELA result: Elevated localized anomaly.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.2344,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 1.19,
+      "high_error_pixel_ratio": 0.0001,
+      "latency_ms": 206.4
+    },
+    {
+      "sample_id": "SAMPLE-05",
+      "filename": "sample_05_splice_name_cgpa_q70_uncompressed.jpg",
+      "category": "SYNTHETIC_SPLICE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-002.pdf",
+      "modification_method": "Dual-region splice: Base document compressed at Q=70; altered student name ('SYNTHETIC CANDIDATE ALPHA') and altered CGPA ('9.98') pasted from uncompressed raster; composite resaved at Q=90.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 70,
+        "splice_patch_quality": "UNCOMPRESSED_RAW",
+        "final_export_quality": 90
+      },
+      "evaluation_notes": "Simulates adversary pasting clean text into a downloaded diploma. The uncompressed pixels undergo initial quantization while the surrounding image undergoes secondary recompression.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.2339,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 0.98,
+      "high_error_pixel_ratio": 0.0003,
+      "latency_ms": 193.94
+    },
+    {
+      "sample_id": "SAMPLE-06",
+      "filename": "sample_06_splice_double_compression_q80_q60.jpg",
+      "category": "SYNTHETIC_SPLICE",
+      "source_document": "certificates_pdf/reference_design/SOET-SEPOLIA-2026-TEST01_DEMO-CSE-2026-003.pdf",
+      "modification_method": "Double-compression block misalignment splice: Base document at Q=80; CGPA patch double-compressed at Q=60 then Q=95; composite resaved at Q=80.",
+      "jpeg_quality_settings": {
+        "base_render_quality": 80,
+        "splice_patch_quality": "DOUBLE_COMPRESSED_Q60_Q95",
+        "final_export_quality": 80
+      },
+      "evaluation_notes": "Introduces block boundary discontinuity and secondary compression harmonics over the CGPA numeric claim.",
+      "status": "COMPLETED",
+      "ai_confidence_score": 0.2353,
+      "verdict": "LOW ANOMALY",
+      "anomaly_std_dev": 1.24,
+      "high_error_pixel_ratio": 0.0002,
+      "latency_ms": 176.92
+    }
+  ]
+}

@@ -125,7 +125,7 @@ export default function RegisterUniversityModal({
       city: city.trim() || "Consortium Node",
       state: state.trim() || "India",
       establishedAct: establishedAct.trim() || "Accredited Higher Education Institution",
-      website: website.trim() || "https://trust-registry.ac.in",
+      website: website.trim(),
       crestColor: "blue",
     };
 
@@ -157,7 +157,7 @@ export default function RegisterUniversityModal({
     setSuccessMsg(
       simulated
         ? `Onboarded "${name}" (Simulated — not on-chain)`
-        : `Successfully onboarded "${name}" on Sepolia on-chain!`
+        : `Successfully onboarded "${name}" on blockchain on-chain!`
     );
     setLoading(false);
 

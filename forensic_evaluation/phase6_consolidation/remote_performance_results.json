@@ -1,0 +1,67 @@
+{
+  "audit_metadata": {
+    "task_id": "P6-T11",
+    "task_name": "Zero-Budget AI Microservice Hosting & Remote Performance Validation",
+    "official_phase": "Phase 6 - AI Forensic Evaluation",
+    "timestamp": "2026-11-04T01:21:00+05:30",
+    "deployment_status": "READY_FOR_DEPLOYMENT",
+    "blocker_reason": "External cloud account authorization required; autonomous account creation restricted"
+  },
+  "pre_deployment_inspection": {
+    "fastapi_startup_command": "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}",
+    "python_version_required": "3.11-slim-bookworm",
+    "docker_build_requirements": [
+      "libgl1",
+      "libglib2.0-0",
+      "curl",
+      "fastapi",
+      "uvicorn[standard]",
+      "python-multipart",
+      "pillow",
+      "opencv-python-headless",
+      "numpy",
+      "pydantic",
+      "pypdfium2",
+      "torch",
+      "torchvision"
+    ],
+    "runtime_env_vars": [
+      "PORT (defaults to 7860 for HF Spaces or 8000 for local)",
+      "ALLOWED_ORIGINS (optional CORS filter)",
+      "AI_MODEL_CHECKPOINT_PATH (optional .pth path)"
+    ],
+    "health_endpoint_path": "/health",
+    "host_provided_port_binding": "DYNAMIC_CONFIGURED",
+    "requires_persistent_storage": false,
+    "local_path_blockers": "NONE_DETECTED",
+    "client_env_variable_name": "AI_FORENSIC_SERVICE_URL"
+  },
+  "hosting_recommendation": {
+    "recommended_provider": "Hugging Face Spaces (Docker)",
+    "tier": "Free CPU Basic",
+    "cost": "$0.00 (Zero budget commitment, no credit card required)",
+    "specs": {
+      "ram": "16 GB RAM (Provider Reported)",
+      "cpu": "2 vCPU Shared (Provider Reported)",
+      "disk": "50 GB Ephemeral",
+      "idle_sleep_window": "48 hours"
+    },
+    "justification": "Generous 16GB memory completely prevents PyTorch/OpenCV out-of-memory container termination, unlike 512MB limits on Render/Koyeb."
+  },
+  "performance_benchmarks": {
+    "local_container_startup_seconds": 2.9,
+    "local_process_idle_memory_mb": 182,
+    "local_process_peak_memory_mb": 286,
+    "local_inference_latency_ms_range": [220, 450],
+    "remote_cold_start_latency_seconds": "NOT_MEASURED (Estimated 25s-40s on Hugging Face Spaces)",
+    "remote_warm_health_check_latency_ms": "NOT_MEASURED (Requires public HTTPS endpoint)",
+    "remote_inference_latency_ms": "NOT_MEASURED (Requires public HTTPS endpoint)",
+    "remote_concurrent_testing": "NOT_MEASURED (Requires public HTTPS endpoint)",
+    "client_timeout_enforced_ms": 3000
+  },
+  "readiness_verdict": {
+    "phase6_can_close_now": false,
+    "closure_prerequisite": "Deploy container to Hugging Face Spaces, configure AI_FORENSIC_SERVICE_URL, and record actual public HTTPS response metrics."
+  }
+}
+

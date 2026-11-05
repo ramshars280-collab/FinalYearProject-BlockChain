@@ -30,22 +30,26 @@ import {
   ShieldAlert,
   Share2,
   Check,
+  Building2,
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
   getStoredIdentities,
   saveIdentityBinding,
   getStoredBatches,
+  saveStoredBatches,
   getSepoliaConfig,
+  sanitizeObsoleteStorage,
 } from "../../lib/storage";
 import { signIdentityBinding, verifyIdentityBindingSignature } from "../../lib/eip712";
 import { createW3CCredential, buildBatchMerkleTree } from "../../lib/crypto";
 import { downloadFile } from "../../lib/zipHelper";
-import { W3CCredentialPayload, StudentDegreeData, BatchRecord } from "../../types";
+import { W3CCredentialPayload, StudentDegreeData, BatchRecord, BatchStatus } from "../../types";
 import ZkProofModal from "../../components/ZkProofModal";
 import DegreeCertificate from "../../components/DegreeCertificate";
 import InteractiveHologramCard from "../../components/InteractiveHologramCard";
 import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
+import { useWeb3 } from "../../context/Web3Context";
 
 export default function StudentPortalPage() {
   const router = useRouter();
@@ -157,12 +161,12 @@ export default function StudentPortalPage() {
 
           {/* Bottom Footer Note */}
           <div className="pt-4 border-t border-white/10 text-[11px] text-blue-200/70 flex items-center justify-between relative z-10">
-            <span>Powered by Ethereum Sepolia</span>
+            <span>Powered by Ethereum-Compatible Blockchain</span>
             <span className="font-mono font-bold text-white/90">EVM v0.8.20</span>
           </div>
         </div>
 
-        {/* RIGHT SIDE: Clean Login Form */}
+        {/* RIGHT SIDE: Student Login Form */}
         <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center bg-white">
           <div className="max-w-md w-full mx-auto space-y-6">
             <div>
@@ -170,7 +174,7 @@ export default function StudentPortalPage() {
                 Student SSO Login
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Enter your Permanent Registration Number (PRN) and student password to unlock your vault.
+                Enter your Permanent Registration Number (PRN) and personal password.
               </p>
             </div>
 
@@ -188,7 +192,7 @@ export default function StudentPortalPage() {
                     value={loginPrn}
                     onChange={(e) => setLoginPrn(e.target.value.toUpperCase())}
                     required
-                    placeholder="PRN20200101"
+                    placeholder="PRN20200101 or DEMO-CSE-2026-001"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-3 text-xs text-slate-900 font-mono font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-hidden transition-all"
                   />
                 </div>
@@ -196,7 +200,7 @@ export default function StudentPortalPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Student ERP Password / PIN:
+                  Personal Password:
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -225,39 +229,41 @@ export default function StudentPortalPage() {
                 </div>
               </div>
 
-              {/* Demo Auto-Fill Shortcut */}
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-[11px] text-blue-900 font-semibold">Demo Student PRN:</span>
+              {/* Student PRN Shortcuts */}
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col gap-2">
+                <span className="text-[11px] text-blue-900 font-semibold">Demo Registered Students:</span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setLoginPrn("PRN20200101");
-                    }}
+                    onClick={() => setLoginPrn("DEMO-CSE-2026-001")}
                     className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs"
                   >
                     <Sparkles className="h-3 w-3 text-blue-600" />
-                    <span>Aarav</span>
+                    <span>Demo 001</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setLoginPrn("PRN20200102");
-                    }}
+                    onClick={() => setLoginPrn("DEMO-CSE-2026-002")}
                     className="text-xs text-indigo-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-indigo-200 shadow-2xs"
                   >
                     <Sparkles className="h-3 w-3 text-indigo-600" />
-                    <span>Ananya</span>
+                    <span>Demo 002</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setLoginPrn("PRN20200103");
-                    }}
+                    onClick={() => setLoginPrn("DEMO-CSE-2026-003")}
                     className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs"
                   >
                     <Sparkles className="h-3 w-3 text-emerald-600" />
-                    <span>Rohan</span>
+                    <span>Demo 003</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginPrn("PRN20200101")}
+                    className="text-xs text-slate-700 font-bold hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs"
+                  >
+                    <Sparkles className="h-3 w-3 text-slate-500" />
+                    <span>Aarav</span>
                   </button>
                 </div>
               </div>
@@ -280,7 +286,7 @@ export default function StudentPortalPage() {
             </form>
 
             <div className="pt-2 text-center text-[11px] text-slate-400">
-              MGM University Official SSO &bull; Strict DPDP Cryptographic Privacy
+              MGM University Official SSO &bull; Direct PRN &amp; Password Access
             </div>
           </div>
         </div>
@@ -294,6 +300,7 @@ export default function StudentPortalPage() {
 import { GraduationCap } from "lucide-react";
 
 function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => void }) {
+  const { selectedAppChainId } = useWeb3();
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [isBinding, setIsBinding] = useState(false);
   const [bindingSuccess, setBindingSuccess] = useState<string | null>(null);
@@ -302,6 +309,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
 
   // Vault credentials
   const [studentCredentials, setStudentCredentials] = useState<W3CCredentialPayload[]>([]);
+  const [batchMetaMap, setBatchMetaMap] = useState<Record<string, { status: BatchStatus; txHash?: string | null; anchoredAt?: number | null; isVerifiedOnChain?: boolean }>>({});
   const [selectedCredForZk, setSelectedCredForZk] = useState<W3CCredentialPayload | null>(null);
   const [selectedCredForPreview, setSelectedCredForPreview] = useState<W3CCredentialPayload | null>(null);
   const [activeQrModal, setActiveQrModal] = useState<{ isOpen: boolean; qrDataUrl: string; prn: string }>({
@@ -312,6 +320,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
   const [copiedCredId, setCopiedCredId] = useState<string | null>(null);
 
   useEffect(() => {
+    sanitizeObsoleteStorage();
     checkWalletAndIdentities();
     loadStudentVault();
   }, [prn]);
@@ -339,8 +348,36 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
     }
   };
 
-  const loadStudentVault = () => {
-    const batches = getStoredBatches();
+  const loadStudentVault = async () => {
+    let batches: BatchRecord[] = [];
+    try {
+      const res = await fetch("/api/batches", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.batches)) {
+          batches = data.batches;
+          saveStoredBatches(batches);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load batches from /api/batches, falling back to local storage:", err);
+    }
+
+    if (batches.length === 0) {
+      batches = getStoredBatches();
+    }
+
+    const metaMap: Record<string, { status: BatchStatus; txHash?: string | null; anchoredAt?: number | null; isVerifiedOnChain?: boolean }> = {};
+    batches.forEach((b) => {
+      metaMap[b.batchId] = {
+        status: b.status || "INSTITUTIONAL_STORED",
+        txHash: b.txHash || null,
+        anchoredAt: b.anchoredAt || null,
+        isVerifiedOnChain: b.isVerifiedOnChain ?? false,
+      };
+    });
+    setBatchMetaMap(metaMap);
+
     const creds: W3CCredentialPayload[] = [];
     const config = getSepoliaConfig();
 
@@ -354,10 +391,15 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
         const leafIndex = records.findIndex(
           (s) => s.prn.toUpperCase() === prn.toUpperCase()
         );
+        const isAnchored = Boolean(batch.isVerifiedOnChain && batch.status === "ANCHORED" && batch.txHash);
         const proofObj = {
           ...proofs[leafIndex],
           batchId: batch.batchId,
-          contractAddress: config.credentialRegistryAddress,
+          contractAddress: isAnchored ? config.credentialRegistryAddress : "",
+          network: isAnchored
+            ? (selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)")
+            : "Local Institutional Registry",
+          ...(isAnchored ? { chainId: selectedAppChainId } : {}),
         };
         const payload = createW3CCredential(
           student,
@@ -393,9 +435,14 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
       const chainId = Number(network.chainId);
 
       const config = getSepoliaConfig();
+      let contractAddr = config.identityRegistryAddress;
+      if (!contractAddr || contractAddr.toLowerCase() === "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc") {
+        contractAddr = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+      }
+
       const { signature, timestamp } = await signIdentityBinding(
         signer,
-        config.identityRegistryAddress,
+        contractAddr,
         prn.toUpperCase(),
         chainId
       );
@@ -405,7 +452,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
         currentAddress,
         timestamp,
         signature,
-        config.identityRegistryAddress,
+        contractAddr,
         chainId
       );
 
@@ -416,7 +463,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
       saveIdentityBinding({ prn: prn.toUpperCase(), walletAddress: currentAddress, signature, timestamp });
       setBoundRecord({ prn: prn.toUpperCase(), walletAddress: currentAddress, signature, timestamp });
       setWalletAddress(currentAddress);
-      setBindingSuccess(`Successfully bound ${prn.toUpperCase()} to wallet ${currentAddress.slice(0, 6)}...${currentAddress.slice(-4)}`);
+      setBindingSuccess(`Successfully bound ${prn.toUpperCase()} to authorized MetaMask wallet`);
     } catch (err: any) {
       console.error("Binding error:", err);
       setBindingError(err.message || "Failed to sign identity challenge.");
@@ -546,9 +593,10 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                   <span className="font-mono font-bold text-slate-900">{boundRecord.prn}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Bound MetaMask Address:</span>
-                  <span className="font-mono font-bold text-blue-600 truncate max-w-[200px] sm:max-w-[300px]">
-                    {boundRecord.walletAddress}
+                  <span className="text-slate-500 font-medium">Wallet Identity Binding:</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>MetaMask Connected &bull; Cryptographically Bound</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -602,38 +650,87 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
 
         {/* Interactive Hologram Card */}
         <div>
-          {selectedCredForPreview ? (
-            <InteractiveHologramCard>
-              <div className="p-6 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 text-white rounded-3xl border border-blue-500/30 shadow-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-blue-400" />
-                    <span className="text-xs font-bold text-blue-200">Official Degree Pass</span>
+          {selectedCredForPreview ? (() => {
+            const bId = selectedCredForPreview.proof?.merkleProof?.batchId || "";
+            const meta = batchMetaMap[bId] || { status: "INSTITUTIONAL_STORED" as BatchStatus };
+            const isPending = meta.status === "PENDING_ANCHOR";
+            const isAnchored = Boolean(meta.isVerifiedOnChain && meta.status === "ANCHORED" && meta.txHash);
+            const isFailed = meta.status === "ANCHOR_FAILED";
+
+            return (
+              <InteractiveHologramCard>
+                <div className="p-6 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 text-white rounded-3xl border border-blue-500/30 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-blue-400" />
+                      <span className="text-xs font-bold text-blue-200">Official Degree Pass</span>
+                    </div>
+                    {isPending ? (
+                      <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-bold rounded-full flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span>Pending Blockchain Anchoring</span>
+                      </span>
+                    ) : isAnchored ? (
+                      <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-bold rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <span>{selectedAppChainId === 31337 ? "Hardhat Local (31337) Anchored" : "Ethereum Sepolia (11155111) Anchored"}</span>
+                      </span>
+                    ) : isFailed ? (
+                      <span className="px-2.5 py-0.5 bg-red-500/20 text-red-300 border border-red-400/40 text-[10px] font-bold rounded-full flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 text-red-400" />
+                        <span>Anchor Failed</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-bold rounded-full flex items-center gap-1">
+                        <Building2 className="h-3 w-3 text-blue-300" />
+                        <span>Institutionally Stored</span>
+                      </span>
+                    )}
                   </div>
-                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-bold rounded-full">
-                    Sepolia Verified
-                  </span>
-                </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-base font-black text-white">
-                    {selectedCredForPreview.credentialSubject.fullName}
-                  </h3>
-                  <p className="text-xs text-blue-200">
-                    {selectedCredForPreview.credentialSubject.degree}
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    {selectedCredForPreview.credentialSubject.branch} &bull; CGPA: {selectedCredForPreview.credentialSubject.cgpa}
-                  </p>
-                </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-black text-white">
+                      {selectedCredForPreview.credentialSubject.fullName}
+                    </h3>
+                    <p className="text-xs text-blue-200">
+                      {selectedCredForPreview.credentialSubject.degree}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {selectedCredForPreview.credentialSubject.branch} &bull; CGPA: {selectedCredForPreview.credentialSubject.cgpa}
+                    </p>
+                  </div>
 
-                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span>PRN: {selectedCredForPreview.credentialSubject.prn}</span>
-                  <span>Class of {selectedCredForPreview.credentialSubject.graduationYear}</span>
+                  {isPending ? (
+                    <div className="pt-2 border-t border-white/10 text-[10px] text-amber-200/90 leading-tight">
+                      Stored institutionally in university database. Awaiting administrative anchoring on {selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}.
+                    </div>
+                  ) : isAnchored && meta.txHash ? (
+                    <div className="pt-2 border-t border-white/10 text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                      <span>Tx: {meta.txHash.slice(0, 8)}...{meta.txHash.slice(-6)}</span>
+                      {selectedAppChainId === 11155111 ? (
+                        <a href={`https://sepolia.etherscan.io/tx/${meta.txHash}`} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">View on Sepolia</a>
+                      ) : (
+                        <span className="text-indigo-300 font-sans font-bold text-[10px]">Hardhat Local (31337)</span>
+                      )}
+                    </div>
+                  ) : isFailed ? (
+                    <div className="pt-2 border-t border-white/10 text-[10px] text-red-300/90 leading-tight">
+                      On-chain anchoring failed or reverted. Retain institutional record and contact administrator.
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-white/10 text-[10px] text-blue-200/80 leading-tight">
+                      Cryptographically stored in university academic database. Not anchored on Ethereum blockchain.
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <span>PRN: {selectedCredForPreview.credentialSubject.prn}</span>
+                    <span>Class of {selectedCredForPreview.credentialSubject.graduationYear}</span>
+                  </div>
                 </div>
-              </div>
-            </InteractiveHologramCard>
-          ) : (
+              </InteractiveHologramCard>
+            );
+          })() : (
             <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 text-center text-xs text-slate-500">
               No credential active in vault
             </div>
@@ -658,19 +755,49 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
           </div>
         ) : (
           <div className="space-y-4">
-            {studentCredentials.map((cred) => (
+            {studentCredentials.map((cred) => {
+              const bId = cred.proof.merkleProof?.batchId || "";
+              const meta = batchMetaMap[bId] || { status: "INSTITUTIONAL_STORED" as BatchStatus };
+              const isPending = meta.status === "PENDING_ANCHOR";
+              const isAnchored = Boolean(meta.isVerifiedOnChain && meta.status === "ANCHORED" && meta.txHash);
+              const isFailed = meta.status === "ANCHOR_FAILED";
+
+              return (
               <div
                 key={cred.id}
                 className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div>
+                  <div className="space-y-1">
                     <h3 className="text-base font-bold text-slate-900">
                       {cred.credentialSubject.degree} ({cred.credentialSubject.branch})
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      {cred.issuer.name} &bull; Batch: {cred.proof.merkleProof?.batchId || "BATCH01"} &bull; CGPA: {cred.credentialSubject.cgpa}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-slate-500">
+                        {cred.issuer.name} &bull; Batch: {cred.proof.merkleProof?.batchId || "BATCH01"} &bull; CGPA: {cred.credentialSubject.cgpa}
+                      </span>
+                      {isPending ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          <span>Pending Blockchain Anchoring</span>
+                        </span>
+                      ) : isAnchored ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                          <span>{selectedAppChainId === 31337 ? "Hardhat Local (31337) Anchored" : "Ethereum Sepolia (11155111) Anchored"}</span>
+                        </span>
+                      ) : isFailed ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-800 border border-red-200 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-red-600" />
+                          <span>Anchor Failed</span>
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                          <Building2 className="h-3 w-3 text-slate-600" />
+                          <span>Institutionally Stored</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -705,18 +832,20 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
 
                     <button
                       onClick={() => setSelectedCredForZk(cred)}
-                      className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                      className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="Generate privacy-preserving selective disclosure credential (Experimental Prototype)"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-                      <span>Selective Disclosure</span>
+                      <span>Selective Disclosure (Prototype)</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Certificate Preview */}
-                <DegreeCertificate credential={cred} />
+                <DegreeCertificate credential={cred} batchStatus={meta.status} txHash={meta.txHash} />
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

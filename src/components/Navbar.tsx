@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ethers } from "ethers";
 import {
   GraduationCap,
   ShieldCheck,
@@ -13,85 +12,32 @@ import {
   LogOut,
   User,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useWeb3 } from "../context/Web3Context";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
+  const {
+    selectedAppChainId,
+    selectedNetworkConfig,
+    walletChainId,
+    walletAddress,
+    isConnecting,
+    connectWallet,
+    isWalletConnected,
+    isNetworkMismatch,
+    walletNetworkName,
+    blockHeight,
+  } = useWeb3();
 
-  const [account, setAccount] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isSimulated, setIsSimulated] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [blockHeight, setBlockHeight] = useState<number>(6294830);
 
   useEffect(() => {
     setMounted(true);
-    checkWalletConnection();
-
-    const interval = setInterval(() => {
-      setBlockHeight((prev) => prev + 1);
-    }, 12000);
-
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      (window as any).ethereum.on("accountsChanged", (accounts: string[]) => {
-        setAccount(accounts[0] || null);
-      });
-      (window as any).ethereum.on("chainChanged", (chainHex: string) => {
-        setChainId(parseInt(chainHex, 16));
-      });
-    }
-
-    return () => {
-      clearInterval(interval);
-    };
   }, []);
-
-  const checkWalletConnection = async () => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
-      try {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
-        const accounts = await provider.listAccounts();
-        if (accounts.length > 0) {
-          setAccount(accounts[0].address);
-          const network = await provider.getNetwork();
-          setChainId(Number(network.chainId));
-        }
-      } catch (e) {
-        console.error("Wallet check error:", e);
-      }
-    }
-  };
-
-  const connectWallet = async () => {
-    if (typeof window === "undefined") return;
-    setIsConnecting(true);
-    try {
-      if ((window as any).ethereum) {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
-        if (accounts && accounts[0]) {
-          setAccount(accounts[0]);
-          const network = await provider.getNetwork();
-          setChainId(Number(network.chainId));
-        }
-      } else {
-        const mockAddr = "0x71C56538b15294500B73f8472B4fE963D4e58bEf";
-        setAccount(mockAddr);
-        setChainId(11155111);
-        setIsSimulated(true);
-      }
-    } catch (err: any) {
-      console.error("Connection error:", err);
-      setAccount("0x71C56538b15294500B73f8472B4fE963D4e58bEf");
-      setChainId(11155111);
-      setIsSimulated(true);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
 
   const navLinks = [
     { href: "/", label: "Public Verifier", icon: ShieldCheck },
@@ -101,19 +47,47 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
-      {/* Top Micro Ticker */}
-      <div className="border-b border-blue-100 bg-blue-50/70 px-4 py-1 text-[11px] text-blue-900">
-        <div className="max-w-7xl mx-auto flex items-center justify-start">
+      {/* Top Micro Ticker (Dynamically syncs with Selected App Network & Live Block Height) */}
+      <div
+        className={`border-b px-4 py-1 text-[11px] transition-colors ${
+          selectedAppChainId === 31337
+            ? "border-indigo-100 bg-indigo-50/70 text-indigo-900"
+            : "border-blue-100 bg-blue-50/70 text-blue-900"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 text-blue-800 font-mono font-semibold" suppressHydrationWarning>
-              <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-              <span>Sepolia Block #{mounted ? blockHeight.toLocaleString() : "6294830"}</span>
+            <span
+              className={`inline-flex items-center gap-1.5 font-mono font-semibold ${
+                selectedAppChainId === 31337 ? "text-indigo-900" : "text-blue-900"
+              }`}
+              suppressHydrationWarning
+            >
+              <span
+                className={`h-2 w-2 rounded-full animate-pulse ${
+                  selectedAppChainId === 31337 ? "bg-indigo-600" : "bg-blue-600"
+                }`}
+              />
+              <span>
+                {selectedAppChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"} Block #
+                {mounted ? (blockHeight !== null ? blockHeight.toLocaleString() : "...") : "..."}
+              </span>
             </span>
-            <span className="hidden sm:inline text-blue-300">&bull;</span>
-            <span className="hidden sm:inline text-blue-700 font-medium">
-              Ethereum Sepolia
+            <span className="hidden sm:inline text-slate-300">&bull;</span>
+            <span className="hidden sm:inline font-medium">
+              Target Network: {selectedNetworkConfig.name}
             </span>
           </div>
+
+          {/* Network Mismatch Warning Banner in Ticker */}
+          {isNetworkMismatch && mounted && (
+            <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300 animate-pulse shrink-0">
+              <AlertTriangle className="h-3 w-3 text-amber-700 shrink-0" />
+              <span>
+                MetaMask on {walletNetworkName} &bull; App set to {selectedNetworkConfig.name}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -135,7 +109,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* CENTER: Clean 3 Navigation Links */}
+          {/* CENTER: Navigation Links */}
           <nav className="hidden md:flex items-center gap-1.5">
             {navLinks.map((link) => {
               const Icon = link.icon;
@@ -157,7 +131,7 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* RIGHT: User Session Badge (if logged in) + Connect MetaMask Button */}
+          {/* RIGHT: User Session Badge + Dynamic MetaMask Connection Status */}
           <div className="flex items-center gap-3 shrink-0">
             {isAuthenticated && user && (
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs">
@@ -185,16 +159,48 @@ export default function Navbar() {
               </div>
             )}
 
-            {account ? (
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 px-3 text-xs text-slate-800 shadow-xs">
+            {isWalletConnected && walletAddress ? (
+              <div
+                className={`flex items-center gap-2 bg-white border rounded-xl p-1.5 px-3 text-xs shadow-xs transition-colors ${
+                  isNetworkMismatch ? "border-amber-300 bg-amber-50/40" : "border-slate-200"
+                }`}
+              >
                 <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span
+                    className={`h-2 w-2 rounded-full animate-pulse ${
+                      isNetworkMismatch ? "bg-amber-500" : "bg-emerald-500"
+                    }`}
+                  />
                   <span className="hidden sm:inline">MetaMask Connected</span>
                   <span className="sm:hidden">Connected</span>
                 </div>
-                <div className="px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-800 rounded text-[10px] font-sans font-bold">
-                  {isSimulated ? "Demo" : "Sepolia"}
+
+                {/* Actual Wallet Network Pill */}
+                <div
+                  className={`px-2 py-0.5 rounded text-[10px] font-sans font-bold border ${
+                    walletChainId === 31337
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-800"
+                      : walletChainId === 11155111
+                      ? "bg-blue-50 border-blue-200 text-blue-800"
+                      : "bg-slate-100 border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {walletChainId === 31337
+                    ? "Hardhat Local (31337)"
+                    : walletChainId === 11155111
+                    ? "Ethereum Sepolia (11155111)"
+                    : walletNetworkName}
                 </div>
+
+                {/* Network Mismatch Badge */}
+                {isNetworkMismatch && (
+                  <span
+                    className="px-1.5 py-0.5 bg-amber-200 text-amber-950 border border-amber-300 rounded text-[10px] font-extrabold uppercase tracking-tight"
+                    title={`MetaMask is on ${walletNetworkName}, but application target is ${selectedNetworkConfig.name}. Please switch networks in MetaMask.`}
+                  >
+                    Mismatch
+                  </span>
+                )}
               </div>
             ) : (
               <button
@@ -203,7 +209,7 @@ export default function Navbar() {
                 className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
               >
                 <Wallet className="h-4 w-4" />
-                <span className="hidden sm:inline">{isConnecting ? "Connecting..." : "Connect MetaMask"}</span>
+                <span className="hidden sm:inline">{isConnecting ? "Connecting..." : "Wallet Not Connected"}</span>
                 <span className="sm:hidden">{isConnecting ? "..." : "Connect"}</span>
               </button>
             )}

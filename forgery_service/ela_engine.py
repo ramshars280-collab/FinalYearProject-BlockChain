@@ -1,6 +1,8 @@
+import os
 import io
 import base64
 import math
+import gc
 from typing import Tuple, Dict, Any
 
 import numpy as np
@@ -11,6 +13,9 @@ import pypdfium2 as pdfium
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+
+# Limit CPU threads to 1 for memory and context-switching stability on low-resource hosts (e.g. Render Free 512MB / 0.1 vCPU)
+torch.set_num_threads(1)
 
 
 # AI Forensic Verdict Threshold Parameters
@@ -93,18 +98,71 @@ class ELAForgeryCNN(nn.Module):
         return logits
 
 
-# Singleton global model instance
+# Model Checkpoint State Tracking
 _model_instance: ELAForgeryCNN | None = None
+_is_model_trained: bool = False
+_model_checkpoint_path: str | None = None
+_checkpoint_status: str = "INITIALIZED_UNTRAINED"
+
+DEFAULT_CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), "models")
+DEFAULT_CHECKPOINT_PATH = os.path.join(DEFAULT_CHECKPOINT_DIR, "ela_forgery_cnn.pth")
+
+
+def load_ela_checkpoint(checkpoint_path: str = DEFAULT_CHECKPOINT_PATH) -> Tuple[bool, str]:
+    """
+    Safely attempts to load a trained PyTorch model checkpoint (.pth / .pt).
+    If the checkpoint does not exist or is invalid, the model initializes with baseline
+    weights and sets _is_model_trained = False, preventing silent false claims of training.
+    """
+    global _model_instance, _is_model_trained, _model_checkpoint_path, _checkpoint_status
+
+    model = ELAForgeryCNN().to(DEVICE)
+    model.eval()
+
+    if not checkpoint_path or not os.path.exists(checkpoint_path):
+        _model_instance = model
+        _is_model_trained = False
+        _model_checkpoint_path = None
+        _checkpoint_status = f"MISSING: No trained checkpoint found at '{checkpoint_path}'."
+        return False, _checkpoint_status
+
+    try:
+        # Load weights safely using PyTorch weights_only=True
+        state_dict = torch.load(checkpoint_path, map_location=DEVICE, weights_only=True)
+        model.load_state_dict(state_dict)
+        model.eval()
+        _model_instance = model
+        _is_model_trained = True
+        _model_checkpoint_path = checkpoint_path
+        _checkpoint_status = f"LOADED: Successfully loaded checkpoint from '{checkpoint_path}'."
+        return True, _checkpoint_status
+    except Exception as err:
+        _model_instance = model
+        _is_model_trained = False
+        _model_checkpoint_path = None
+        _checkpoint_status = f"INCOMPATIBLE: Failed to load checkpoint from '{checkpoint_path}': {str(err)}"
+        return False, _checkpoint_status
 
 
 def get_ela_model() -> ELAForgeryCNN:
     """Returns the singleton initialized PyTorch ELA model on the active compute device."""
     global _model_instance
     if _model_instance is None:
-        model = ELAForgeryCNN().to(DEVICE)
-        model.eval()
-        _model_instance = model
+        load_ela_checkpoint()
     return _model_instance
+
+
+def get_model_forensic_status() -> Dict[str, Any]:
+    """Returns the current operational and training status of the AI model."""
+    get_ela_model()  # Ensure model initialized
+    return {
+        "model_architecture": "ELAForgeryCNN",
+        "is_model_trained": _is_model_trained,
+        "checkpoint_path": _model_checkpoint_path,
+        "checkpoint_status": _checkpoint_status,
+        "compute_device": str(DEVICE),
+        "forensic_mode": "TRAINED_INFERENCE" if _is_model_trained else "HEURISTIC_BASELINE_UNTRAINED",
+    }
 
 
 # Standard ImageNet normalization pipeline for input tensors
@@ -236,59 +294,88 @@ def run_ai_forgery_detection(
     4. Computes calibrated tampering probability and maps to verdict.
     5. Generates localized thermal anomaly overlay.
     """
-    # 1. Ingest image
-    original_image = extract_image_from_bytes(file_bytes, filename)
-    width, height = original_image.size
+    original_image = None
+    enhanced_ela = None
+    norm_diff = None
+    tensor = None
+    logits = None
+    probabilities = None
 
-    # 2. Compute ELA residual
-    enhanced_ela, norm_diff, std_dev, high_error_ratio = compute_ela_residual(
-        original_image, quality=90
-    )
+    try:
+        # 1. Ingest image
+        original_image = extract_image_from_bytes(file_bytes, filename)
+        width, height = original_image.size
 
-    # 3. Prepare PyTorch tensor
-    tensor = TRANSFORM_PIPELINE(enhanced_ela).unsqueeze(0).to(DEVICE)
+        # 2. Compute ELA residual
+        enhanced_ela, norm_diff, std_dev, high_error_ratio = compute_ela_residual(
+            original_image, quality=90
+        )
 
-    # 4. Neural inference
-    model = get_ela_model()
-    with torch.no_grad():
-        logits = model(tensor)
-        probabilities = torch.softmax(logits, dim=1)
-        # Class 0: Authentic, Class 1: Tampered
-        raw_tampered_prob = float(probabilities[0, 1].item())
+        # 3. Prepare PyTorch tensor
+        tensor = TRANSFORM_PIPELINE(enhanced_ela).unsqueeze(0).to(DEVICE)
 
-    # 5. Hybrid Calibration:
-    # Combine neural latent representation with physical ELA statistical variance
-    # Documents with sharp localized compression splices exhibit elevated std_dev and outlier ratios
-    statistical_anomaly_factor = (std_dev / 40.0) * 0.5 + (high_error_ratio * 10.0) * 0.5
-    calibrated_score = 0.60 * raw_tampered_prob + 0.40 * min(1.0, statistical_anomaly_factor)
-    calibrated_score = float(max(0.0, min(1.0, calibrated_score)))
-    score_rounded = round(calibrated_score, 4)
+        # 4. Neural inference
+        model = get_ela_model()
+        with torch.no_grad():
+            logits = model(tensor)
+            probabilities = torch.softmax(logits, dim=1)
+            # Class 0: Authentic, Class 1: Tampered
+            raw_tampered_prob = float(probabilities[0, 1].item())
 
-    # 6. Verdict mapping based on calibrated threshold constants
-    if score_rounded < AUTHENTIC_THRESHOLD:
-        verdict = "AUTHENTIC"
-    elif score_rounded <= TAMPERED_THRESHOLD:
-        verdict = "SUSPICIOUS"
-    else:
-        verdict = "TAMPERED"
+        # 5. Hybrid Calibration:
+        # Combine neural latent representation with physical ELA statistical variance
+        # Documents with sharp localized compression splices exhibit elevated std_dev and outlier ratios
+        statistical_anomaly_factor = (std_dev / 40.0) * 0.5 + (high_error_ratio * 10.0) * 0.5
+        calibrated_score = 0.60 * raw_tampered_prob + 0.40 * min(1.0, statistical_anomaly_factor)
+        calibrated_score = float(max(0.0, min(1.0, calibrated_score)))
+        score_rounded = round(calibrated_score, 4)
 
-    # 7. Generate thermal anomaly heatmap
-    heatmap_base64 = generate_heatmap_overlay(original_image, norm_diff, alpha=0.40)
+        # 6. Verdict mapping based on calibrated threshold constants:
+        # Heuristic compression residual labels: LOW ANOMALY, SUSPICIOUS, HIGH ANOMALY.
+        # ELA measures compression anomalies only; it does not establish credential authenticity or intentional forgery.
+        if score_rounded < AUTHENTIC_THRESHOLD:
+            verdict = "LOW ANOMALY"
+        elif score_rounded <= TAMPERED_THRESHOLD:
+            verdict = "SUSPICIOUS"
+        else:
+            verdict = "HIGH ANOMALY"
 
-    return {
-        "success": True,
-        "ai_confidence_score": score_rounded,
-        "verdict": verdict,
-        "heatmap_base64": heatmap_base64,
-        "metadata": {
-            "model_architecture": "ELAForgeryCNN",
-            "compute_device": str(DEVICE),
-            "input_dimensions": [width, height],
-            "ela_quality_factor": 90,
-            "authentic_threshold": AUTHENTIC_THRESHOLD,
-            "tampered_threshold": TAMPERED_THRESHOLD,
-            "anomaly_std_dev": round(std_dev, 2),
-            "high_error_pixel_ratio": round(high_error_ratio, 4),
-            "raw_neural_tampered_prob": round(raw_tampered_prob, 4),
-        },
-    }
+        # 7. Generate thermal anomaly heatmap
+        heatmap_base64 = generate_heatmap_overlay(original_image, norm_diff, alpha=0.40)
+
+        status_info = get_model_forensic_status()
+
+        return {
+            "success": True,
+            "ai_confidence_score": score_rounded,
+            "verdict": verdict,
+            "heatmap_base64": heatmap_base64,
+            "metadata": {
+                "model_architecture": "ELAForgeryCNN",
+                "model_trained": status_info["is_model_trained"],
+                "checkpoint_loaded": status_info["is_model_trained"],
+                "checkpoint_path": status_info["checkpoint_path"],
+                "checkpoint_status": status_info["checkpoint_status"],
+                "forensic_mode": status_info["forensic_mode"],
+                "compute_device": str(DEVICE),
+                "input_dimensions": [width, height],
+                "ela_quality_factor": 90,
+                "authentic_threshold": AUTHENTIC_THRESHOLD,
+                "tampered_threshold": TAMPERED_THRESHOLD,
+                "low_anomaly_threshold": AUTHENTIC_THRESHOLD,
+                "high_anomaly_threshold": TAMPERED_THRESHOLD,
+                "anomaly_std_dev": round(std_dev, 2),
+                "high_error_pixel_ratio": round(high_error_ratio, 4),
+                "raw_neural_tampered_prob": round(raw_tampered_prob, 4),
+                "disclaimer": "ELA analysis identifies JPEG compression anomalies. It does not independently establish certificate authenticity or prove intentional tampering. Cryptographic Merkle verification remains the authoritative ground truth.",
+            },
+        }
+    finally:
+        # Explicit resource cleanup to guarantee memory reclamation on constrained hosts (512MB RAM)
+        del original_image
+        del enhanced_ela
+        del norm_diff
+        del tensor
+        del logits
+        del probabilities
+        gc.collect()

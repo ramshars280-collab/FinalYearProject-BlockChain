@@ -23,16 +23,21 @@ import {
   Globe,
   X,
   Download,
+  ShieldAlert,
+  AlertCircle,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { W3CCredentialPayload, VerificationResult } from "../types";
+import { W3CCredentialPayload, VerificationResult, BatchStatus } from "../types";
 import { getSepoliaConfig } from "../lib/storage";
+import { useWeb3 } from "../context/Web3Context";
 import InteractiveHologramCard from "./InteractiveHologramCard";
 
 interface DegreeCertificateProps {
   credential: W3CCredentialPayload;
   verification?: VerificationResult | null;
   onShowQr?: () => void;
+  batchStatus?: BatchStatus;
+  txHash?: string | null;
 }
 
 function toSafeString(val: any, fallback: string = ""): string {
@@ -54,21 +59,84 @@ export default function DegreeCertificate({
   credential,
   verification,
   onShowQr,
+  batchStatus,
+  txHash,
 }: DegreeCertificateProps) {
   const [activeViewTab, setActiveViewTab] = useState<"certificate" | "transcript" | "crypto" | "raw">("certificate");
   const [language, setLanguage] = useState<"en" | "bilingual">("en");
   const [copiedJson, setCopiedJson] = useState(false);
+
+  const { selectedAppChainId } = useWeb3();
+  const isLocalChain =
+    selectedAppChainId === 31337 ||
+    Boolean(verification?.network?.includes("Local")) ||
+    verification?.verificationSource === "LOCAL_RPC" ||
+    credential?.proof?.merkleProof?.chainId === 31337;
+  const networkDisplayName = isLocalChain ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)";
 
   const subject = credential?.credentialSubject || (credential as any)?.recipient || (credential as any)?.data || {};
   const proof = credential?.proof || {};
   const isSelective = proof?.type === "SelectiveDisclosureProof2024" || proof?.type === "ZkSelectiveProof2024" || !!proof?.selectiveProof || !!proof?.zkProof;
   const selectiveProof = proof?.selectiveProof || proof?.zkProof;
 
+  const studentName = toSafeString(
+    subject?.fullName || (credential as any)?.recipient?.name || (credential as any)?.studentName || (credential as any)?.recipient,
+    "Demo Student 001"
+  );
+  const degreeName = toSafeString(
+    subject?.degree || (credential as any)?.title || (credential as any)?.name || (credential as any)?.course,
+    "B.Tech CSE"
+  );
+  const branchName = toSafeString(
+    subject?.branch || (credential as any)?.course || (credential as any)?.specialization || (credential as any)?.description,
+    "CSE"
+  );
+  const prnNumber = toSafeString(
+    subject?.prn || (credential as any)?.recipient?.id || (credential as any)?.id,
+    "DEMO-CSE-001"
+  );
+  const graduationYear = toSafeString(
+    subject?.graduationYear || (credential as any)?.completion_date || (credential as any)?.course?.completion_date || (credential as any)?.issuanceDate?.slice(0, 4),
+    "2024"
+  );
+  const cgpaDisplay = isSelective
+    ? `≥ ${toSafeString(selectiveProof?.thresholdValue, "8.0")}`
+    : subject?.cgpa
+    ? `${toSafeString(subject.cgpa)} / 10.0`
+    : "8.76 / 10.0";
+  const nheqfLevel = toSafeString(subject?.nheqfLevel, "6.0");
+  const universityName = toSafeString(subject?.university || credential?.issuer?.name, "MGM University");
+
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const batchId = proof?.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01";
+  const certNumberDisplay = (() => {
+    if ((subject as any)?.certificateNumber) return String((subject as any).certificateNumber);
+    if (prnNumber === "DEMO-CSE-2026-001") return "46585956";
+    if (prnNumber === "DEMO-CSE-2026-002") return "46585957";
+    if (prnNumber === "DEMO-CSE-2026-003") return "46585958";
+    if (prnNumber === "PRN20200101") return "46585956";
+    if (prnNumber === "PRN20200102") return "46585957";
+    if (prnNumber === "PRN20200104") return "46585958";
+    return prnNumber;
+  })();
+
+  const issueDateFormatted = (() => {
+    const rawDate = toSafeString(subject?.issueDate || (credential as any)?.issuanceDate, "2026-11-03");
+    try {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+      }
+    } catch {}
+    return rawDate;
+  })();
+
+  const batchId = proof?.merkleProof?.batchId || "DEMO-BATCH-2024-001";
   const leafIndex = proof?.merkleProof?.leafIndex ?? 0;
   const shortVerificationUrl =
     typeof window !== "undefined"
@@ -110,7 +178,7 @@ export default function DegreeCertificate({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-4">
+    <div className="w-full max-w-5xl mx-auto space-y-4">
       {/* Top Action Bar with Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs">
         {/* View Tabs */}
@@ -199,20 +267,21 @@ export default function DegreeCertificate({
             <span>QR Code</span>
           </button>
 
-          <a
-            href={
-              subject?.prn?.toUpperCase() === "PRN20200102"
-                ? "/certificates_pdf/2_Authentic_Degree_Ananya_Malhotra.pdf"
-                : subject?.prn?.toUpperCase() === "PRN20200104"
-                ? "/certificates_pdf/5_Revoked_Degree_Pooja_Patil.pdf"
-                : "/certificates_pdf/1_Authentic_Degree_Aarav_Sharma.pdf"
-            }
-            download
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-2xs hover:scale-102"
-          >
-            <Download className="h-3.5 w-3.5 text-indigo-600" />
-            <span>Download Official PDF</span>
-          </a>
+          {(() => {
+            const dynamicPdfUrl = `/api/certificates/${encodeURIComponent(batchId)}/${leafIndex}/pdf`;
+
+            return (
+              <a
+                href={dynamicPdfUrl}
+                download
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-2xs hover:scale-102"
+                title="Download Official Dynamic PDF Diploma"
+              >
+                <Download className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Download PDF</span>
+              </a>
+            );
+          })()}
 
           <button
             onClick={handlePrint}
@@ -229,213 +298,192 @@ export default function DegreeCertificate({
         <InteractiveHologramCard className="shadow-xl">
           <div
             id="printable-degree"
-            className="certificate-parchment guilloche-border rounded-2xl p-8 sm:p-14 relative text-slate-900 overflow-hidden bg-white shadow-lg"
+            className="w-full aspect-[297/210] max-w-full bg-[#fbf9f2] border-[1.6px] border-[#282624] p-6 sm:p-10 md:p-12 relative text-[#22211f] flex flex-col justify-between text-center overflow-hidden shadow-xl"
+            style={{
+              backgroundImage: "radial-gradient(circle at 50% 50%, #ffffff 0%, #faf6eb 100%)",
+            }}
           >
-            {/* Corner Accents */}
-            <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-blue-900 flex items-start justify-start p-1">
-              <span className="text-[9px] font-mono font-bold text-blue-900">MGMU</span>
-            </div>
-            <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-blue-900 flex items-start justify-end p-1">
-              <span className="text-[9px] font-mono font-bold text-blue-900">2024</span>
-            </div>
-            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 border-blue-900" />
-            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-blue-900" />
-
-            {/* University Crest & Header */}
-            <div className="text-center space-y-3 relative z-10 border-b border-slate-200 pb-8">
-              <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center text-white shadow-xl ring-8 ring-blue-100 relative">
-                <GraduationCap className="h-10 w-10 text-white drop-shadow" />
-              </div>
-
-              <div>
-                {language === "bilingual" ? (
-                  <div className="space-y-1">
-                    <h1 className="text-2xl sm:text-3xl font-serif font-black text-blue-950 uppercase tracking-wide">
-                      महात्मा गांधी मिशन विद्यापीठ, छत्रपती संभाजीनगर
-                    </h1>
-                    <p className="text-sm sm:text-base font-serif font-bold text-slate-800 tracking-wider">
-                      MGM UNIVERSITY, CHHATRAPATI SAMBHAJINAGAR
-                    </p>
-                  </div>
-                ) : (
-                  <h1 className="text-2xl sm:text-4xl font-serif font-black text-blue-950 uppercase tracking-widest pt-2">
-                    {toSafeString(subject?.university, toSafeString(credential?.issuer?.name, "MGM University"))}
-                  </h1>
-                )}
-                <p className="text-xs sm:text-sm font-serif italic text-slate-600 tracking-wide mt-1">
-                  {language === "bilingual"
-                    ? "महाराष्ट्र अधिनियम क्र. २६/२०१९ अन्वये स्थापित • Established under Maharashtra Act No. XXVI of 2019"
-                    : "Maharashtra, India • Established under Maharashtra Universities Act • Consortium Node"}
-                </p>
-              </div>
-
-              <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-900 px-5 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-xs">
-                <ShieldCheck className="h-3.5 w-3.5 text-blue-700" />
-                <span>Inter-University Consortium Anchor &bull; Sepolia Testnet</span>
-              </div>
-            </div>
-
-            {/* Body Text */}
-            <div className="text-center my-10 space-y-6 relative z-10">
-              <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">
-                {language === "bilingual"
-                  ? "व्यवस्थापन मंडळ व विद्या परिषदेच्या अनुमतीने प्रदान करण्यात येणारी पदवी / The Board of Management and the Academic Council hereby confer the degree of"
-                  : "The Board of Management and the Academic Council hereby confer the degree of"}
-              </p>
-
-              <div className="space-y-1">
-                <h2 className="text-3xl sm:text-4xl font-serif font-black text-blue-950 tracking-tight">
-                  {language === "bilingual" && (
-                    <span className="block text-xl sm:text-2xl text-blue-900 font-bold mb-1">
-                      अभियांत्रिकी व तंत्रज्ञान पदवी
-                    </span>
-                  )}
-                  {toSafeString(subject?.degree, toSafeString((credential as any)?.title, toSafeString((credential as any)?.name, toSafeString((credential as any)?.course, "Certificate of Completion"))))}
-                </h2>
-                <p className="text-lg sm:text-xl font-serif italic font-bold text-blue-800">
-                  in {toSafeString(subject?.branch, toSafeString((credential as any)?.course, toSafeString((credential as any)?.specialization, toSafeString((credential as any)?.description, "Academic Coursework"))))}
-                </p>
-              </div>
-
-              <p className="text-xs uppercase tracking-widest text-slate-500 font-bold">
-                {language === "bilingual" ? "यांना / upon" : "upon"}
-              </p>
-
-              <div className="text-3xl sm:text-5xl font-serif font-black text-slate-950 underline decoration-blue-600 decoration-3 underline-offset-8 py-1">
-                {toSafeString(subject?.fullName, toSafeString((credential as any)?.recipient?.name, toSafeString((credential as any)?.studentName, toSafeString((credential as any)?.recipient, "Candidate"))))}
-              </div>
-
-              <p className="text-xs text-slate-600 max-w-2xl mx-auto leading-relaxed pt-2">
-                {language === "bilingual"
-                  ? "ज्यांनी राष्ट्रीय उच्च शिक्षण पात्रता आराखडा (NHEQF) अंतर्गत विहित केलेल्या सर्व शैक्षणिक अटी व परीक्षा यशस्वीरीत्या पूर्ण केल्या आहेत. • who has successfully fulfilled all academic requirements, practical dissertations, and examinations prescribed by the university under NHEQF."
-                  : "who has successfully fulfilled all academic requirements, practical dissertations, and examinations prescribed by the university under the National Higher Education Qualifications Framework (NHEQF)."}
-              </p>
-
-              {/* Badges Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto pt-4">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center shadow-xs">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
-                    Permanent Reg. No.
-                  </span>
-                  <span className="font-mono text-xs font-black text-blue-900">
-                    {toSafeString(subject?.prn, toSafeString((credential as any)?.recipient?.id, toSafeString((credential as any)?.id, "N/A")))}
-                  </span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center shadow-xs">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
-                    Cumulative CGPA
-                  </span>
-                  <span className="font-serif text-sm font-black text-blue-900">
-                    {isSelective ? `≥ ${toSafeString(selectiveProof?.thresholdValue, "8.0")}` : subject?.cgpa ? `${toSafeString(subject.cgpa)} / 10.0` : "COMPLETED"}
-                  </span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center shadow-xs">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
-                    Year of Graduation
-                  </span>
-                  <span className="font-mono text-xs font-black text-slate-900">
-                    {toSafeString(subject?.graduationYear, toSafeString((credential as any)?.completion_date, toSafeString((credential as any)?.course?.completion_date, toSafeString((credential as any)?.issuanceDate?.slice(0, 4), String(new Date().getFullYear())))))}
-                  </span>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center shadow-xs">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
-                    NHEQF Level
-                  </span>
-                  <span className="font-sans text-xs font-black text-emerald-800">
-                    Level {toSafeString(subject?.nheqfLevel, "6.0")}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Official Signatures, Seal & On-Chain Verification QR */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 items-end pt-10 pb-6 border-t border-slate-200 text-center relative z-10 gap-4">
-              <div className="space-y-1">
-                <div className="font-serif italic text-base text-slate-900 font-bold">
-                  Dr. S. K. Mahajan
-                </div>
-                <div className="h-0.5 w-24 bg-slate-400 mx-auto" />
-                <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  {language === "bilingual" ? "डीन, अभियांत्रिकी संकाय / Dean" : "Dean, Faculty of Engineering"}
-                </div>
-              </div>
-
-              {/* Embossed University Seal */}
-              <div className="flex flex-col items-center">
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-blue-800 bg-gradient-to-tr from-blue-100 to-blue-50 flex flex-col items-center justify-center text-blue-950 shadow-md ring-4 ring-blue-100">
-                  <Award className="h-7 w-7 sm:h-8 sm:w-8 text-blue-800" />
-                  <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-tighter text-blue-900">
-                    SEAL OF AUTHENTICITY
-                  </span>
-                </div>
-                <span className="text-[9px] font-semibold text-slate-500 mt-1">Official University Seal</span>
-              </div>
-
-              {/* Official Verification QR Code */}
-              <div className="flex flex-col items-center">
-                {qrCodeDataUrl ? (
-                  <div
-                    onClick={() => setShowQrModal(true)}
-                    className="cursor-pointer group p-1.5 bg-white border-2 border-slate-300 hover:border-blue-500 rounded-xl shadow-xs transition-all hover:scale-105"
-                    title="Click to Enlarge QR Code"
-                  >
-                    <img
-                      src={qrCodeDataUrl}
-                      alt="Verification QR Code"
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-md"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center">
-                    <QrCode className="h-6 w-6 text-slate-400 animate-pulse" />
-                  </div>
-                )}
-                <span className="text-[9px] font-bold text-slate-600 mt-1 flex items-center gap-1">
-                  <span>Scan to Verify</span>
-                  <ExternalLink className="h-2.5 w-2.5 text-blue-600 no-print" />
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <div className="font-serif italic text-base text-slate-900 font-bold">
-                  Prof. V. M. Deshpande
-                </div>
-                <div className="h-0.5 w-24 bg-slate-400 mx-auto" />
-                <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  {language === "bilingual" ? "परीक्षा नियंत्रक / Controller of Exams" : "Controller of Examinations"}
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Cryptographic Anchor Bar */}
-            <div className="mt-6 pt-4 border-t border-slate-200 bg-slate-50/80 -mx-8 sm:-mx-14 -mb-8 sm:-mb-14 p-6 text-[11px] font-mono text-slate-700 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-blue-700" />
-                  <span className="font-bold text-slate-900">Merkle Anchor:</span>
-                  <span className="text-slate-700 font-mono font-semibold">
-                    {proof?.merkleProof?.rootHash ? `${proof.merkleProof.rootHash.slice(0, 10)}••••••••${proof.merkleProof.rootHash.slice(-8)}` : "Verified On Sepolia"}
-                  </span>
-                </div>
-
-                <a
-                  href={getEtherscanUrl(proof?.merkleProof?.contractAddress || getSepoliaConfig().credentialRegistryAddress)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-bold no-print underline"
+            {/* Content Layer */}
+            <div className="relative z-10 flex flex-col h-full justify-between">
+              {/* Top Title, Subtitle, Student Name */}
+              <div className="mt-1 sm:mt-2">
+                <h1
+                  style={{ fontFamily: "'Oswald', 'Bahnschrift', 'Arial Narrow', sans-serif" }}
+                  className="text-2xl sm:text-4xl md:text-5xl lg:text-[40pt] font-semibold text-[#22211f] tracking-[2.5px] uppercase leading-tight whitespace-nowrap"
                 >
-                  <span>Verify On Sepolia Etherscan</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  GRADUATION CERTIFICATE
+                </h1>
+                <p className="text-xs sm:text-sm md:text-base font-normal text-[#55534f] mt-2 sm:mt-4 tracking-wide font-sans">
+                  {language === "bilingual"
+                    ? "The certificate is awarded / हे प्रमाणपत्र प्रदान करण्यात येत आहे"
+                    : "The certificate is awarded"}
+                </p>
+                <div
+                  style={{ fontFamily: "'Oswald', 'Bahnschrift', 'Arial Narrow', sans-serif" }}
+                  className="text-xl sm:text-3xl md:text-4xl lg:text-[36pt] font-bold text-[#1a1918] tracking-[1.5px] uppercase mt-2 sm:mt-3 leading-tight"
+                >
+                  {studentName.toUpperCase()}
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-                <div>Batch ID: {proof?.merkleProof?.batchId || "MGM-2024-BTECH-BATCH01"} &bull; Leaf Index: #{proof?.merkleProof?.leafIndex ?? 0}</div>
-                <div>DPDP Act Compliant &bull; Zero PII On-Chain</div>
+              {/* Achievement Statement - Clear Unobstructed Space */}
+              <div className="text-xs sm:text-sm md:text-[11.5pt] leading-relaxed text-[#383633] space-y-1 font-sans my-1 sm:my-2">
+                <p>
+                  For successful completion of a <strong className="font-bold text-[#1a1918]">{degreeName} in {branchName}</strong>.
+                </p>
+                <p>
+                  In recognition of outstanding academic achievement with a <strong className="font-bold text-[#1a1918]">Cumulative CGPA of {cgpaDisplay}</strong>
+                </p>
+                <p>and professional excellence.</p>
               </div>
+
+              {/* Required Demonstration Disclaimer Banner */}
+              <div className="my-1.5 sm:my-3">
+                <div className="inline-block border-[1.8px] border-[#991b1b] bg-[#fef2f2] text-[#991b1b] font-sans font-bold text-[8.5px] sm:text-xs md:text-[10pt] tracking-[1.2px] uppercase px-4 sm:px-8 py-1 sm:py-1.5 rounded shadow-2xs">
+                  FOR DEMONSTRATION PURPOSES ONLY — NOT AN OFFICIALLY ISSUED DEGREE CERTIFICATE
+                </div>
+              </div>
+
+              {/* Bottom Section: Signatures & Certificate Details */}
+              <div className="grid grid-cols-3 items-end pt-2 pb-1">
+                {/* Left Signatory */}
+                <div className="flex flex-col items-start text-left pl-2 sm:pl-4">
+                  <div className="h-7 sm:h-9 flex items-center justify-start mb-0.5 sm:mb-1">
+                    <svg width="110" height="34" viewBox="0 0 130 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 26C20 16 32 10 38 14C44 18 36 30 28 28C20 26 34 8 46 12C58 16 52 32 64 26C74 20 88 14 100 16C110 18 116 26 124 23" stroke="#1e40af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M25 22C42 21 80 20 104 22" stroke="#1e40af" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-[#22211f]">Demo Examination Officer</span>
+                  <span className="text-[9px] sm:text-[11px] text-[#55534f]">Examination Cell</span>
+                </div>
+
+                {/* Center QR Code, Certificate NO & Issue Date */}
+                <div className="flex flex-col items-center justify-end text-center pb-0.5 px-2">
+                  {qrCodeDataUrl ? (
+                    <div className="flex flex-col items-center mb-1">
+                      <img
+                        src={qrCodeDataUrl}
+                        alt="Verification QR Code"
+                        className="w-12 h-12 sm:w-13 sm:h-13 p-0.5 bg-white border border-slate-300 rounded shadow-2xs"
+                      />
+                      <span className="text-[7px] sm:text-[8px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                        Scan to Verify
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 flex items-center justify-center mb-1 bg-white border border-slate-200 rounded">
+                      <QrCode className="h-6 w-6 text-slate-400 animate-pulse" />
+                    </div>
+                  )}
+                  <span className="text-xs sm:text-sm font-semibold text-[#242321] tracking-wide">
+                    Certificate NO: {certNumberDisplay}
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-medium text-[#383633] mt-0.5">
+                    Date of issue: {issueDateFormatted}
+                  </span>
+                </div>
+
+                {/* Right Signatory */}
+                <div className="flex flex-col items-end text-right pr-2 sm:pr-4">
+                  <div className="h-7 sm:h-9 flex items-center justify-end mb-0.5 sm:mb-1">
+                    <svg width="110" height="34" viewBox="0 0 130 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 24C24 23 28 12 40 14C52 16 46 30 58 24C70 18 80 14 90 16C100 19 108 28 122 22" stroke="#1e40af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M34 16C48 12 72 26 86 20C98 14 110 18 118 17" stroke="#1e40af" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-[#22211f]">Demo University Authority</span>
+                  <span className="text-[9px] sm:text-[11px] text-[#55534f]">University Authority</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Invisible verifier provenance layer for pdfjs-dist extraction */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "1mm",
+                left: "10mm",
+                color: "rgba(251, 249, 242, 0.01)",
+                fontFamily: "monospace",
+                fontSize: "7pt",
+                userSelect: "none",
+                pointerEvents: "none",
+              }}
+            >
+              Batch ID: {batchId} Leaf: #{leafIndex} PRN: {prnNumber} CUMULATIVE CGPA {subject?.cgpa || "8.50"} Degree of {degreeName} Root: {proof?.merkleProof?.rootHash || ""} Sepolia: 0xe7Cc39AF2ACC1dd637C863aB5DB18aC904b76Bc4
+            </div>
+          </div>
+
+          {/* Compact Technical Cryptographic Verification Section (Below Certificate, No-Print on Paper) */}
+          <div className="mt-4 p-4 bg-stone-50 border border-stone-200 rounded-xl text-[11px] font-mono text-stone-700 space-y-2 no-print shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-stone-700" />
+                <span className="font-bold text-stone-900">Merkle Root Anchor:</span>
+                <span className="text-stone-700 font-mono font-semibold">
+                  {proof?.merkleProof?.rootHash ? `${proof.merkleProof.rootHash.slice(0, 10)}...${proof.merkleProof.rootHash.slice(-8)}` : "Stored in Registry"}
+                </span>
+                {(() => {
+                  const effectiveStatus = batchStatus || verification?.batchStatus;
+                  const effectiveTx = txHash || verification?.txHash;
+                  const isReallyAnchored = Boolean(verification?.isOnChainAnchored && effectiveTx);
+                  if (isReallyAnchored) {
+                    return <span className="ml-1 text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">({isLocalChain ? "Hardhat Local Anchored" : "Sepolia Anchored"})</span>;
+                  }
+                  if (effectiveStatus === "PENDING_ANCHOR") {
+                    return <span className="ml-1 text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full">(Pending Anchor)</span>;
+                  }
+                  if (effectiveStatus === "ANCHOR_FAILED") {
+                    return <span className="ml-1 text-[10px] text-red-800 font-bold bg-red-100 px-2 py-0.5 rounded-full">(Anchor Failed)</span>;
+                  }
+                  return <span className="ml-1 text-[10px] text-stone-700 font-bold bg-stone-200 px-2 py-0.5 rounded-full">(Institutionally Stored)</span>;
+                })()}
+              </div>
+
+              {(() => {
+                const effectiveStatus = batchStatus || verification?.batchStatus;
+                const effectiveTx = txHash || verification?.txHash;
+                const isReallyAnchored = Boolean(verification?.isOnChainAnchored && effectiveTx);
+                if (isReallyAnchored && effectiveTx) {
+                  if (isLocalChain) {
+                    return (
+                      <span className="inline-flex items-center gap-1 text-stone-800 font-bold font-mono text-xs">
+                        <span>Tx: {effectiveTx.slice(0, 10)}... (Hardhat Local)</span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${effectiveTx}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-bold no-print underline"
+                    >
+                      <span>Verify Transaction On Sepolia</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  );
+                }
+                if (effectiveStatus === "PENDING_ANCHOR") {
+                  return (
+                    <span className="text-amber-800 font-semibold flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                      <span>Awaiting Administrative Blockchain Anchoring</span>
+                    </span>
+                  );
+                }
+                return (
+                  <span className="text-stone-600 font-medium">
+                    Institutional Registry Storage (No On-Chain Transaction)
+                  </span>
+                );
+              })()}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-stone-500 pt-1 border-t border-stone-200">
+              <div>Batch ID: <span className="font-bold text-stone-700">{proof?.merkleProof?.batchId || "DEMO-BATCH-2024-001"}</span> • Leaf Index: <span className="font-bold text-stone-700">#{proof?.merkleProof?.leafIndex ?? 0}</span></div>
+              <div>DPDP Act Compliant • Zero PII Stored On-Chain</div>
             </div>
           </div>
         </InteractiveHologramCard>
@@ -457,28 +505,34 @@ export default function DegreeCertificate({
 
             <div className="text-right">
               <span className="text-xs font-mono font-bold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg">
-                PRN: {toSafeString(subject?.prn, toSafeString((credential as any)?.recipient?.id, toSafeString((credential as any)?.id, "N/A")))}
+                PRN: {prnNumber}
               </span>
             </div>
+          </div>
+
+          {/* Demonstration Notice */}
+          <div className="bg-amber-50/90 border border-amber-200/90 rounded-lg px-4 py-2 text-center text-amber-900 text-xs font-medium tracking-wide flex items-center justify-center gap-2 shadow-2xs">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>Synthetic data for academic project demonstration. This is not an officially issued degree certificate.</span>
           </div>
 
           {/* Student Profile Overview */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
             <div>
               <span className="text-slate-500 block">Candidate Name:</span>
-              <span className="font-bold text-slate-900">{toSafeString(subject?.fullName, toSafeString((credential as any)?.recipient?.name, toSafeString((credential as any)?.studentName, "Candidate")))}</span>
+              <span className="font-bold text-slate-900">{studentName}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Degree Program:</span>
-              <span className="font-bold text-slate-900">{toSafeString(subject?.degree, toSafeString((credential as any)?.name, toSafeString((credential as any)?.title, "Program")))}</span>
+              <span className="font-bold text-slate-900">{degreeName}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Specialization:</span>
-              <span className="font-bold text-slate-900">{toSafeString(subject?.branch, toSafeString((credential as any)?.course, "General"))}</span>
+              <span className="font-bold text-slate-900">{branchName}</span>
             </div>
             <div>
               <span className="text-slate-500 block">Final CGPA:</span>
-              <span className="font-bold text-blue-700">{toSafeString(subject?.cgpa, "COMPLETED")}</span>
+              <span className="font-bold text-blue-700">{cgpaDisplay}</span>
             </div>
           </div>
 
@@ -531,7 +585,13 @@ export default function DegreeCertificate({
               <span>Cryptographic Proof Path &amp; Ledger Verification</span>
             </h3>
             <p className="text-xs text-slate-500">
-              Deterministic Keccak256 leaf verification against the Sepolia Merkle Anchor
+              {(() => {
+                const effectiveStatus = batchStatus || verification?.batchStatus;
+                const isOnChain = Boolean(verification?.isOnChainAnchored && txHash);
+                return isOnChain
+                  ? `Deterministic Keccak256 leaf verification against the ${networkDisplayName} Merkle Anchor`
+                  : "Deterministic Keccak256 leaf verification against the Institutional Merkle Registry";
+              })()}
             </p>
           </div>
 
@@ -578,14 +638,22 @@ export default function DegreeCertificate({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Step 3: Sepolia Contract Verification &amp; Dynamic Bitmap Check</span>
+                  <span>
+                    {(() => {
+                      const effectiveStatus = batchStatus || verification?.batchStatus;
+                      const isOnChain = Boolean(verification?.isOnChainAnchored && txHash);
+                      return isOnChain
+                        ? `Step 3: ${networkDisplayName} Contract Verification & Dynamic Bitmap Check`
+                        : "Step 3: Institutional Registry Verification & Dynamic Bitmap Check";
+                    })()}
+                  </span>
                 </span>
                 <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded font-bold">
                   VALID &amp; UNREVOKED
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                The computed hash matches the anchored root on the Sepolia smart contract registry. Bit index #{proof?.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
+                The computed hash matches the institutional Merkle root. Bit index #{proof?.merkleProof?.leafIndex ?? 0} in the dynamic 256-bit revocation bitmap is 0 (Unrevoked).
               </p>
             </div>
           </div>
@@ -636,7 +704,13 @@ export default function DegreeCertificate({
             </div>
 
             <p className="text-xs text-slate-500">
-              Scan with any mobile camera to instantly verify this degree on Ethereum Sepolia
+              {(() => {
+                const effectiveStatus = batchStatus || verification?.batchStatus;
+                const isOnChain = Boolean(verification?.isOnChainAnchored && txHash);
+                return isOnChain
+                  ? `Scan with any mobile camera to verify this degree on ${networkDisplayName}`
+                  : "Scan with any mobile camera to verify this degree via the Institutional Verification Portal";
+              })()}
             </p>
 
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl inline-block shadow-inner">

@@ -1,9 +1,15 @@
 pragma circom 2.0.0;
 
 /**
- * SOET VeriTrust: Zero-Knowledge CGPA Range Proof Circuit
- * Proves that a student's actual CGPA satisfies: actualCgpa >= thresholdCgpa
- * without revealing the student's exact CGPA or personal identity.
+ * SOET VeriTrust: Experimental Educational Prototype
+ * Zero-Knowledge CGPA Range Proof Circuit Specification (Academic Formulation)
+ * 
+ * DISCLOSURE:
+ * This Circom circuit models how an academic range proof (actualCgpa >= thresholdCgpa)
+ * is formulated mathematically under R1CS constraints without disclosing raw CGPA or PII.
+ * It serves as an educational reference architecture for zero-knowledge selective disclosure.
+ * In the current zero-budget deployment, on-chain credential verification is performed via
+ * Keccak-256 Merkle proofs, while selective disclosure is prototyped via DPDP salted commitments.
  */
 
 template GreaterThanEq(n) {

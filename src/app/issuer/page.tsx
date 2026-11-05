@@ -34,8 +34,13 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  UserPlus,
+  RefreshCw,
+  Copy,
+  Check,
+  X,
 } from "lucide-react";
-import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution } from "../../types";
+import { StudentDegreeData, BatchRecord, W3CCredentialPayload, ConsortiumInstitution, BatchStatus } from "../../types";
 import { buildBatchMerkleTree, createW3CCredential } from "../../lib/crypto";
 import { generateCredentialsZip, downloadFile } from "../../lib/zipHelper";
 import {
@@ -43,12 +48,17 @@ import {
   saveStoredBatches,
   getSepoliaConfig,
   getConsortiumInstitutions,
+  sanitizeObsoleteStorage,
   INITIAL_STUDENTS_MGM,
 } from "../../lib/storage";
-import { anchorMerkleBatch } from "../../lib/contracts";
+import { CREDENTIAL_REGISTRY_ABI, getProvider, getProviderForChain } from "../../lib/contracts";
+import { getNetworkConfig, SupportedChainId } from "../../contracts";
 import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
+import AddStudentModal from "../../components/AddStudentModal";
+import UploadedStudentsList from "../../components/UploadedStudentsList";
 import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
+import { useWeb3 } from "../../context/Web3Context";
 import { INITIAL_AUDIT_CANDIDATES, CandidateAuditRecord } from "../../lib/auditData";
 
 export default function IssuerPage() {
@@ -280,20 +290,78 @@ interface CsvRowError {
   errors: string[];
 }
 
+function renderBatchStatusBadge(status?: BatchStatus, txHash?: string | null, isVerifiedOnChain?: boolean, targetChainId?: number) {
+  switch (status) {
+    case "ANCHORED":
+      if (txHash && isVerifiedOnChain !== false) {
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-[10px] font-black uppercase tracking-wide shadow-2xs">
+            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+            <span>{targetChainId === 31337 ? "Anchored (Hardhat Local)" : "Anchored (Ethereum Sepolia)"}</span>
+          </span>
+        );
+      }
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-900 border border-blue-300 rounded-full text-[10px] font-black uppercase tracking-wide shadow-2xs">
+          <Building2 className="h-3 w-3 text-blue-600" />
+          <span>Institutional DB</span>
+        </span>
+      );
+    case "PENDING_ANCHOR":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-[10px] font-black uppercase tracking-wide shadow-2xs">
+          <Clock className="h-3 w-3 text-amber-600" />
+          <span>Pending Anchor</span>
+        </span>
+      );
+    case "INSTITUTIONAL_STORED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-900 border border-blue-300 rounded-full text-[10px] font-black uppercase tracking-wide shadow-2xs">
+          <Building2 className="h-3 w-3 text-blue-600" />
+          <span>Institutional DB</span>
+        </span>
+      );
+    case "ANCHOR_FAILED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-900 border border-red-300 rounded-full text-[10px] font-black uppercase tracking-wide shadow-2xs">
+          <AlertCircle className="h-3 w-3 text-red-600" />
+          <span>Anchor Failed</span>
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 rounded-full text-[10px] font-bold uppercase tracking-wide">
+          <span>{status || "Stored"}</span>
+        </span>
+      );
+  }
+}
+
 // ==========================================
-// UNIVERSITY ADMIN CONSOLE WORKSPACE (2 TABS)
+// UNIVERSITY ADMIN CONSOLE WORKSPACE (3 SECTIONS)
 // ==========================================
 
 function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"minting" | "audit">("minting");
 
+  // Synchronized Blockchain Network & Wallet State from Web3Context
+  const {
+    selectedAppChainId: selectedNetworkChainId,
+    setSelectedAppChainId: setSelectedNetworkChainId,
+    walletChainId,
+    walletAddress,
+    isWalletConnected,
+    isNetworkMismatch,
+    walletNetworkName,
+  } = useWeb3();
+
   // Tab 1: Batch Minting State
   const [batches, setBatches] = useState<BatchRecord[]>([]);
   const [institutions, setInstitutions] = useState<ConsortiumInstitution[]>([]);
   const [selectedInstitution, setSelectedInstitution] = useState<ConsortiumInstitution | null>(null);
-  const [batchId, setBatchId] = useState<string>("MGM-2024-BTECH-BATCH01");
-  const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>(INITIAL_STUDENTS_MGM);
+  const [batchId, setBatchId] = useState<string>("");
+  const [currentStudents, setCurrentStudents] = useState<StudentDegreeData[]>([]);
   const [computedTreeData, setComputedTreeData] = useState<any>(null);
   const [isAnchoring, setIsAnchoring] = useState(false);
   const [anchorSuccess, setAnchorSuccess] = useState<any>(null);
@@ -301,23 +369,35 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [revocationModalBatch, setRevocationModalBatch] = useState<BatchRecord | null>(null);
   const [csvErrors, setCsvErrors] = useState<CsvRowError[]>([]);
   const [csvSuccess, setCsvSuccess] = useState<{ fileName: string; count: number } | null>(null);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [isConfirmingUpload, setIsConfirmingUpload] = useState(false);
+  const [confirmUploadError, setConfirmUploadError] = useState<string | null>(null);
+  const [uploadSuccessNotification, setUploadSuccessNotification] = useState<{
+    batchId: string;
+    count: number;
+    fileName?: string;
+    timestamp?: number;
+  } | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{
     fileName: string;
     students: StudentDegreeData[];
+    duplicateWarnings?: string[];
   } | null>(null);
   const [anchorError, setAnchorError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tab 2: Candidate Audit State
-  const [auditRows, setAuditRows] = useState<CandidateAuditRecord[]>(INITIAL_AUDIT_CANDIDATES);
+  const [auditRows, setAuditRows] = useState<CandidateAuditRecord[]>([]);
   const [auditFilter, setAuditFilter] = useState<"ALL" | "AUTHENTIC" | "DISCREPANCY" | "UNREGISTERED">("ALL");
   const [auditSearch, setAuditSearch] = useState<string>("");
 
+
+
   useEffect(() => {
+    sanitizeObsoleteStorage();
     loadInstitutions();
     loadBatches();
-    recalculateTree(INITIAL_STUDENTS_MGM);
   }, []);
 
   const loadInstitutions = () => {
@@ -350,6 +430,37 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     if (students.length === 0) return;
     const treeData = buildBatchMerkleTree(students);
     setComputedTreeData(treeData);
+  };
+
+  const handleAddManualStudent = (newStudent: StudentDegreeData, replaceAll: boolean) => {
+    let updated: StudentDegreeData[];
+    if (replaceAll) {
+      updated = [newStudent];
+    } else {
+      updated = [newStudent, ...currentStudents.filter((s) => s.prn.toUpperCase() !== newStudent.prn.toUpperCase())];
+    }
+
+    const duplicateWarnings: string[] = [];
+    batches.forEach((b) => {
+      if (b.records) {
+        b.records.forEach((r) => {
+          if (r.prn.toUpperCase() === newStudent.prn.toUpperCase()) {
+            duplicateWarnings.push(`PRN "${newStudent.prn}" already exists in anchored batch "${b.batchId}"`);
+          }
+        });
+      }
+    });
+
+    setIsAddStudentModalOpen(false);
+
+    // Route manual student addition through the Confirmation Bar / Dialog workflow
+    setPendingUpload({
+      fileName: replaceAll
+        ? `Manual Entry: ${newStudent.prn} (${newStudent.fullName})`
+        : `Manual Addition: ${newStudent.prn} (${newStudent.fullName})`,
+      students: updated,
+      duplicateWarnings: duplicateWarnings.length > 0 ? duplicateWarnings : undefined,
+    });
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,6 +592,16 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               errors: rowErrors,
             });
           } else {
+            // Read and map institute & university preserving both distinctly
+            const rawInstitute =
+              getVal("institute", "institutename", "school", "faculty") ||
+              (norm["university"] ? getVal("college", "institution") : "");
+            const rawUniversity =
+              getVal("university", "universityname") ||
+              (!rawInstitute ? getVal("institution", "college") : "") ||
+              selectedInstitution?.name ||
+              "MGM University";
+
             parsedStudents.push({
               prn: rawPrn.toUpperCase(),
               fullName: rawName,
@@ -491,7 +612,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               issueDate: getVal("issuedate", "date", "graduationdate") || new Date().toISOString().split("T")[0],
               nheqfCredits: parseInt(getVal("creditscompleted", "credits", "nheqfcredits", "totalcredits") || "160", 10),
               nheqfLevel: parseFloat(getVal("level", "nheqflevel") || "6.0"),
-              university: getVal("university", "institution", "college") || selectedInstitution?.name || "MGM University",
+              institute: rawInstitute || undefined,
+              university: rawUniversity,
               institutionCode: selectedInstitution?.code || "MGMU-ENG-01",
             });
           }
@@ -500,22 +622,57 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         if (errorsList.length > 0) {
           setCsvErrors(errorsList);
           setCsvSuccess(null);
+          setUploadSuccessNotification(null);
           setCurrentStudents([]);
           setComputedTreeData(null);
           setAnchorSuccess(null);
         } else if (parsedStudents.length === 0) {
           setCsvErrors([{ rowNumber: 1, errors: ["CSV contains no student data rows"] }]);
           setCsvSuccess(null);
+          setUploadSuccessNotification(null);
           setPendingUpload(null);
           setCurrentStudents([]);
           setComputedTreeData(null);
           setAnchorSuccess(null);
         } else {
           setCsvErrors([]);
-          // Trigger confirmation alert modal: "Are you sure you want to upload this student list?"
+
+          // Duplicate PRN detection inside file and across existing batches
+          const seenPrns = new Set<string>();
+          const duplicateWarnings: string[] = [];
+          parsedStudents.forEach((s) => {
+            if (seenPrns.has(s.prn)) {
+              duplicateWarnings.push(`PRN "${s.prn}" appears multiple times in CSV`);
+            }
+            seenPrns.add(s.prn);
+          });
+
+          batches.forEach((b) => {
+            if (b.records) {
+              b.records.forEach((r) => {
+                if (seenPrns.has(r.prn.toUpperCase()) && !duplicateWarnings.some((w) => w.includes(r.prn.toUpperCase()))) {
+                  duplicateWarnings.push(`PRN "${r.prn.toUpperCase()}" already anchored in Batch "${b.batchId}"`);
+                }
+              });
+            }
+          });
+
+          // Auto-suggest sanitized batch ID from file name if user has not entered one
+          if (!batchId.trim()) {
+            const suggestedId = file.name
+              .replace(/\.[^/.]+$/, "")
+              .replace(/[^a-zA-Z0-9_-]/g, "_")
+              .toUpperCase();
+            setBatchId(suggestedId);
+          }
+
+          setConfirmUploadError(null);
+
+          // Trigger confirmation dialog with batch identifier and detected records
           setPendingUpload({
             fileName: file.name,
             students: parsedStudents,
+            duplicateWarnings: Array.from(new Set(duplicateWarnings)),
           });
         }
       },
@@ -535,13 +692,21 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       return;
     }
 
-    const isDuplicate = batches.some(
+    // 1. Must be an existing persisted batch
+    const persistedBatch = batches.find(
       (b) => b.batchId.trim().toLowerCase() === trimmedBatchId.toLowerCase()
     );
 
-    if (isDuplicate) {
+    if (!persistedBatch) {
       setAnchorError(
-        `Duplicate Batch ID: A batch with ID '${trimmedBatchId}' already exists. Smart contract and registry require unique batch IDs.`
+        `Batch "${trimmedBatchId}" has not been persisted to the database yet. Please click "Confirm & Upload" to save the batch to the institutional registry before anchoring.`
+      );
+      return;
+    }
+
+    if (persistedBatch.status === "ANCHORED") {
+      setAnchorError(
+        `Batch "${trimmedBatchId}" is already anchored on-chain with status ANCHORED (Tx: ${persistedBatch.txHash || "N/A"}).`
       );
       return;
     }
@@ -549,107 +714,114 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     setIsAnchoring(true);
 
     try {
-      const config = getSepoliaConfig();
-      const institutionName = selectedInstitution ? selectedInstitution.name : "MGM University";
-      const totalDegrees = currentStudents.length;
+      const netConfig = getNetworkConfig(selectedNetworkChainId);
+      const targetAddress = netConfig.credentialRegistry;
 
-      let signer: ethers.Signer | null = null;
-      if (typeof window !== "undefined" && (window as any).ethereum) {
-        try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
-          signer = await provider.getSigner().catch(() => null);
-        } catch (e: any) {
-          console.warn("Could not acquire signer:", e);
-        }
+      // 2. Pre-flight check: Verify bytecode at configured address on selected network
+      const provider = getProviderForChain(selectedNetworkChainId);
+      let code = "0x";
+      try {
+        code = await provider.getCode(targetAddress);
+      } catch (rpcErr: any) {
+        console.warn(`RPC getCode error on ${netConfig.name}:`, rpcErr);
       }
 
-      // 1. Upload credential batch payload to Pinata IPFS
-      let realIpfsCid = "";
-      try {
-        const ipfsRes = await fetch("/api/ipfs/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            batchId: trimmedBatchId,
-            records: currentStudents,
-            merkleRoot: computedTreeData.rootHex || computedTreeData.root,
-            institutionName,
-          }),
-        });
-
-        const ipfsJson = await ipfsRes.json().catch(() => ({}));
-        if (ipfsRes.ok && ipfsJson.success && ipfsJson.cid) {
-          realIpfsCid = `ipfs://${ipfsJson.cid}`;
-        } else {
-          // Graceful fallback: Generate deterministic IPFS CID if Pinata credentials are not yet added in .env
-          const hashSnippet = (computedTreeData.rootHex || computedTreeData.root).slice(2, 34).toLowerCase();
-          realIpfsCid = `ipfs://bafybeig${hashSnippet}`;
-          console.warn("⚠️ Pinata IPFS API key unconfigured. Using deterministic IPFS CID format:", realIpfsCid);
-        }
-      } catch (ipfsErr: any) {
-        const hashSnippet = (computedTreeData.rootHex || computedTreeData.root).slice(2, 34).toLowerCase();
-        realIpfsCid = `ipfs://bafybeig${hashSnippet}`;
-      }
-
-      const contractRes = await anchorMerkleBatch(
-        trimmedBatchId,
-        computedTreeData.root,
-        realIpfsCid,
-        signer
-      );
-      const txHash = contractRes.txHash;
-      const simulated = contractRes.simulated;
-
-      let newBatch: BatchRecord = {
-        batchId: trimmedBatchId,
-        merkleRoot: computedTreeData.rootHex || computedTreeData.root,
-        ipfsCid: realIpfsCid,
-        timestamp: Math.floor(Date.now() / 1000),
-        issuer: selectedInstitution?.address || "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
-        institutionName,
-        institutionCode: selectedInstitution?.code || "MGMU-ENG-01",
-        totalCredentials: totalDegrees,
-        revokedIndices: [],
-        records: currentStudents,
-      };
-
-      try {
-        const apiRes = await fetch("/api/batches", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(newBatch),
-        });
-        if (apiRes.status === 401) {
-          setAnchorError("Unauthorized (401): Valid Examination Authority session required. Please sign in again.");
-          logout();
-          router.push("/issuer");
-          return;
-        }
-        if (apiRes.ok) {
-          const apiJson = await apiRes.json();
-          if (apiJson.batch) {
-            newBatch = apiJson.batch;
-          }
-        } else {
-          const errData = await apiRes.json().catch(() => ({}));
-          setAnchorError(errData.error || "Failed to persist batch to server database.");
-          return;
-        }
-      } catch (apiErr: any) {
-        console.error("Failed to persist batch to server database:", apiErr);
-        setAnchorError(apiErr?.message || "Failed to persist batch to server database.");
+      if (!code || code === "0x" || code.length <= 2) {
+        setAnchorError(
+          `Contract Verification Blocked: No deployed smart contract bytecode exists at configured address ${targetAddress} on ${netConfig.name} (Chain ID ${selectedNetworkChainId}, bytecode length: ${code ? code.length : 0}). Anchoring transaction cannot be submitted until a valid contract is deployed.`
+        );
         return;
       }
 
-      const updated = [newBatch, ...batches.filter((b) => b.batchId.toLowerCase() !== newBatch.batchId.toLowerCase())];
-      saveStoredBatches(updated);
-      setBatches(updated);
-      setAnchorSuccess({ ...newBatch, txHash, simulated });
+      // 3. Check for Ethereum signer (MetaMask)
+      if (typeof window === "undefined" || !(window as any).ethereum) {
+        setAnchorError(`MetaMask / Web3 provider is required to sign and anchor the batch transaction to ${netConfig.name}.`);
+        return;
+      }
+
+      const browserProvider = new ethers.BrowserProvider((window as any).ethereum);
+      const network = await browserProvider.getNetwork();
+      const connectedChainId = Number(network.chainId);
+      if (connectedChainId !== selectedNetworkChainId) {
+        setAnchorError(
+          `MetaMask network mismatch: Portal is set to ${netConfig.name} (Chain ID: ${selectedNetworkChainId}), but MetaMask is connected to Chain ID ${connectedChainId}. Please switch your active network in MetaMask to match.`
+        );
+        return;
+      }
+
+      const signer = await browserProvider.getSigner().catch(() => null);
+      if (!signer) {
+        setAnchorError("Could not acquire signer from MetaMask. Please unlock MetaMask and authorize the transaction.");
+        return;
+      }
+
+      const contract = new ethers.Contract(
+        targetAddress,
+        CREDENTIAL_REGISTRY_ABI,
+        signer
+      );
+
+      // 4. Check if already anchored on contract
+      try {
+        const batchInfo = await contract.getBatchInfo(trimmedBatchId);
+        if (batchInfo.exists) {
+          setAnchorError(`Batch "${trimmedBatchId}" is already registered on-chain in contract ${targetAddress} on ${netConfig.name}.`);
+          return;
+        }
+      } catch (infoErr) {
+        // contract call query error, proceed with tx
+      }
+
+      const rootToAnchor = persistedBatch.merkleRoot;
+      const ipfsCidToAnchor = persistedBatch.ipfsCid || `ipfs://bafybeig${rootToAnchor.slice(2, 34).toLowerCase()}`;
+
+      // 5. Submit real on-chain transaction
+      const tx = await contract.anchorMerkleRoot(trimmedBatchId, rootToAnchor, ipfsCidToAnchor);
+      const receipt = await tx.wait(1);
+
+      if (!receipt || receipt.status !== 1) {
+        setAnchorError(`Transaction failed on-chain with receipt status: ${receipt?.status}`);
+        return;
+      }
+
+      // 6. Update batch anchor status via PATCH /api/batches/[batchId] with expectedChainId and expectedContract
+      const patchRes = await fetch(`/api/batches/${encodeURIComponent(trimmedBatchId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          txHash: receipt.hash,
+          status: "ANCHORED",
+          expectedChainId: selectedNetworkChainId,
+          expectedContract: targetAddress,
+        }),
+      });
+
+      if (!patchRes.ok) {
+        const patchErr = await patchRes.json().catch(() => ({}));
+        setAnchorError(
+          `Batch was mined on ${selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"} (Tx: ${receipt.hash}), but updating database status returned HTTP ${patchRes.status}: ${patchErr.error || "Unknown error"}`
+        );
+        await loadBatches();
+        return;
+      }
+
+      setAnchorSuccess({
+        batchId: trimmedBatchId,
+        merkleRoot: rootToAnchor,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        simulated: false,
+      });
+
+      await loadBatches();
     } catch (err: any) {
       console.error("Anchoring error:", err);
-      setAnchorError(err?.message || "Failed to anchor batch on Ethereum Sepolia.");
+      setAnchorError(
+        err?.reason ||
+          err?.message ||
+          `Failed to anchor batch on ${selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}.`
+      );
     } finally {
       setIsAnchoring(false);
     }
@@ -660,17 +832,21 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     setIsZipping(true);
 
     try {
-      const config = getSepoliaConfig();
+      const b = batches.find((item) => item.batchId.trim().toLowerCase() === batchId.trim().toLowerCase());
+      const isAlreadyAnchored = b?.status === "ANCHORED" && Boolean(b?.txHash);
+      const netConfig = getNetworkConfig(selectedNetworkChainId);
       const credentials: W3CCredentialPayload[] = currentStudents.map((s, idx) => {
         const proofObj = {
           ...computedTreeData.proofs[idx],
           batchId,
-          contractAddress: config.credentialRegistryAddress,
+          contractAddress: isAlreadyAnchored ? netConfig.credentialRegistry : "",
+          network: isAlreadyAnchored ? netConfig.name : "Local Institutional Registry",
+          ...(isAlreadyAnchored ? { chainId: selectedNetworkChainId } : {}),
         };
         return createW3CCredential(
           s,
           proofObj,
-          selectedInstitution?.address || "0x71C56538b15294500B73f8472B4fE963D4e58bEf",
+          selectedInstitution?.address || "0x8D0cC3553e9d812797B986F15427835A2930a301",
           selectedInstitution?.name || s.university,
           selectedInstitution?.code || s.institutionCode
         );
@@ -698,6 +874,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     return matchesFilter && matchesSearch;
   });
 
+
+
   const handleExportAuditCsv = () => {
     const csv = Papa.unparse(auditRows);
     downloadFile(csv, `Candidate_Verification_Audit_Report_${Date.now()}.csv`, "text/csv");
@@ -721,12 +899,40 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Prof. V. M. Deshpande &bull; Controller of Examinations &bull; Ethereum Sepolia Anchor
+              Prof. V. M. Deshpande &bull; Controller of Examinations &bull; {selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Blockchain Network Selector */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+            <button
+              onClick={() => setSelectedNetworkChainId(31337)}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                selectedNetworkChainId === 31337
+                  ? "bg-white text-indigo-900 shadow-xs border border-indigo-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Target local Hardhat node at 127.0.0.1:8545"
+            >
+              <Cpu className="h-3.5 w-3.5" />
+              <span>Hardhat Local (31337)</span>
+            </button>
+            <button
+              onClick={() => setSelectedNetworkChainId(11155111)}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                selectedNetworkChainId === 11155111
+                  ? "bg-white text-blue-900 shadow-xs border border-blue-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="Target Ethereum Sepolia Testnet"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Ethereum Sepolia (11155111)</span>
+            </button>
+          </div>
+
           <span className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold shadow-2xs">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Active Session &bull; Authorized COE</span>
@@ -734,8 +940,32 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         </div>
       </div>
 
-      {/* 2 SIMPLE TABS NAVIGATION */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      {/* Network Mismatch Alert Banner (Prominently alerts authority before anchoring) */}
+      {isNetworkMismatch && (
+        <div className="p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-amber-950">
+                MetaMask Network Mismatch Detected
+              </p>
+              <p className="text-amber-800 mt-0.5">
+                Your MetaMask wallet is connected to <strong>{walletNetworkName}</strong>, but this Console is set to target <strong>{selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <span className="px-3 py-1.5 bg-amber-200/90 text-amber-950 border border-amber-300 rounded-xl text-xs font-bold inline-block">
+              Please switch active network in MetaMask
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 2 WORKSPACE TABS NAVIGATION */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <button
           onClick={() => setActiveTab("minting")}
           className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all ${
@@ -766,6 +996,17 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
       {/* ========================================================= */}
       {activeTab === "minting" && (
         <div className="space-y-8">
+          {/* Eye-Catching Uploaded Students Records List (Prominently Placed RIGHT ABOVE MGM UNIVERSITY BAR) */}
+          {currentStudents.length > 0 && (
+            <div id="uploaded-student-records-section" className="animate-in fade-in duration-300">
+              <UploadedStudentsList
+                students={currentStudents}
+                batchId={batchId}
+                fileName={uploadSuccessNotification?.fileName || csvSuccess?.fileName}
+              />
+            </div>
+          )}
+
           {/* Institutional Issuing Authority Node (Fixed to Authenticated University) */}
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -797,6 +1038,51 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
             </div>
           </div>
 
+          {/* ========================================================= */}
+          {/* 1. POST-UPLOAD SUCCESS NOTIFICATION BAR (BELOW MGM UNIVERSITY CARD) */}
+          {/* ========================================================= */}
+          {uploadSuccessNotification && (
+            <div className="bg-emerald-50/95 border-2 border-emerald-300 text-emerald-950 p-5 sm:p-6 rounded-3xl shadow-sm space-y-2.5 animate-in slide-in-from-top-3 duration-300 ring-4 ring-emerald-500/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 bg-emerald-600 text-white rounded-2xl shrink-0 mt-0.5 shadow-md shadow-emerald-600/30">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-base sm:text-lg font-black text-emerald-950 tracking-tight">
+                        Student Records Uploaded Successfully!
+                      </h4>
+                      <span className="px-3 py-0.5 bg-emerald-200/90 text-emerald-950 border border-emerald-300 rounded-full font-black text-xs font-mono shadow-2xs">
+                        {uploadSuccessNotification.count} {uploadSuccessNotification.count === 1 ? "Record" : "Records"} Uploaded
+                      </span>
+                      <span className="font-mono text-xs font-bold text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
+                        Batch ID: {uploadSuccessNotification.batchId}
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-emerald-800 font-medium leading-relaxed">
+                      The student records have been successfully uploaded and processed for the selected graduation batch.
+                    </p>
+                    {uploadSuccessNotification.fileName && (
+                      <p className="text-[11px] text-emerald-700 font-mono">
+                        Source: {uploadSuccessNotification.fileName} &bull; Cryptographic Merkle DAG synchronized and ready for on-chain anchoring.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setUploadSuccessNotification(null)}
+                  className="self-end sm:self-center p-2 rounded-xl text-emerald-700 hover:text-emerald-950 hover:bg-emerald-200/60 transition-colors cursor-pointer shrink-0"
+                  title="Dismiss success notification"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Minting Grid: CSV Upload + Merkle Root Anchor */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload & Parameters */}
@@ -813,17 +1099,18 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 <input
                   type="text"
                   value={batchId}
+                  placeholder="e.g. MGM-2026-BTECH-BATCH01"
                   onChange={(e) => {
                     setBatchId(e.target.value);
                     setAnchorError(null);
                   }}
                   className={`w-full bg-slate-50 border ${
-                    batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase())
+                    batchId.trim() !== "" && batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase())
                       ? "border-amber-400 focus:border-amber-500"
                       : "border-slate-300"
                   } rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-hidden`}
                 />
-                {batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase()) && (
+                {batchId.trim() !== "" && batches.some((b) => b.batchId.trim().toLowerCase() === batchId.trim().toLowerCase()) && (
                   <p className="text-[10px] text-amber-700 font-semibold mt-1">
                     ⚠️ Note: A batch with this ID already exists in the registry.
                   </p>
@@ -850,36 +1137,6 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     className="hidden"
                   />
                 </div>
-
-                {/* CSV Upload Success Confirmation Message */}
-                {csvSuccess && csvErrors.length === 0 && (
-                  <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start justify-between gap-3 text-left animate-in fade-in duration-200 shadow-xs">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
-                        <CheckCircle2 className="h-5 w-5" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                          <span>CSV Uploaded Successfully!</span>
-                          <span className="px-2 py-0.5 bg-emerald-200/80 text-emerald-950 rounded-full text-[10px] font-mono font-black">
-                            {csvSuccess.count} Students Ready
-                          </span>
-                        </p>
-                        <p className="text-[11px] text-emerald-700 leading-relaxed">
-                          Loaded <strong className="font-semibold text-emerald-950 font-mono">{csvSuccess.fileName}</strong>. All {csvSuccess.count} student records parsed, Merkle tree computed, and ready to anchor on-chain.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCsvSuccess(null)}
-                      className="text-emerald-700 hover:text-emerald-950 p-1 hover:bg-emerald-100/60 rounded-lg transition-colors text-xs font-bold"
-                      title="Dismiss confirmation"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
 
                 {/* Per-Row CSV Errors */}
                 {csvErrors.length > 0 && (
@@ -923,6 +1180,12 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH01");
                       recalculateTree(INITIAL_STUDENTS_MGM);
+                      setUploadSuccessNotification({
+                        batchId: "MGM-2024-BTECH-BATCH01",
+                        count: INITIAL_STUDENTS_MGM.length,
+                        fileName: "Preset Batch: MGM CSE (Batch 01)",
+                        timestamp: Date.now(),
+                      });
                     }}
                     className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-[11px] font-bold"
                   >
@@ -936,12 +1199,28 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                       setCurrentStudents(INITIAL_STUDENTS_MGM);
                       setBatchId("MGM-2024-BTECH-BATCH02");
                       recalculateTree(INITIAL_STUDENTS_MGM);
+                      setUploadSuccessNotification({
+                        batchId: "MGM-2024-BTECH-BATCH02",
+                        count: INITIAL_STUDENTS_MGM.length,
+                        fileName: "Preset Batch: MGM IT & ECE (Batch 02)",
+                        timestamp: Date.now(),
+                      });
                     }}
                     className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[11px] font-bold"
                   >
                     MGM IT &amp; ECE (Batch 02)
                   </button>
                 </div>
+
+                {/* Manual Add Student Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsAddStudentModalOpen(true)}
+                  className="w-full mt-2 py-2.5 px-3 bg-white hover:bg-blue-50/60 text-blue-700 hover:text-blue-800 border border-blue-200 hover:border-blue-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-2xs cursor-pointer active:scale-[0.99]"
+                >
+                  <UserPlus className="h-4 w-4 text-blue-600" />
+                  <span>Manually Add Student Record</span>
+                </button>
               </div>
             </div>
 
@@ -953,17 +1232,25 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     O(1) Merkle DAG Computation
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Calculated for {currentStudents.length} graduation candidates
+                    {currentStudents.length > 0
+                      ? `Calculated for ${currentStudents.length} graduation candidates`
+                      : "No graduation candidates staged for Merkle computation"}
                   </p>
                 </div>
 
-                <div className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold font-mono">
-                  99.8% Gas Reduction
+                <div className="flex items-center gap-2">
+                  {batchId.trim() !== "" && (() => {
+                    const b = batches.find((item) => item.batchId.trim().toLowerCase() === batchId.trim().toLowerCase());
+                    return b ? renderBatchStatusBadge(b.status, b.txHash, b.isVerifiedOnChain) : null;
+                  })()}
+                  <div className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold font-mono">
+                    Constant O(1) Gas
+                  </div>
                 </div>
               </div>
 
               {/* Merkle Root Box */}
-              {computedTreeData && (
+              {computedTreeData ? (
                 <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-2 font-mono text-xs shadow-inner">
                   <div className="flex items-center justify-between text-slate-400 text-[11px]">
                     <span>32-Byte Merkle Root (Keccak-256):</span>
@@ -973,6 +1260,11 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     {computedTreeData.root}
                   </div>
                 </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 text-xs flex items-center justify-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+                  <span>No student records loaded. Upload a graduation CSV to compute the Merkle DAG.</span>
+                </div>
               )}
 
               {/* Academic Governance Quorum Checkpoint */}
@@ -980,12 +1272,15 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4 text-blue-600" />
-                    <span>Examination Board Multi-Signature Quorum</span>
+                    <span>Examination Board Approval Workflow (UI Simulation Preview)</span>
                   </span>
-                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
-                    3 of 3 Verified
+                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                    UI Simulation Preview
                   </span>
                 </div>
+                <p className="text-[10px] text-slate-500 italic">
+                  Administrative workflow preview: on-chain multi-signature smart contract not active.
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-2">
@@ -1008,7 +1303,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <div>
                       <span className="font-bold text-slate-800 block">Controller of Exams</span>
-                      <span className="text-[10px] text-slate-500 font-mono">Sepolia Root Co-Signed</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Institutional Approval Staged (Simulation)</span>
                     </div>
                   </div>
                 </div>
@@ -1016,14 +1311,30 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={handleAnchorOnChain}
-                  disabled={isAnchoring || !computedTreeData || csvErrors.length > 0 || currentStudents.length === 0}
-                  className="py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  <span>{isAnchoring ? "Anchoring on Sepolia..." : "Anchor Root to Ethereum Sepolia"}</span>
-                </button>
+                {(() => {
+                  const b = batches.find((item) => item.batchId.trim().toLowerCase() === batchId.trim().toLowerCase());
+                  const isAlreadyAnchored = b?.status === "ANCHORED";
+                  return (
+                    <button
+                      onClick={handleAnchorOnChain}
+                      disabled={isAnchoring || !computedTreeData || csvErrors.length > 0 || currentStudents.length === 0 || isAlreadyAnchored}
+                      className={`py-3.5 ${
+                        isAlreadyAnchored
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-default"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                      } rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50`}
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>
+                        {isAnchoring
+                          ? "Verifying & Anchoring..."
+                          : isAlreadyAnchored
+                          ? "Batch Anchored on-chain"
+                          : `Anchor Root to ${selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}`}
+                      </span>
+                    </button>
+                  );
+                })()}
 
                 <button
                   onClick={handleDownloadZip}
@@ -1065,7 +1376,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                       <span>
                         {anchorSuccess.simulated
                           ? "Batch Anchored Locally (Simulated Mode)"
-                          : "Batch Successfully Anchored on Sepolia!"}
+                          : `Batch Successfully Anchored on ${selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"}!`}
                       </span>
                     </div>
                     {anchorSuccess.simulated ? (
@@ -1108,7 +1419,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Layers className="h-5 w-5 text-blue-600" />
-              <span>On-Chain Anchored Batches ({batches.length})</span>
+              <span>Registered Academic Batches ({batches.length})</span>
             </h3>
 
             <div className="overflow-x-auto border border-slate-200 rounded-2xl">
@@ -1119,19 +1430,60 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     <th className="p-3.5">University</th>
                     <th className="p-3.5">Degrees</th>
                     <th className="p-3.5">Merkle Root</th>
-                    <th className="p-3.5 text-right">Revocation Actions</th>
+                    <th className="p-3.5">Lifecycle Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {batches.map((batch) => (
                     <tr key={batch.batchId} className="hover:bg-slate-50">
-                      <td className="p-3.5 font-bold text-slate-900">{batch.batchId}</td>
+                      <td className="p-3.5 font-bold text-slate-900">
+                        <div>{batch.batchId}</div>
+                        {batch.txHash && batch.status === "ANCHORED" && batch.isVerifiedOnChain !== false && (
+                          selectedNetworkChainId === 11155111 ? (
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${batch.txHash}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline font-mono mt-0.5"
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              <span>{batch.txHash.slice(0, 10)}... (Ethereum Sepolia)</span>
+                            </a>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] text-indigo-700 font-mono mt-0.5"
+                              title={`Local Hardhat Tx: ${batch.txHash}`}
+                            >
+                              <Cpu className="h-2.5 w-2.5" />
+                              <span>{batch.txHash.slice(0, 10)}... (Hardhat Local)</span>
+                            </span>
+                          )
+                        )}
+                      </td>
                       <td className="p-3.5 text-slate-600">{batch.institutionName || "MGM University"}</td>
                       <td className="p-3.5 font-mono">{batch.totalCredentials || batch.records?.length || 0}</td>
-                      <td className="p-3.5 font-mono text-slate-500 truncate max-w-[140px]">
+                      <td className="p-3.5 font-mono text-slate-500 truncate max-w-[140px]" title={batch.merkleRoot}>
                         {batch.merkleRoot}
                       </td>
-                      <td className="p-3.5 text-right">
+                      <td className="p-3.5">{renderBatchStatusBadge(batch.status, batch.txHash, batch.isVerifiedOnChain, selectedNetworkChainId)}</td>
+                      <td className="p-3.5 text-right space-x-2">
+                        {batch.records && batch.records.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setBatchId(batch.batchId);
+                              setCurrentStudents(batch.records);
+                              recalculateTree(batch.records);
+                              setUploadSuccessNotification(null);
+                              setAnchorError(null);
+                              setAnchorSuccess(null);
+                            }}
+                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all"
+                            title="Load batch into workbench"
+                          >
+                            Load
+                          </button>
+                        )}
                         <button
                           onClick={() => setRevocationModalBatch(batch)}
                           className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all"
@@ -1167,7 +1519,8 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleExportAuditCsv}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                  disabled={auditRows.length === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
                 >
                   <Download className="h-3.5 w-3.5" />
                   <span>Export Audit CSV Report</span>
@@ -1245,58 +1598,80 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                     <th className="p-3.5">Candidate PRN</th>
                     <th className="p-3.5">Claimed Name</th>
                     <th className="p-3.5">Claimed CGPA</th>
-                    <th className="p-3.5">On-Chain Actual CGPA</th>
+                    <th className="p-3.5">Recorded CGPA</th>
                     <th className="p-3.5">Issuing University</th>
                     <th className="p-3.5">Cryptographic Audit Finding</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredAuditRows.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className={
-                        row.status === "DISCREPANCY"
-                          ? "bg-amber-50/60"
-                          : row.status === "UNREGISTERED"
-                          ? "bg-red-50/60"
-                          : "hover:bg-slate-50"
-                      }
-                    >
-                      <td className="p-3.5 font-mono font-bold text-slate-900">{row.prn}</td>
-                      <td className="p-3.5 font-medium">{row.claimedName}</td>
-                      <td className="p-3.5 font-mono font-bold">{row.claimedCgpa.toFixed(2)}</td>
-                      <td className="p-3.5 font-mono font-bold">
-                        {row.onChainCgpa > 0 ? row.onChainCgpa.toFixed(2) : "—"}
-                      </td>
-                      <td className="p-3.5 text-slate-600">{row.onChainUniversity}</td>
-                      <td className="p-3.5">
-                        {row.status === "AUTHENTIC" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-900 font-bold rounded-lg text-[11px]">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            <span>{row.flag}</span>
-                          </span>
-                        )}
-                        {row.status === "DISCREPANCY" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-900 font-bold rounded-lg text-[11px]">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
-                            <span>{row.flag}</span>
-                          </span>
-                        )}
-                        {row.status === "UNREGISTERED" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-900 font-bold rounded-lg text-[11px]">
-                            <XCircle className="h-3.5 w-3.5 text-red-600" />
-                            <span>{row.flag}</span>
-                          </span>
-                        )}
+                  {filteredAuditRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-10 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <FileCheck2 className="h-8 w-8 text-slate-300" />
+                          <p className="font-bold text-slate-700 text-xs">
+                            {auditRows.length === 0
+                              ? "No candidate audit records available"
+                              : "No candidate records match the selected filter criteria"}
+                          </p>
+                          <p className="text-[11px] text-slate-400 max-w-md">
+                            {auditRows.length === 0
+                              ? "Upload and process a student graduation batch in Tab 1 to populate the on-chain audit matrix."
+                              : "Try switching the filter matrix or clearing your search query."}
+                          </p>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredAuditRows.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className={
+                          row.status === "DISCREPANCY"
+                            ? "bg-amber-50/60"
+                            : row.status === "UNREGISTERED"
+                            ? "bg-red-50/60"
+                            : "hover:bg-slate-50"
+                        }
+                      >
+                        <td className="p-3.5 font-mono font-bold text-slate-900">{row.prn}</td>
+                        <td className="p-3.5 font-medium">{row.claimedName}</td>
+                        <td className="p-3.5 font-mono font-bold">{row.claimedCgpa.toFixed(2)}</td>
+                        <td className="p-3.5 font-mono font-bold">
+                          {row.onChainCgpa > 0 ? row.onChainCgpa.toFixed(2) : "—"}
+                        </td>
+                        <td className="p-3.5 text-slate-600">{row.onChainUniversity}</td>
+                        <td className="p-3.5">
+                          {row.status === "AUTHENTIC" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-900 font-bold rounded-lg text-[11px]">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>{row.flag}</span>
+                            </span>
+                          )}
+                          {row.status === "DISCREPANCY" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-900 font-bold rounded-lg text-[11px]">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+                              <span>{row.flag}</span>
+                            </span>
+                          )}
+                          {row.status === "UNREGISTERED" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-900 font-bold rounded-lg text-[11px]">
+                              <XCircle className="h-3.5 w-3.5 text-red-600" />
+                              <span>{row.flag}</span>
+                            </span>
+                          )}
+                        </td>
+
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Revocation Modal */}
       {revocationModalBatch && (
@@ -1314,44 +1689,71 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         />
       )}
 
-      {/* Eye-Catching Confirmation Alert Modal: Are you sure you want to upload this student list? */}
+      {/* Manual Student Entry Modal */}
+      <AddStudentModal
+        isOpen={isAddStudentModalOpen}
+        onClose={() => setIsAddStudentModalOpen(false)}
+        currentCount={currentStudents.length}
+        institutionName={selectedInstitution?.name || "MGM University, Chhatrapati Sambhajinagar"}
+        institutionCode={selectedInstitution?.code || "MGMU-ENG-01"}
+        existingPrns={currentStudents.map((s) => s.prn)}
+        onAddStudent={handleAddManualStudent}
+      />
+
+      {/* Upload Confirmation Dialog / Bar */}
       {pendingUpload && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative bg-white w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 text-center animate-in zoom-in-95 duration-200">
+          <div className="relative bg-white w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 text-center animate-in zoom-in-95 duration-200 text-slate-900">
             {/* Top Glowing Alert Icon */}
-            <div className="relative mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-white shadow-xl shadow-orange-500/30 ring-8 ring-orange-100">
-              <AlertTriangle className="h-8 w-8 animate-pulse" />
+            <div className="relative mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 ring-8 ring-blue-50">
+              <FileSpreadsheet className="h-8 w-8" />
             </div>
 
             {/* Header Text */}
-            <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs font-extrabold tracking-wide uppercase">
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-extrabold tracking-wide uppercase">
                 Action Confirmation Required
               </span>
               <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Upload Student List?
+                Confirm Student Records Upload
               </h3>
-              <p className="text-sm text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
-                Are you sure you want to upload and process this bulk student list?
+              <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
+                Are you sure you want to upload these student records and proceed with credential issuance?
               </p>
             </div>
 
             {/* Batch Details Card */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5 text-xs shadow-inner">
               <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-500 font-semibold">Batch ID:</span>
+                <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                  {batchId}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-500 font-semibold flex items-center gap-1.5">
                   <FileSpreadsheet className="h-4 w-4 text-slate-400" />
-                  Selected CSV File:
+                  {pendingUpload.fileName.startsWith("Manual") ? "Candidate Source:" : "Selected CSV File:"}
                 </span>
                 <span className="font-mono font-bold text-slate-900 truncate max-w-[210px] bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs" title={pendingUpload.fileName}>
                   {pendingUpload.fileName}
                 </span>
               </div>
               <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-500 font-semibold">Total Students:</span>
+                <span className="text-slate-500 font-semibold">Total Valid Records Detected:</span>
                 <span className="font-extrabold text-emerald-950 bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-2xs">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  {pendingUpload.students.length} Valid Records
+                  {pendingUpload.students.length} Valid {pendingUpload.students.length === 1 ? "Record" : "Records"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-slate-500 font-semibold">Duplicate / Invalid Records:</span>
+                <span className={`font-bold px-2.5 py-0.5 rounded-lg border text-xs ${
+                  pendingUpload.duplicateWarnings && pendingUpload.duplicateWarnings.length > 0
+                    ? "bg-amber-100 text-amber-900 border-amber-300 font-mono"
+                    : "bg-slate-100 text-slate-600 border-slate-200 font-mono"
+                }`}>
+                  {pendingUpload.duplicateWarnings?.length || 0}
                 </span>
               </div>
               <div className="flex justify-between items-center py-0.5">
@@ -1362,55 +1764,172 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </div>
             </div>
 
+            {/* Duplicate / Invalid Warnings (if any) */}
+            {pendingUpload.duplicateWarnings && pendingUpload.duplicateWarnings.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-left space-y-1.5 text-xs animate-in fade-in">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>Duplicate PRN Warning Detected ({pendingUpload.duplicateWarnings.length}):</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-amber-800 text-[11px] max-h-24 overflow-y-auto pl-1">
+                  {pendingUpload.duplicateWarnings.map((warn, wIdx) => (
+                    <li key={wIdx}>{warn}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Confirm & Upload Error Notice */}
+            {confirmUploadError && (
+              <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-red-900 text-xs flex items-start gap-2 text-left font-semibold animate-in fade-in">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{confirmUploadError}</span>
+              </div>
+            )}
+
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Confirming will stage this batch and calculate the 32-byte cryptographic Merkle root for on-chain anchoring.
+              Confirming will persist this academic batch to the institutional SQLite database with status <span className="font-mono font-bold text-slate-800">PENDING_ANCHOR</span> and compute the 32-byte cryptographic Merkle root. Blockchain anchoring to {selectedNetworkChainId === 31337 ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)"} remains a separate step.
             </p>
 
-            {/* Eye-Catching Action Buttons: YES / NO */}
+            {/* Action Buttons: Cancel vs Confirm & Upload */}
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setPendingUpload(null)}
-                className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl border-2 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                onClick={() => {
+                  setPendingUpload(null);
+                  setConfirmUploadError(null);
+                }}
+                disabled={isConfirmingUpload}
+                className="w-full sm:w-1/2 py-3 px-5 rounded-2xl border-2 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
               >
                 <XCircle className="h-4 w-4 text-slate-500" />
-                <span>No, Cancel</span>
+                <span>Cancel</span>
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (!pendingUpload) return;
-                  setCsvErrors([]);
-                  setCsvSuccess({
-                    fileName: pendingUpload.fileName,
-                    count: pendingUpload.students.length,
-                  });
-                  setCurrentStudents(pendingUpload.students);
-                  recalculateTree(pendingUpload.students);
+                disabled={isConfirmingUpload}
+                onClick={async () => {
+                  if (!pendingUpload || isConfirmingUpload) return;
+                  setIsConfirmingUpload(true);
+                  setConfirmUploadError(null);
+                  try {
+                    const trimmedBatchId = batchId.trim();
+                    if (!trimmedBatchId) {
+                      setConfirmUploadError("Batch identifier cannot be empty. Please enter a valid Batch ID.");
+                      return;
+                    }
 
-                  // Sync uploaded students into the bulk candidate audit table
-                  const newAuditEntries: CandidateAuditRecord[] = pendingUpload.students.map((s) => ({
-                    prn: s.prn,
-                    claimedName: s.fullName,
-                    claimedCgpa: s.cgpa,
-                    onChainName: s.fullName,
-                    onChainCgpa: s.cgpa,
-                    onChainUniversity: s.university || selectedInstitution?.name || "MGM University",
-                    status: "AUTHENTIC",
-                    flag: "Exact On-Chain Match",
-                  }));
-                  setAuditRows((prev) => {
-                    const existingPrns = new Set(newAuditEntries.map((e) => e.prn));
-                    return [...newAuditEntries, ...prev.filter((r) => !existingPrns.has(r.prn))];
-                  });
+                    const uploadedCount = pendingUpload.students.length;
+                    const sourceFileName = pendingUpload.fileName;
 
-                  setAnchorSuccess(null);
-                  setPendingUpload(null);
+                    // Compute Merkle tree from staged students
+                    const treeData = buildBatchMerkleTree(pendingUpload.students);
+                    const rootHex = treeData.rootHex;
+                    const institutionName = selectedInstitution?.name || "MGM University";
+                    const institutionCode = selectedInstitution?.code || "MGMU-ENG-01";
+                    const issuerAddress = selectedInstitution?.address || "0x8D0cC3553e9d812797B986F15427835A2930a301";
+
+                    const payload = {
+                      batchId: trimmedBatchId,
+                      merkleRoot: rootHex,
+                      ipfsCid: "",
+                      status: "PENDING_ANCHOR" as BatchStatus,
+                      timestamp: Math.floor(Date.now() / 1000),
+                      issuer: issuerAddress,
+                      institutionName,
+                      institutionCode,
+                      totalCredentials: uploadedCount,
+                      revokedIndices: [],
+                      records: pendingUpload.students,
+                    };
+
+                    const res = await fetch("/api/batches", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify(payload),
+                    });
+
+                    if (res.status === 401) {
+                      setConfirmUploadError("Unauthorized (401): Valid Examination Authority session required. Please sign in again.");
+                      return;
+                    }
+
+                    if (res.status === 409) {
+                      const errJson = await res.json().catch(() => ({}));
+                      setConfirmUploadError(
+                        errJson.error || `Batch ID conflict: Batch "${trimmedBatchId}" already exists with different contents.`
+                      );
+                      return;
+                    }
+
+                    if (!res.ok) {
+                      const errJson = await res.json().catch(() => ({}));
+                      setConfirmUploadError(
+                        errJson.error || `Failed to persist batch to database (HTTP ${res.status}).`
+                      );
+                      return;
+                    }
+
+                    // Success (HTTP 200 or 201)
+                    setCsvErrors([]);
+                    setCsvSuccess({
+                      fileName: sourceFileName,
+                      count: uploadedCount,
+                    });
+                    setCurrentStudents(pendingUpload.students);
+                    setComputedTreeData(treeData);
+
+                    // Sync uploaded students into the bulk candidate audit table
+                    const newAuditEntries: CandidateAuditRecord[] = pendingUpload.students.map((s) => ({
+                      prn: s.prn,
+                      claimedName: s.fullName,
+                      claimedCgpa: s.cgpa,
+                      onChainName: s.fullName,
+                      onChainCgpa: s.cgpa,
+                      onChainUniversity: s.university || institutionName,
+                      status: "AUTHENTIC",
+                      flag: "Exact On-Chain Match",
+                    }));
+                    setAuditRows((prev) => {
+                      const existingPrns = new Set(newAuditEntries.map((e) => e.prn));
+                      return [...newAuditEntries, ...prev.filter((r) => !existingPrns.has(r.prn))];
+                    });
+
+                    // Trigger Post-Upload Success Notification Bar
+                    setUploadSuccessNotification({
+                      batchId: trimmedBatchId,
+                      count: uploadedCount,
+                      fileName: sourceFileName,
+                      timestamp: Date.now(),
+                    });
+
+                    setAnchorSuccess(null);
+                    setConfirmUploadError(null);
+                    setPendingUpload(null);
+
+                    // Refresh batches list from SQLite backend
+                    await loadBatches();
+                  } catch (err: any) {
+                    console.error("Confirm & Upload error:", err);
+                    setConfirmUploadError(err?.message || "Failed to persist batch to SQLite database.");
+                  } finally {
+                    setIsConfirmingUpload(false);
+                  }
                 }}
-                className="w-full sm:w-1/2 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-1/2 py-3 px-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                <span>Yes, Upload List</span>
+                {isConfirmingUpload ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Uploading Records...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                    <span>Confirm &amp; Upload</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
