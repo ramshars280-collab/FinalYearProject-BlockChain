@@ -55,14 +55,14 @@ export default function ZkProofModal({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-slate-900">
-                Selective Disclosure Credential
+                Selective CGPA Disclosure
               </h3>
               <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-[10px] font-black uppercase tracking-wider">
-                Experimental Prototype
+                Commitment Prototype
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              India DPDP Act (Zero-PII &amp; Selective Attribute Proofs)
+              India DPDP Act (Cryptographic Range Commitment Architecture)
             </p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function ZkProofModal({
         <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2 mb-4 leading-relaxed">
           <Info className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
           <div className="text-[11px] text-amber-900">
-            <strong>Educational Demonstration Notice:</strong> This feature demonstrates privacy-preserving selective disclosure and range assertions under DPDP Act principles using cryptographic salted commitments. It is an experimental educational prototype and does not implement a complete, production-trusted Groth16 zk-SNARK ceremony.
+            <strong>Selective CGPA Disclosure – Cryptographic Commitment Prototype:</strong> This feature demonstrates privacy-preserving selective attribute disclosure and range assertions (CGPA &ge; threshold) under India DPDP Act principles using salted Keccak-256 cryptographic commitments against authentic Merkle roots. It is an educational demonstration prototype illustrating Circom/Groth16 schema structures without a compiled ceremony .zkey or on-chain BN128 pairing verification.
           </div>
         </div>
 

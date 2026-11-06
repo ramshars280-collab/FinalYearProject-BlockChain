@@ -257,10 +257,13 @@ export default function DropzoneVerifier() {
         batchId: proofData.batchId,
         leafIndex: proofData.leafIndex,
         credential: data,
-        network: "Ethereum Sepolia (11155111)",
+        network: onChainCheck.networkName || (onChainCheck.onChainVerified ? "Ethereum Sepolia (11155111)" : "Institutional Database Registry (Off-Chain)"),
         verifiedAt: new Date().toLocaleTimeString(),
         issuingInstitutionName: onChainCheck.issuingInstitutionName || data.issuer?.name || subject.university,
         issuingInstitutionAddress: onChainCheck.issuingInstitutionAddress || data.issuer?.ethereumAddress,
+        verificationSource: onChainCheck.source,
+        isOnChainAnchored: Boolean(onChainCheck.onChainVerified),
+        batchStatus: onChainCheck.batchStatus,
       };
 
       setResult(res);
@@ -325,6 +328,10 @@ export default function DropzoneVerifier() {
 
       const isFullyValid = data.isValid !== false && !data.isRevoked && !data.tamperDetected;
 
+      const isOnChain = Boolean(data.on_chain_verification?.onChainVerified ?? data.onChainCheck?.onChainVerified);
+      const vSource = data.on_chain_verification?.source || data.onChainCheck?.source || "STORAGE_REGISTRY";
+      const resolvedNetwork = data.onChainCheck?.networkName || (isOnChain ? (vSource === "LOCAL_RPC" ? "Hardhat Local (31337)" : "Ethereum Sepolia (11155111)") : "Institutional Database Registry (Off-Chain)");
+
       const verificationResult: VerificationResult = {
         isValid: isFullyValid,
         isRevoked: Boolean(data.isRevoked),
@@ -341,11 +348,14 @@ export default function DropzoneVerifier() {
         batchId: data.pdfExtracted?.batchId,
         leafIndex: data.pdfExtracted?.leafIndex,
         credential: data.credential,
-        network: "Ethereum Sepolia (11155111)",
+        network: resolvedNetwork,
         verifiedAt: new Date().toLocaleTimeString(),
         issuingInstitutionName:
           data.credential?.issuer?.name || "MGM University, Chhatrapati Sambhajinagar",
         issuingInstitutionAddress: data.credential?.issuer?.ethereumAddress,
+        verificationSource: vSource,
+        isOnChainAnchored: isOnChain,
+        batchStatus: data.onChainCheck?.batchStatus,
       };
 
       if (!isMountedRef.current) return;
@@ -1174,30 +1184,53 @@ export default function DropzoneVerifier() {
               result.forensicScan?.status === "COMPLETED" &&
               (result.forensicScan?.verdict === "LOW ANOMALY" || result.forensicScan?.verdict === "AUTHENTIC");
 
+            const isOnChain = Boolean(result.isOnChainAnchored);
+            const isLocal = result.verificationSource === "LOCAL_RPC";
+            const chainLabel = isLocal ? "Hardhat Local (31337)" : "Sepolia (11155111)";
+
             let cardBg = "bg-emerald-50 border-emerald-300";
             let iconBg = "bg-emerald-600";
             let titleColor = "text-emerald-950";
-            let bannerTitle = "100% Authentic & Tamper-Proof";
-            let subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic Merkle proof, certified academic claims, and visual compression consistency checks all fully verified.`;
+            let bannerTitle = isOnChain
+              ? "100% Authentic & Tamper-Proof"
+              : result.batchStatus === "PENDING_ANCHOR"
+              ? "Authentic University Record • Blockchain Anchoring Pending"
+              : "Authentic University Record • Blockchain Unconfirmed";
+
+            let subDescription = isOnChain
+              ? `Merkle root verified on ${chainLabel} at ${result.verifiedAt}. Cryptographic Merkle proof, certified academic claims, and visual compression consistency checks all fully verified.`
+              : `Verified against University Examination Authority database records at ${result.verifiedAt}. Cryptographic claims match certified student records; blockchain network anchor is unconfirmed off-chain.`;
 
             if (isVisualAnomaly) {
               cardBg = "bg-amber-50/70 border-amber-300";
               iconBg = "bg-amber-600";
               titleColor = "text-amber-950";
-              bannerTitle = "Authentic Blockchain Record • Visual Anomaly Advisory";
-              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match an authentic registered credential, but visual analysis detected localized compression discrepancies. Inspect the thermal heatmap below.`;
+              bannerTitle = isOnChain
+                ? "Authentic Blockchain Record • Visual Anomaly Advisory"
+                : "Authentic University Record • Visual Anomaly Advisory";
+              subDescription = isOnChain
+                ? `Merkle root verified on ${chainLabel} at ${result.verifiedAt}. Cryptographic claims match an authentic registered credential, but visual analysis detected localized compression discrepancies. Inspect the thermal heatmap below.`
+                : `Verified against institutional records at ${result.verifiedAt}. Cryptographic claims match authentic university registry, but visual analysis detected localized compression discrepancies.`;
             } else if (isVisualPending) {
               cardBg = "bg-sky-50/70 border-sky-300";
               iconBg = "bg-sky-600";
               titleColor = "text-sky-950";
-              bannerTitle = "Cryptographically Verified On-Chain • Visual Analysis Pending";
-              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Visual forensic analysis has been deferred to background runner or is currently queued.`;
+              bannerTitle = isOnChain
+                ? "Cryptographically Verified On-Chain • Visual Analysis Pending"
+                : "Authentic University Record • Visual Analysis Pending";
+              subDescription = isOnChain
+                ? `Merkle root verified on ${chainLabel} at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Visual forensic analysis has been deferred to background runner or is currently queued.`
+                : `Verified against institutional records at ${result.verifiedAt}. Cryptographic claims match the authentic student record. Visual forensic analysis has been deferred to background runner or is currently queued.`;
             } else if (isVisualOffline) {
               cardBg = "bg-slate-50 border-slate-300";
               iconBg = "bg-slate-600";
               titleColor = "text-slate-950";
-              bannerTitle = "Cryptographically Verified On-Chain • Advisory Visual Scan Offline";
-              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Advisory visual forensic scanning was unavailable or timed out.`;
+              bannerTitle = isOnChain
+                ? "Cryptographically Verified On-Chain • Advisory Visual Scan Offline"
+                : "Authentic University Record • Advisory Visual Scan Offline";
+              subDescription = isOnChain
+                ? `Merkle root verified on ${chainLabel} at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Advisory visual forensic scanning was unavailable or timed out.`
+                : `Verified against institutional records at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Advisory visual forensic scanning was unavailable or timed out.`;
             }
 
             return (
@@ -1216,9 +1249,15 @@ export default function DropzoneVerifier() {
                         <h4 className={`text-lg font-extrabold ${titleColor}`}>
                           {bannerTitle}
                         </h4>
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
-                          Blockchain: Verified On-Chain
-                        </span>
+                        {isOnChain ? (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                            {isLocal ? "Blockchain: Verified On-Chain (Hardhat Local)" : "Blockchain: Verified On-Chain (Sepolia)"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                            Consensus: Database Registry (Off-Chain)
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
                           Claims: Certified Match
                         </span>
@@ -1261,7 +1300,7 @@ export default function DropzoneVerifier() {
                     <span>{copiedLink ? "Link Copied!" : "Share 1-Click Link"}</span>
                   </button>
                   <div className="text-xs text-emerald-900 font-mono bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shrink-0 font-bold">
-                    Leaf Index: #{result.leafIndex ?? 0} &bull; Sepolia
+                    Leaf Index: #{result.leafIndex ?? 0} &bull; {isOnChain ? (isLocal ? "Hardhat" : "Sepolia") : "Database"}
                   </div>
                 </div>
               </div>

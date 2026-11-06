@@ -1,17 +1,21 @@
 import { ethers } from "ethers";
 
 /**
- * Experimental Educational Prototype: Groth16 zk-SNARK Data Structure & Verification Model
+ * Selective CGPA Disclosure – Cryptographic Commitment Prototype
+ * Reference Architecture: Circom 2.0 / Groth16 zk-SNARK
  * 
- * IMPORTANT ARCHITECTURAL DISCLOSURE:
+ * ARCHITECTURAL TRANSPARENCY & CRYPTOGRAPHIC DISCLOSURE:
  * This module is an educational demonstration prototype illustrating the schema,
- * proof point representation (pi_a, pi_b, pi_c over BN128), and range assertion
- * interfaces of a Groth16 zero-knowledge proof.
+ * proof point data structures (pi_a, pi_b, pi_c), and range assertion interfaces
+ * modeled after a Circom/Groth16 zero-knowledge proof architecture.
  * 
- * It does NOT implement a complete, production-trusted Groth16 proving and verification
- * pipeline (e.g. no trusted ceremony .zkey or elliptic curve pairing evaluation).
- * Proof points are deterministically modeled for academic demonstration and W3C
- * credential schema integration testing.
+ * Cryptographic Reality:
+ * In this operational prototype, proof points are derived deterministically using
+ * salted Keccak-256 cryptographic commitments over public assertion signals.
+ * It does NOT execute a compiled Circom arithmetic circuit, does NOT evaluate
+ * elliptic curve pairings on BN128, and does NOT utilize trusted ceremony .zkey artifacts.
+ * Genuine production zk-SNARK verification requires compiling circuits/cgpa_proof.circom
+ * through a multi-party computation (MPC) ceremony.
  */
 
 export interface Groth16ProofPoints {
@@ -119,7 +123,7 @@ export function verifyZkSnarkGroth16Proof(
 
     return {
       isValid: true,
-      message: `[Experimental Prototype] Demonstration Groth16 zk-SNARK payload verified: CGPA >= ${payload.publicSignals.thresholdCgpaScaled / 100} (Simulated BN128 Structure).`,
+      message: `[Prototype] Selective CGPA disclosure commitment verified: CGPA >= ${payload.publicSignals.thresholdCgpaScaled / 100} (Cryptographic Commitment Structure).`,
     };
   } catch (err: any) {
     return { isValid: false, message: `Groth16 verification error: ${err?.message || "Invalid ZK proof format"}` };

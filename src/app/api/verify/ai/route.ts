@@ -153,10 +153,16 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_INFERENCE_TIMEOUT_MS);
 
+    const reqHeaders: Record<string, string> = {};
+    if (process.env.AI_FORENSIC_SECRET?.trim()) {
+      reqHeaders["X-Forensic-Secret"] = process.env.AI_FORENSIC_SECRET.trim();
+    }
+
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         body: proxyFormData,
+        headers: reqHeaders,
         signal: controller.signal,
       });
 

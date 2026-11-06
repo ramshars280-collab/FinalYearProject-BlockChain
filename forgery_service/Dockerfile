@@ -6,7 +6,7 @@ WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PORT=8000
+ENV PORT=7860
 
 # Install runtime system libraries for OpenCV image handling and container health monitoring
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,10 +29,11 @@ COPY --chown=appuser:appuser . /app
 
 USER appuser
 
+EXPOSE 7860
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://127.0.0.1:${PORT:-8000}/health || exit 1
+  CMD curl -f http://127.0.0.1:${PORT:-7860}/health || exit 1
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
 

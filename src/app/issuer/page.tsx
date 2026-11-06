@@ -812,13 +812,53 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         return;
       }
 
+      const signerAddress = await signer.getAddress().catch(() => null);
+      if (!signerAddress) {
+        setAnchorError("Could not determine connected wallet address from MetaMask. Please verify your wallet connection.");
+        return;
+      }
+
+      // Production network policy enforcement: Hardhat Local is strictly disabled in production
+      if (process.env.NODE_ENV === "production" && connectedChainId !== 11155111) {
+        setAnchorError(
+          `Production Network Policy: Batch anchoring is strictly restricted to Ethereum Sepolia (Chain ID 11155111). Connected Chain ID ${connectedChainId} is not permitted.`
+        );
+        return;
+      }
+
       const contract = new ethers.Contract(
         targetAddress,
         CREDENTIAL_REGISTRY_ABI,
         signer
       );
 
-      // 4. Check if already anchored on contract
+      // 4. Pre-flight Issuer Authorization Check (Read-Only)
+      try {
+        const [isAuthorized, contractOwner] = await Promise.all([
+          contract.authorizedIssuers(signerAddress).catch(() => false),
+          contract.owner().catch(() => ethers.ZeroAddress),
+        ]);
+
+        const hasIssuerRole = Boolean(isAuthorized) || (
+          contractOwner &&
+          contractOwner !== ethers.ZeroAddress &&
+          contractOwner.toLowerCase() === signerAddress.toLowerCase()
+        );
+
+        if (!hasIssuerRole) {
+          setAnchorError(
+            `Unauthorized Issuer Wallet: Connected address ${signerAddress} is not registered as an authorized issuer or contract owner on CredentialRegistry (${targetAddress}) on ${netConfig.name}. Anchoring blocked to prevent transaction revert.`
+          );
+          return;
+        }
+      } catch (authErr: any) {
+        setAnchorError(
+          `Issuer Pre-flight Verification Failed: Unable to verify issuer authorization on ${netConfig.name} due to an RPC or contract read error (${authErr?.message || "Unknown error"}). Anchoring transaction blocked.`
+        );
+        return;
+      }
+
+      // 5. Check if already anchored on contract
       try {
         const batchInfo = await contract.getBatchInfo(trimmedBatchId);
         if (batchInfo.exists) {

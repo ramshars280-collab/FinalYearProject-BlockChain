@@ -31,6 +31,7 @@ import {
   Share2,
   Check,
   Building2,
+  Info,
 } from "lucide-react";
 import QRCode from "qrcode";
 import {
@@ -463,7 +464,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
       saveIdentityBinding({ prn: prn.toUpperCase(), walletAddress: currentAddress, signature, timestamp });
       setBoundRecord({ prn: prn.toUpperCase(), walletAddress: currentAddress, signature, timestamp });
       setWalletAddress(currentAddress);
-      setBindingSuccess(`Successfully bound ${prn.toUpperCase()} to authorized MetaMask wallet`);
+      setBindingSuccess(`Successfully bound ${prn.toUpperCase()} via client-side EIP-712 signature (saved locally in browser storage)`);
     } catch (err: any) {
       console.error("Binding error:", err);
       setBindingError(err.message || "Failed to sign identity challenge.");
@@ -564,10 +565,10 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
               </div>
               <div>
                 <h2 className="text-base font-bold text-slate-900">
-                  EIP-712 Decentralized Identity Binding
+                  Client-Side EIP-712 Wallet Identity Binding
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Bind your MetaMask wallet address cryptographically to your Permanent Registration Number (PRN).
+                  Cryptographically sign an off-chain EIP-712 challenge linking your MetaMask wallet to your PRN (stored locally in browser storage).
                 </p>
               </div>
             </div>
@@ -575,7 +576,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
             {boundRecord ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Wallet Bound</span>
+                <span>Locally Bound (EIP-712)</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">
@@ -583,6 +584,14 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                 <span>Unbound</span>
               </span>
             )}
+          </div>
+
+          {/* Local Storage Disclosure Notice */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-600 text-xs flex items-start gap-2.5 leading-relaxed">
+            <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-slate-600">
+              <strong className="text-slate-800">Client-Side Storage Transparency:</strong> This identity binding is created by signing an off-chain EIP-712 challenge in MetaMask and is stored exclusively in your local browser storage (localStorage). It is <strong>not</strong> registered as an on-chain transaction in the smart contract registry and is <strong>not</strong> persisted to a central database, preserving your on-chain wallet privacy. If you clear your browser cookies or storage, this local binding will need to be re-signed.
+            </div>
           </div>
 
           {boundRecord ? (
@@ -595,8 +604,8 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Wallet Identity Binding:</span>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>MetaMask Connected &bull; Cryptographically Bound</span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span>Client-Side Bound &bull; EIP-712 Signature Saved Locally</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -613,13 +622,13 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                 className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-slate-300"
               >
                 <KeyRound className="h-4 w-4 text-blue-600" />
-                <span>{isBinding ? "Signing..." : "Re-bind / Update MetaMask Identity"}</span>
+                <span>{isBinding ? "Signing..." : "Re-bind / Update Local Identity Signature"}</span>
               </button>
             </div>
           ) : (
             <div className="space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                By signing the typed EIP-712 data challenge in MetaMask, you generate a mathematical proof that binds your wallet to your student ID without spending any gas.
+                By signing the typed EIP-712 data challenge in MetaMask, you generate a verifiable cryptographic signature linking your wallet to your student ID without spending any gas. The signature is saved locally in your browser storage.
               </p>
 
               <button
@@ -628,7 +637,7 @@ function StudentVaultWorkspace({ prn, logout }: { prn: string; logout: () => voi
                 className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-101 active:scale-99 disabled:opacity-50"
               >
                 <KeyRound className="h-4 w-4" />
-                <span>{isBinding ? "Requesting Signature..." : "Sign EIP-712 Identity Challenge"}</span>
+                <span>{isBinding ? "Requesting Signature..." : "Sign Client-Side EIP-712 Challenge"}</span>
               </button>
             </div>
           )}

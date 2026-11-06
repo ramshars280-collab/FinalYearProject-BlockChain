@@ -67,7 +67,31 @@ export async function GET(
       );
     }
 
-    // 1. Authoritative Database Lookup
+    // 1. Mandatory Server-Side Authentication (Fix VULN-01)
+    const sessionCookie = request.cookies.get('auth_session')?.value;
+    const user = sessionCookie ? verifySessionToken(sessionCookie) : null;
+
+    if (!user) {
+      logger.warn('Unauthenticated attempt to download certificate PDF', {
+        requestId,
+        route: `/api/certificates/${rawBatchId}/${leafIndex}/pdf`,
+        method: 'GET',
+        statusCode: 401,
+        durationMs: Date.now() - startTime,
+        details: { clientIp },
+      });
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Unauthorized: Authentication required to download official certificate PDFs.',
+          requestId,
+        },
+        { status: 401 },
+        requestId
+      );
+    }
+
+    // 2. Authoritative Database Lookup
     const batch = await getBatchByIdDb(rawBatchId);
     if (!batch) {
       return jsonResponse(
@@ -98,11 +122,19 @@ export async function GET(
       );
     }
 
-    // 2. Authorization / Privacy Check
-    const sessionCookie = request.cookies.get('auth_session')?.value;
-    const user = sessionCookie ? verifySessionToken(sessionCookie) : null;
-
-    if (user?.role === 'STUDENT' && user.prn) {
+    // 3. Role-Based Access Control & Privacy Enforcement
+    if (user.role === 'STUDENT') {
+      if (!user.prn) {
+        return jsonResponse(
+          {
+            success: false,
+            error: 'Forbidden: Student session missing valid PRN.',
+            requestId,
+          },
+          { status: 403 },
+          requestId
+        );
+      }
       const studentPrn = user.prn.trim().toUpperCase();
       const recordPrn = student.prn.trim().toUpperCase();
       if (studentPrn !== recordPrn) {
@@ -124,7 +156,7 @@ export async function GET(
           requestId
         );
       }
-    } else if (user?.role === 'EXAM_ADMIN') {
+    } else if (user.role === 'EXAM_ADMIN' || (user as any).role === 'ISSUER') {
       const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
       const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
       const batchInstCode = (batch.institutionCode || '').trim().toUpperCase();
@@ -141,7 +173,7 @@ export async function GET(
           method: 'GET',
           statusCode: 403,
           durationMs: Date.now() - startTime,
-          details: { adminStaffId: user.staffId, batchId: rawBatchId, batchInstCode },
+          details: { adminStaffId: (user as any).staffId, batchId: rawBatchId, batchInstCode },
         });
         return jsonResponse(
           {
@@ -153,6 +185,24 @@ export async function GET(
           requestId
         );
       }
+    } else {
+      logger.warn('Unsupported role attempted certificate PDF download', {
+        requestId,
+        route: `/api/certificates/${rawBatchId}/${leafIndex}/pdf`,
+        method: 'GET',
+        statusCode: 403,
+        durationMs: Date.now() - startTime,
+        details: { role: (user as any).role },
+      });
+      return jsonResponse(
+        {
+          success: false,
+          error: 'Forbidden: Insufficient privileges to download certificate PDF.',
+          requestId,
+        },
+        { status: 403 },
+        requestId
+      );
     }
 
     // 3. Resolve Revocation & Demo Status

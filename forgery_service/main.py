@@ -1,11 +1,12 @@
 import os
 import asyncio
 import gc
+import hmac
 import threading
 import concurrent.futures
 from typing import Dict, Any
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, status
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -254,15 +255,41 @@ async def health_check() -> Dict[str, Any]:
 
 
 @app.post("/detect-tampering", status_code=status.HTTP_200_OK)
-async def detect_tampering(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def detect_tampering(request: Request, file: UploadFile = File(...)) -> Dict[str, Any]:
     """
     Analyzes an academic document PDF, PNG, or JPEG for visual tampering:
-    1. Validates payload size (<= 10MB) and file extension.
-    2. Bounded admission: limits execution to strictly 1 physical thread on a dedicated executor.
-    3. Handles timeouts (504) and client cancellation without releasing the concurrency permit early.
-    4. Automatically cleans up temporary memory buffers and runs garbage collection in finally block.
-    5. Returns probabilistic tampering confidence, verdict, and JET thermal heatmap overlay.
+    1. Validates shared authentication secret if configured (AI_FORENSIC_SECRET).
+    2. Validates payload size (<= 10MB) and file extension.
+    3. Bounded admission: limits execution to strictly 1 physical thread on a dedicated executor.
+    4. Handles timeouts (504) and client cancellation without releasing the concurrency permit early.
+    5. Automatically cleans up temporary memory buffers and runs garbage collection in finally block.
+    6. Returns probabilistic tampering confidence, verdict, and JET thermal heatmap overlay.
     """
+    # 0. Shared microservice authentication check
+    is_production = os.getenv("NODE_ENV", "").strip().lower() == "production" or os.getenv("ENVIRONMENT", "").strip().lower() == "production"
+    expected_secret = os.getenv("AI_FORENSIC_SECRET", "").strip()
+
+    if is_production and not expected_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server Misconfiguration: AI_FORENSIC_SECRET is strictly required in production mode.",
+        )
+
+    if expected_secret:
+        auth_header = request.headers.get("Authorization", "").strip()
+        secret_header = request.headers.get("X-Forensic-Secret", "").strip()
+        provided = ""
+        if auth_header.startswith("Bearer "):
+            provided = auth_header[7:].strip()
+        elif secret_header:
+            provided = secret_header
+
+        if not provided or not hmac.compare_digest(provided, expected_secret):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Missing or invalid forensic authentication secret.",
+            )
+
     filename = file.filename or "unknown_document.pdf"
     _, ext = os.path.splitext(filename.lower())
 
@@ -332,5 +359,6 @@ async def detect_tampering(file: UploadFile = File(...)) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8000"))
+    # Support Hugging Face Spaces default port 7860 or standard local/microservice port 8000
+    port = int(os.getenv("PORT", "7860" if os.getenv("SPACE_ID") else "8000"))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False, workers=1)

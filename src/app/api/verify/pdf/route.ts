@@ -82,9 +82,15 @@ async function callAIForensicMicroservice(
     const blob = new Blob([Buffer.from(fileBuffer)], { type: "application/pdf" });
     formData.append("file", blob, fileName);
 
+    const reqHeaders: Record<string, string> = {};
+    if (process.env.AI_FORENSIC_SECRET?.trim()) {
+      reqHeaders["X-Forensic-Secret"] = process.env.AI_FORENSIC_SECRET.trim();
+    }
+
     const res = await fetch(endpoint, {
       method: "POST",
       body: formData,
+      headers: reqHeaders,
       signal: controller.signal,
     });
 
@@ -849,7 +855,7 @@ export async function POST(request: NextRequest) {
         ? "Hardhat Local (31337)"
         : onChainResult.source === "SEPOLIA_RPC"
         ? "Ethereum Sepolia (11155111)"
-        : "institutional registry";
+        : "institutional database registry (off-chain)";
 
     // Truthfully distinguish forensic states: LOW ANOMALY, SUSPICIOUS, HIGH ANOMALY, UNAVAILABLE
     const normalizedVerdict =
@@ -871,14 +877,18 @@ export async function POST(request: NextRequest) {
       } else if (normalizedVerdict === "SUSPICIOUS") {
         forensicSummary = `Note: ELA forensic scan flagged moderate compression variance (SUSPICIOUS, anomaly score: ${forensic.ai_confidence_score}); cryptographic proof remains authoritative.`;
       } else if (normalizedVerdict === "HIGH ANOMALY" || isTamperedByScore) {
-        forensicSummary = `Advisory: ELA forensic scan flagged elevated compression anomalies (HIGH ANOMALY, anomaly score: ${forensic.ai_confidence_score}); on-chain cryptographic anchor remains authoritative.`;
+        forensicSummary = `Advisory: ELA forensic scan flagged elevated compression anomalies (HIGH ANOMALY, anomaly score: ${forensic.ai_confidence_score}); ${onChainResult.onChainVerified ? "on-chain cryptographic anchor" : "institutional record"} remains authoritative.`;
       } else {
         forensicSummary = `ELA forensic verdict: ${normalizedVerdict}.`;
       }
     } else if (forensic.status === "QUEUED") {
-      forensicSummary = "AI forensic analysis deferred to independent forensic runner; verified via on-chain Merkle root.";
+      forensicSummary = onChainResult.onChainVerified
+        ? "AI forensic analysis deferred to independent forensic runner; verified via on-chain Merkle root."
+        : "AI forensic analysis deferred to independent forensic runner; verified via institutional registry.";
     } else {
-      forensicSummary = `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via on-chain Merkle root.`;
+      forensicSummary = onChainResult.onChainVerified
+        ? `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via on-chain Merkle root.`
+        : `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via institutional registry.`;
     }
 
     const isVisualAnomaly =
@@ -891,7 +901,9 @@ export async function POST(request: NextRequest) {
       ? "VISUAL_ANOMALY_REVIEW"
       : "AUTHENTIC";
 
-    const diagnosticMessage = `Fully Verified: Cryptographic Merkle proof matches ${networkName}, claims certified, and credential active. ${forensicSummary}`;
+    const diagnosticMessage = onChainResult.onChainVerified
+      ? `Fully Verified: Cryptographic Merkle proof matches ${networkName}, claims certified, and credential active. ${forensicSummary}`
+      : `Verified via Database Registry: Merkle proof matches institutional records (blockchain unconfirmed / offline), claims certified. ${forensicSummary}`;
 
     return jsonResponse({
       success: true,
@@ -907,8 +919,9 @@ export async function POST(request: NextRequest) {
       credential,
       on_chain_verification: {
         source: onChainResult.source,
+        onChainVerified: onChainResult.onChainVerified,
         rootHash: onChainResult.rootHash,
-        contractAddress: config.credentialRegistryAddress,
+        contractAddress: onChainResult.onChainVerified ? config.credentialRegistryAddress : undefined,
         isValid: onChainResult.isValid,
         isRevoked: onChainResult.isRevoked,
         issuingInstitutionName: onChainResult.issuingInstitutionName,

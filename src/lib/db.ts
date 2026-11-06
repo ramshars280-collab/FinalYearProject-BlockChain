@@ -109,14 +109,20 @@ export async function initializeDatabaseSchema(db?: IDatabaseAdapter): Promise<v
 
   await adapter.execute(`CREATE INDEX IF NOT EXISTS idx_student_accounts_status ON student_accounts(status);`);
 
-  // Ensure default demo batches exist if database is completely empty
+  // Ensure default demo batches exist if database is completely empty (subject to production seeding policy)
   const countRow = await adapter.get<{ count: number }>('SELECT COUNT(*) as count FROM batches');
   const count = Number(countRow?.count || 0);
 
   if (count === 0) {
-    const defaultBatches = initializeDefaultBatches();
-    for (const b of defaultBatches) {
-      await saveBatchInternal(adapter, b);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const allowAutoSeed = process.env.ALLOW_AUTO_SEED === 'true';
+
+    // In production, automatic seeding is disabled by default to prevent silently masking unmounted storage
+    if (!isProduction || allowAutoSeed) {
+      const defaultBatches = initializeDefaultBatches();
+      for (const b of defaultBatches) {
+        await saveBatchInternal(adapter, b);
+      }
     }
   } else {
     // Backfill credentials and student accounts if missing

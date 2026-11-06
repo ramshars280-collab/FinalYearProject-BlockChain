@@ -21,6 +21,8 @@ export const IDENTITY_REGISTRY_ABI = [
 export const CREDENTIAL_REGISTRY_ABI = [
   "function registerInstitution(address issuerAddress, string calldata name) external",
   "function institutionNames(address) external view returns (string memory)",
+  "function authorizedIssuers(address) external view returns (bool)",
+  "function owner() external view returns (address)",
   "function batchToIssuerAddress(bytes32) external view returns (address)",
   "function anchorMerkleRoot(string calldata batchId, bytes32 merkleRoot, string calldata ipfsCid) external",
   "function revokeCredential(string calldata batchId, uint256 leafIndex) external",
@@ -105,7 +107,21 @@ export async function verifyCredentialOnChain(
 }> {
   // Determine target chain
   let targetChainId: SupportedChainId = 11155111;
-  if (preferredChainId && isSupportedChainId(preferredChainId)) {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction) {
+    if (preferredChainId && preferredChainId === 31337) {
+      return {
+        isValid: false,
+        isRevoked: false,
+        rootHash: "",
+        source: "STORAGE_REGISTRY",
+        onChainVerified: false,
+        onChainError: "Hardhat Localhost (31337) is strictly disabled in production environment.",
+      };
+    }
+    targetChainId = 11155111;
+  } else if (preferredChainId && isSupportedChainId(preferredChainId)) {
     targetChainId = preferredChainId;
   } else if (contractAddress) {
     const cleanAddr = contractAddress.trim().toLowerCase();
@@ -594,8 +610,16 @@ export async function verifyBatchAnchorEvidence(
     };
   }
 
+  const isProduction = process.env.NODE_ENV === "production";
+
   // Case A: Explicit chain ID requested -> strictly check that chain ID only (no fallback)
   if (expectedChainId) {
+    if (isProduction && expectedChainId === 31337) {
+      return {
+        isVerifiedOnChain: false,
+        reason: "Hardhat Localhost (31337) is strictly disabled in production environment.",
+      };
+    }
     if (!isSupportedChainId(expectedChainId)) {
       return {
         isVerifiedOnChain: false,
@@ -612,7 +636,33 @@ export async function verifyBatchAnchorEvidence(
     );
   }
 
-  // Case B: If contract address matches a specific network, check that network
+  // Case B: Production Environment -> Strictly isolate to Ethereum Sepolia (11155111).
+  // Production must NEVER fall back to Hardhat Localhost (31337).
+  if (isProduction) {
+    if (customContractAddress) {
+      const cleanAddr = customContractAddress.trim().toLowerCase();
+      if (
+        cleanAddr === deployedAddressesLocal.credentialRegistry.toLowerCase() ||
+        cleanAddr === deployedAddressesLocal.identityRegistry.toLowerCase()
+      ) {
+        return {
+          isVerifiedOnChain: false,
+          reason: "Hardhat Localhost contract address is strictly prohibited in production environment.",
+        };
+      }
+    }
+    const targetContract = customContractAddress || deployedAddressesSepolia.credentialRegistry;
+    return verifyEvidenceOnSpecificChain(
+      batchId,
+      expectedMerkleRoot,
+      cleanTx,
+      11155111,
+      targetContract,
+      customProvider
+    );
+  }
+
+  // Case C: Development / Non-production (preserve existing behavior for local testing)
   if (customContractAddress) {
     const cleanAddr = customContractAddress.trim().toLowerCase();
     if (cleanAddr === deployedAddressesLocal.credentialRegistry.toLowerCase()) {
@@ -623,8 +673,7 @@ export async function verifyBatchAnchorEvidence(
     }
   }
 
-  // Case C: Unspecified chain ID (e.g. passive batch list verification)
-  // Check active configured chain first
+  // Unspecified chain ID in development/test
   const activeChainId: SupportedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID) === 31337 ? 31337 : 11155111;
   const primaryResult = await verifyEvidenceOnSpecificChain(
     batchId,
@@ -639,8 +688,8 @@ export async function verifyBatchAnchorEvidence(
     return primaryResult;
   }
 
-  // If primary check didn't find receipt and caller didn't supply customProvider, check secondary network
-  if (!customProvider) {
+  // If primary check didn't find receipt and caller didn't supply customProvider, check secondary network in dev only
+  if (!customProvider && !isProduction) {
     const secondaryChainId: SupportedChainId = activeChainId === 31337 ? 11155111 : 31337;
     try {
       const secondaryResult = await verifyEvidenceOnSpecificChain(
