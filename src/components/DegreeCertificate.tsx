@@ -182,7 +182,7 @@ export default function DegreeCertificate({
       {/* Top Action Bar with Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs">
         {/* View Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
             onClick={() => setActiveViewTab("certificate")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -309,7 +309,7 @@ export default function DegreeCertificate({
               <div className="mt-1 sm:mt-2">
                 <h1
                   style={{ fontFamily: "'Oswald', 'Bahnschrift', 'Arial Narrow', sans-serif" }}
-                  className="text-2xl sm:text-4xl md:text-5xl lg:text-[40pt] font-semibold text-[#22211f] tracking-[2.5px] uppercase leading-tight whitespace-nowrap"
+                  className="text-xl sm:text-3xl md:text-4xl lg:text-[40pt] font-semibold text-[#22211f] tracking-[2px] uppercase leading-tight"
                 >
                   GRADUATION CERTIFICATE
                 </h1>
@@ -339,7 +339,7 @@ export default function DegreeCertificate({
 
               {/* Required Demonstration Disclaimer Banner */}
               <div className="my-1.5 sm:my-3">
-                <div className="inline-block border-[1.8px] border-[#991b1b] bg-[#fef2f2] text-[#991b1b] font-sans font-bold text-[8.5px] sm:text-xs md:text-[10pt] tracking-[1.2px] uppercase px-4 sm:px-8 py-1 sm:py-1.5 rounded shadow-2xs">
+                <div className="inline-block border-[1.8px] border-[#991b1b] bg-[#fef2f2] text-[#991b1b] font-sans font-bold text-[7.5px] sm:text-[9.5px] md:text-[10pt] tracking-[1px] uppercase px-3 sm:px-6 py-1 sm:py-1.5 rounded shadow-2xs max-w-full">
                   FOR DEMONSTRATION PURPOSES ONLY — NOT AN OFFICIALLY ISSUED DEGREE CERTIFICATE
                 </div>
               </div>

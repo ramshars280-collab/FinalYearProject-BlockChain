@@ -33,6 +33,7 @@ import { hashCredentialSubject, buildBatchMerkleTree, createW3CCredential } from
 import { verifyCredentialOnChain } from "../lib/contracts";
 import { verifyZkSelectiveProof } from "../lib/zkProof";
 import { getRevocationDetail, getStoredBatches, getSepoliaConfig } from "../lib/storage";
+import DegreeCertificate from "./DegreeCertificate";
 import QrScannerModal from "./QrScannerModal";
 
 export default function DropzoneVerifier() {
@@ -598,16 +599,6 @@ export default function DropzoneVerifier() {
     return false;
   };
 
-  const loadFixture = async (path: string) => {
-    try {
-      const res = await fetch(path);
-      const data = await res.json();
-      handleCredentialVerification(data);
-    } catch (e) {
-      console.error("Fixture load error:", e);
-    }
-  };
-
   // Auto-verify credential passed via URL parameter (?verify=batchId/leafIndex or ?cred=... or ?data=...)
   useEffect(() => {
     const verifyParam = searchParams.get("verify") || searchParams.get("v");
@@ -1106,93 +1097,7 @@ export default function DropzoneVerifier() {
                       <span>Scan QR Code</span>
                     </button>
                   </div>
-
-                  {/* Quick Demo Pre-Anchored Fixtures */}
-                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-                    <span className="text-slate-500 font-bold mr-1">Demo File Samples:</span>
-                  <button
-                    onClick={() => loadFixture("/fixtures/valid_degree_sample.json")}
-                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
-                    <span>Aarav Sharma (CSE)</span>
-                  </button>
-                  <button
-                    onClick={() => loadFixture("/fixtures/valid_degree_ananya_malhotra.json")}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Ananya Malhotra (AI & DS)</span>
-                  </button>
-                  <button
-                    onClick={() => loadFixture("/fixtures/valid_degree_rohan_kulkarni.json")}
-                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Rohan Kulkarni (IT)</span>
-                  </button>
-                  <button
-                    onClick={() => loadFixture("/fixtures/tampered_degree_sample.json")}
-                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all shadow-2xs flex items-center gap-1.5"
-                  >
-                    <XCircle className="h-3.5 w-3.5 text-red-600" />
-                    <span>Tampered Sample (Invalid)</span>
-                  </button>
                 </div>
-
-                {/* Pre-Generated Test PDF Degrees Suite */}
-                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 text-xs">
-                  <span className="text-slate-500 font-bold mr-1 flex items-center gap-1">
-                    <FileText className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Test Degree PDFs:</span>
-                  </span>
-                  <a
-                    href="/certificates_pdf/1_Authentic_Degree_Aarav_Sharma.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold transition-all flex items-center gap-1"
-                    title="100% Valid degree on blockchain"
-                  >
-                    <span>Aarav (Authentic PDF)</span>
-                  </a>
-                  <a
-                    href="/certificates_pdf/2_Authentic_Degree_Ananya_Malhotra.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg font-semibold transition-all flex items-center gap-1"
-                    title="100% Valid degree on blockchain"
-                  >
-                    <span>Ananya (Authentic PDF)</span>
-                  </a>
-                  <a
-                    href="/certificates_pdf/3_Tampered_GPA_Degree_Aarav_Sharma.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-lg font-semibold transition-all flex items-center gap-1"
-                    title="Altered CGPA: 9.92 vs genuine 9.24"
-                  >
-                    <span>Tampered GPA (PDF)</span>
-                  </a>
-                  <a
-                    href="/certificates_pdf/4_Fake_Unregistered_Degree_Vikrant_Verma.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold transition-all flex items-center gap-1"
-                    title="Fabricated candidate not in university registry"
-                  >
-                    <span>Counterfeit (PDF)</span>
-                  </a>
-                  <a
-                    href="/certificates_pdf/5_Revoked_Degree_Pooja_Patil.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg font-semibold transition-all flex items-center gap-1"
-                    title="Degree revoked on blockchain"
-                  >
-                    <span>Revoked (PDF)</span>
-                  </a>
-                </div>
-              </div>
               )}
             </div>
           )}
@@ -1321,14 +1226,6 @@ export default function DropzoneVerifier() {
                 </div>
               </div>
 
-              {/* Zero-PII Privacy Protection Notice */}
-              <div className="bg-emerald-100/60 border border-emerald-200/90 rounded-xl p-3 flex items-center gap-2.5 text-xs text-emerald-900">
-                <Lock className="h-4 w-4 text-emerald-700 shrink-0" />
-                <span>
-                  <strong>DPDP Act Zero-PII Privacy Protection:</strong> Candidate full transcript, grade marks, and sensitive personal identifiers are protected. Cryptographic Merkle verification confirms degree validity on Sepolia without exposing the student&apos;s private certificate.
-                </span>
-              </div>
-
               {/* Dual-Verification Layer 2: AI Forensic Error Level Analysis */}
               {result.forensicScan && (
                 <div className="pt-3 border-t border-emerald-200/70 space-y-2.5">
@@ -1389,9 +1286,6 @@ export default function DropzoneVerifier() {
                               className="max-h-96 w-auto object-contain"
                             />
                           </div>
-                          <p className="text-[10px] text-slate-500 italic text-center">
-                            Uniform blue spectrum confirms consistent single-pass document generation with no localized pixel splicing.
-                          </p>
                         </div>
                       )}
                     </div>
@@ -1476,6 +1370,17 @@ export default function DropzoneVerifier() {
                   <div>Status: <span className="text-red-700 font-bold">REJECTED (Does not match certified root)</span></div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Render Multi-Tab Official Certificate Card */}
+          {credential && result.isValid && (
+            <div className="pt-2 animate-in fade-in duration-300">
+              <DegreeCertificate
+                credential={credential}
+                verification={result}
+                onShowQr={() => setIsQrModalOpen(true)}
+              />
             </div>
           )}
         </div>

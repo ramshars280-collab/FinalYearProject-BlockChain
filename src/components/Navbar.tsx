@@ -110,7 +110,7 @@ export default function Navbar() {
           </Link>
 
           {/* CENTER: Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1.5">
+          <nav className="hidden lg:flex items-center gap-1.5">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
@@ -216,8 +216,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Navigation bar */}
-        <div className="flex md:hidden border-t border-slate-200 py-2.5 gap-2 items-center justify-between overflow-x-auto">
+        {/* Mobile / Tablet Navigation bar */}
+        <div className="flex lg:hidden border-t border-slate-200 py-2.5 gap-2 items-center justify-between overflow-x-auto">
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;

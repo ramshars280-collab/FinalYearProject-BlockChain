@@ -14,6 +14,8 @@ export interface AdminUser {
   fullName: string;
   department: "Examination Authority";
   authorizedWallet?: string;
+  institutionCode?: string;
+  institutionName?: string;
 }
 
 export type AuthUser = StudentUser | AdminUser;

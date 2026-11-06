@@ -57,6 +57,7 @@ import MerkleTreeVisualizer from "../../components/MerkleTreeVisualizer";
 import BatchRevocationModal from "../../components/BatchRevocationModal";
 import AddStudentModal from "../../components/AddStudentModal";
 import UploadedStudentsList from "../../components/UploadedStudentsList";
+import IssuerCertificatesList from "../../components/IssuerCertificatesList";
 import { useAuth, DEMO_IDENTIFIERS } from "../../context/AuthContext";
 import { useWeb3 } from "../../context/Web3Context";
 import { INITIAL_AUDIT_CANDIDATES, CandidateAuditRecord } from "../../lib/auditData";
@@ -384,6 +385,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     duplicateWarnings?: string[];
   } | null>(null);
   const [anchorError, setAnchorError] = useState<string | null>(null);
+  const [certsRefreshKey, setCertsRefreshKey] = useState<number>(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -392,7 +394,60 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
   const [auditFilter, setAuditFilter] = useState<"ALL" | "AUTHENTIC" | "DISCREPANCY" | "UNREGISTERED">("ALL");
   const [auditSearch, setAuditSearch] = useState<string>("");
 
+  const syncAuditRowsFromBatches = (batchList: BatchRecord[], pendingStudents?: StudentDegreeData[]) => {
+    const rows: CandidateAuditRecord[] = [];
+    const seenPrns = new Set<string>();
 
+    if (pendingStudents) {
+      for (const s of pendingStudents) {
+        const prnUpper = s.prn.toUpperCase();
+        if (!seenPrns.has(prnUpper)) {
+          seenPrns.add(prnUpper);
+          rows.push({
+            prn: s.prn,
+            claimedName: s.fullName,
+            claimedCgpa: s.cgpa,
+            onChainName: s.fullName,
+            onChainCgpa: s.cgpa,
+            onChainUniversity: s.university || selectedInstitution?.name || "MGM University",
+            status: "AUTHENTIC",
+            flag: "Staged for Anchoring",
+          });
+        }
+      }
+    }
+
+    for (const b of batchList) {
+      if (!Array.isArray(b.records)) continue;
+      b.records.forEach((s, idx) => {
+        const prnUpper = s.prn.toUpperCase();
+        if (seenPrns.has(prnUpper)) return;
+        seenPrns.add(prnUpper);
+
+        const isRevoked = Array.isArray(b.revokedIndices) && b.revokedIndices.includes(idx);
+        const isAnchored = b.status === "ANCHORED" && Boolean(b.txHash);
+
+        rows.push({
+          prn: s.prn,
+          claimedName: s.fullName,
+          claimedCgpa: s.cgpa,
+          onChainName: s.fullName,
+          onChainCgpa: s.cgpa,
+          onChainUniversity: s.university || b.institutionName || "MGM University",
+          status: isRevoked ? "DISCREPANCY" : "AUTHENTIC",
+          flag: isRevoked
+            ? "Revoked by Institution"
+            : isAnchored
+            ? (b.expectedChainId === 31337 ? "Exact On-Chain Match (Hardhat Local)" : "Exact On-Chain Match (Sepolia)")
+            : b.status === "PENDING_ANCHOR"
+            ? "Pending Blockchain Anchor (Institutional DB)"
+            : "Institutional Registry Record",
+        });
+      });
+    }
+
+    setAuditRows(rows);
+  };
 
   useEffect(() => {
     sanitizeObsoleteStorage();
@@ -416,6 +471,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         if (data.success && Array.isArray(data.batches)) {
           setBatches(data.batches);
           saveStoredBatches(data.batches);
+          syncAuditRowsFromBatches(data.batches);
           return;
         }
       }
@@ -424,6 +480,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
     }
     const stored = getStoredBatches();
     setBatches(stored);
+    syncAuditRowsFromBatches(stored);
   };
 
   const recalculateTree = (students: StudentDegreeData[]) => {
@@ -814,6 +871,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
         simulated: false,
       });
 
+      setCertsRefreshKey((k) => k + 1);
       await loadBatches();
     } catch (err: any) {
       console.error("Anchoring error:", err);
@@ -1497,6 +1555,15 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
               </table>
             </div>
           </div>
+
+          {/* Issued Student Certificates Matrix & Viewer */}
+          <IssuerCertificatesList
+            batches={batches}
+            institutionCode={selectedInstitution?.code || "MGMU-ENG-01"}
+            institutionName={selectedInstitution?.name || "MGM University"}
+            selectedChainId={selectedNetworkChainId}
+            refreshTrigger={certsRefreshKey}
+          />
         </div>
       )}
 
@@ -1910,6 +1977,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
 
                     // Refresh batches list from SQLite backend
                     await loadBatches();
+                    setCertsRefreshKey((k) => k + 1);
                   } catch (err: any) {
                     console.error("Confirm & Upload error:", err);
                     setConfirmUploadError(err?.message || "Failed to persist batch to SQLite database.");

@@ -130,6 +130,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforce institutional authorization
+    const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
+    const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
+    const batchInstCode = (existing.institutionCode || '').trim().toUpperCase();
+    const batchIssuer = (existing.issuer || '').trim().toLowerCase();
+    const isAuthorized = (batchInstCode && batchInstCode === adminInstCode) || (batchIssuer && batchIssuer === adminWallet);
+    if (!isAuthorized) {
+      return jsonResponse(
+        { success: false, error: "Forbidden: You cannot revoke credentials belonging to another institution.", requestId },
+        { status: 403 },
+        requestId
+      );
+    }
+
     const updatedBatch = await revokeBatchLeafDb(batchId, numIndex, {
       reasonCode,
       reasonTitle,

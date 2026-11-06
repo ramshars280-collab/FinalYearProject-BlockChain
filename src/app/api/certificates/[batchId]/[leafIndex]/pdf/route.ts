@@ -124,6 +124,35 @@ export async function GET(
           requestId
         );
       }
+    } else if (user?.role === 'EXAM_ADMIN') {
+      const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
+      const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
+      const batchInstCode = (batch.institutionCode || '').trim().toUpperCase();
+      const batchIssuer = (batch.issuer || '').trim().toLowerCase();
+
+      const isAuthorizedInstitution =
+        (batchInstCode && batchInstCode === adminInstCode) ||
+        (batchIssuer && batchIssuer === adminWallet);
+
+      if (!isAuthorizedInstitution) {
+        logger.warn('Issuer attempted unauthorized cross-institution certificate access', {
+          requestId,
+          route: `/api/certificates/${rawBatchId}/${leafIndex}/pdf`,
+          method: 'GET',
+          statusCode: 403,
+          durationMs: Date.now() - startTime,
+          details: { adminStaffId: user.staffId, batchId: rawBatchId, batchInstCode },
+        });
+        return jsonResponse(
+          {
+            success: false,
+            error: 'Forbidden: You are not authorized to access certificates belonging to another institution.',
+            requestId,
+          },
+          { status: 403 },
+          requestId
+        );
+      }
     }
 
     // 3. Resolve Revocation & Demo Status
@@ -147,8 +176,8 @@ export async function GET(
       graduationYear: student.graduationYear || undefined,
       issueDate: student.issueDate || '2026-11-03',
       certNumber,
-      universityName: 'MGM University',
-      instituteName: 'School of Engineering & Technology (SOET)',
+      universityName: student.university || batch.institutionName || 'MGM University',
+      instituteName: student.institute || 'School of Engineering & Technology (SOET)',
       division: (student as any).division || undefined,
       batchId: batch.batchId,
       leafIndex,

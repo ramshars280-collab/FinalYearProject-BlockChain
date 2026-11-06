@@ -135,6 +135,18 @@ export async function GET(
     // 3. Unauthenticated / other: records array is redacted ([]), returning only batch-level metadata
     let filteredRecords: any[] = [];
     if (user?.role === "EXAM_ADMIN") {
+      const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
+      const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
+      const batchInstCode = (batch.institutionCode || '').trim().toUpperCase();
+      const batchIssuer = (batch.issuer || '').trim().toLowerCase();
+      const isAuthorized = (batchInstCode && batchInstCode === adminInstCode) || (batchIssuer && batchIssuer === adminWallet);
+      if (!isAuthorized) {
+        return jsonResponse(
+          { success: false, error: "Forbidden: You are not authorized to view batches belonging to another institution.", requestId },
+          { status: 403 },
+          requestId
+        );
+      }
       filteredRecords = batch.records || [];
     } else if (user?.role === "STUDENT" && user.prn) {
       const studentPrn = user.prn.trim().toUpperCase();
@@ -268,6 +280,20 @@ export async function PATCH(
       return jsonResponse(
         { success: false, error: `Batch "${rawBatchId}" not found in institutional database registry.`, requestId },
         { status: 404 },
+        requestId
+      );
+    }
+
+    // Enforce institutional authorization
+    const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
+    const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
+    const batchInstCode = (existingBatch.institutionCode || '').trim().toUpperCase();
+    const batchIssuer = (existingBatch.issuer || '').trim().toLowerCase();
+    const isAuthorized = (batchInstCode && batchInstCode === adminInstCode) || (batchIssuer && batchIssuer === adminWallet);
+    if (!isAuthorized) {
+      return jsonResponse(
+        { success: false, error: "Forbidden: You cannot modify batches belonging to another institution.", requestId },
+        { status: 403 },
         requestId
       );
     }

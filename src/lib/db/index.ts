@@ -36,8 +36,9 @@ export function validateDatabaseConfig(): {
   const url = process.env.TURSO_DATABASE_URL?.trim();
   const token = process.env.TURSO_AUTH_TOKEN?.trim();
 
-  // Explicit Turso backend requested or running in production
-  if (isProduction || url || token) {
+  // Explicit Turso backend requested or running in production (unless local SQLite is explicitly allowed for testing/development)
+  const allowLocalSqlite = process.env.ALLOW_LOCAL_SQLITE === 'true' || process.env.DATABASE_BACKEND === 'sqlite';
+  if ((isProduction && !allowLocalSqlite) || url || token) {
     if (!url) {
       return {
         valid: false,
@@ -141,7 +142,9 @@ export function getDatabaseAdapter(): IDatabaseAdapter {
   // Safely instantiate local SQLite adapter
   const Database = require('better-sqlite3');
   const path = require('path');
+  const fs = require('fs');
   const dbPath = process.env.DATABASE_PATH?.trim() || path.resolve(process.cwd(), 'data', 'veritrust.db');
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const sqliteDb = new Database(dbPath);
   sqliteDb.pragma('journal_mode = WAL');
   sqliteDb.pragma('busy_timeout = 5000');

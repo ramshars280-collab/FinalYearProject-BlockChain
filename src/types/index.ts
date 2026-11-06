@@ -95,6 +95,8 @@ export interface BatchRecord {
   records: StudentDegreeData[];
   status?: BatchStatus;
   txHash?: string;
+  expectedChainId?: number;
+  expectedContract?: string;
   anchoredAt?: number;
   isVerifiedOnChain?: boolean;
   onChainReason?: string;

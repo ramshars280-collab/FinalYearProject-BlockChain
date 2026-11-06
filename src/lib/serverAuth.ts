@@ -67,10 +67,12 @@ export function validateProductionAuthConfig(): {
 
 // Server-side credential metadata (never bundled to client JS)
 const SERVER_ADMIN = {
-  staffId: 'EXAM_ADMIN_MGM',
-  fullName: 'Prof. V. M. Deshpande',
+  staffId: process.env.ADMIN_STAFF_ID?.trim() || 'EXAM_ADMIN_MGM',
+  fullName: process.env.ADMIN_FULL_NAME?.trim() || 'Prof. V. M. Deshpande',
   department: 'Examination Authority' as const,
-  authorizedWallet: '0x8D0cC3553e9d812797B986F15427835A2930a301',
+  authorizedWallet: process.env.ADMIN_AUTHORIZED_WALLET?.trim() || '0x8D0cC3553e9d812797B986F15427835A2930a301',
+  institutionCode: process.env.ADMIN_INSTITUTION_CODE?.trim() || 'MGMU-ENG-01',
+  institutionName: process.env.ADMIN_INSTITUTION_NAME?.trim() || 'MGM University, Chhatrapati Sambhajinagar',
 };
 
 /**
@@ -128,6 +130,8 @@ export function verifyAdminCredentials(staffId: string, pass: string): AdminUser
       fullName: SERVER_ADMIN.fullName,
       department: SERVER_ADMIN.department,
       authorizedWallet: SERVER_ADMIN.authorizedWallet,
+      institutionCode: SERVER_ADMIN.institutionCode,
+      institutionName: SERVER_ADMIN.institutionName,
     };
   }
   return null;

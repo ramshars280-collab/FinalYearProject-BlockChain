@@ -48,7 +48,19 @@ export async function GET(request: NextRequest) {
     const sessionCookie = request?.cookies?.get('auth_session')?.value;
     const user = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-    const batches = await getAllBatchesDb();
+    let batches = await getAllBatchesDb();
+
+    // Enforce server-side institutional ownership for EXAM_ADMIN:
+    // An issuer must only access batches belonging to their own institution.
+    if (user?.role === 'EXAM_ADMIN') {
+      const adminInstCode = ((user as any).institutionCode || 'MGMU-ENG-01').trim().toUpperCase();
+      const adminWallet = ((user as any).authorizedWallet || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim().toLowerCase();
+      batches = batches.filter((b) => {
+        const batchInstCode = (b.institutionCode || '').trim().toUpperCase();
+        const batchIssuer = (b.issuer || '').trim().toLowerCase();
+        return (batchInstCode && batchInstCode === adminInstCode) || (batchIssuer && batchIssuer === adminWallet);
+      });
+    }
     const verifiedBatches = await Promise.all(
       batches.map(async (b) => {
         // Enforce RBAC filtering on student records:
@@ -338,14 +350,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userInstCode = ((user as any).institutionCode || institutionCode || 'MGMU-ENG-01').trim();
+    const userInstName = ((user as any).institutionName || institutionName || 'MGM University, Chhatrapati Sambhajinagar').trim();
+    const userIssuer = ((user as any).authorizedWallet || issuer || '0x8D0cC3553e9d812797B986F15427835A2930a301').trim();
+
     const newBatch: BatchRecord = {
       batchId: cleanBatchId,
       merkleRoot: merkleRoot.trim(),
       ipfsCid: typeof ipfsCid === 'string' ? ipfsCid.trim() : '',
       timestamp: timestamp || Math.floor(Date.now() / 1000),
-      issuer: issuer || '0x8D0cC3553e9d812797B986F15427835A2930a301',
-      institutionName: institutionName || 'MGM University, Chhatrapati Sambhajinagar',
-      institutionCode: institutionCode || 'MGMU-ENG-01',
+      issuer: userIssuer,
+      institutionName: userInstName,
+      institutionCode: userInstCode,
       totalCredentials: totalCredentials || records.length,
       revokedIndices: Array.isArray(revokedIndices) ? revokedIndices : [],
       records,
