@@ -1,0 +1,755 @@
+[
+  {
+    "sampleId": "SAMPLE-01-CLEAN",
+    "category": "CLEAN_BASELINE",
+    "filename": "sample_01_baseline_q95.jpg",
+    "fileSizeBytes": 206479,
+    "cryptoVerification": {
+      "executed": false,
+      "durationMs": 0,
+      "status": 0
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 2126,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "LOW ANOMALY",
+      "aiConfidenceScore": 0.2392,
+      "heatmapBytes": 182779,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1684,
+          1190
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 2.15,
+        "high_error_pixel_ratio": 0.000261,
+        "localized_tile_peak_zscore": 2.95,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 6,
+            "grid_col": 1,
+            "bbox": [
+              888,
+              210,
+              1036,
+              420
+            ],
+            "tile_mean": 13.86,
+            "z_score": 2.95
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 5,
+            "bbox": [
+              740,
+              1050,
+              888,
+              1260
+            ],
+            "tile_mean": 13.1,
+            "z_score": 2.75
+          },
+          {
+            "grid_row": 6,
+            "grid_col": 6,
+            "bbox": [
+              888,
+              1260,
+              1036,
+              1470
+            ],
+            "tile_mean": 13.08,
+            "z_score": 2.74
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 2,
+            "bbox": [
+              740,
+              420,
+              888,
+              630
+            ],
+            "tile_mean": 12.9,
+            "z_score": 2.69
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 3,
+            "bbox": [
+              740,
+              630,
+              888,
+              840
+            ],
+            "tile_mean": 12.25,
+            "z_score": 2.52
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 803,
+      "status": 200,
+      "anomalyStdDev": 2.15,
+      "highErrorRatio": 0.000261,
+      "localizedPeakZ": 2.95,
+      "suspiciousTilesCount": 5,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "SAMPLE-16-RECOMPRESSED",
+    "category": "RECOMPRESSED_LEGITIMATE",
+    "filename": "sample_16_recompressed_clean_q85.jpg",
+    "fileSizeBytes": 143008,
+    "cryptoVerification": {
+      "executed": false,
+      "durationMs": 0,
+      "status": 0
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 835,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "LOW ANOMALY",
+      "aiConfidenceScore": 0.151,
+      "heatmapBytes": 182567,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1684,
+          1190
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 1.62,
+        "high_error_pixel_ratio": 0.000104,
+        "localized_tile_peak_zscore": 2.78,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 6,
+            "grid_col": 1,
+            "bbox": [
+              888,
+              210,
+              1036,
+              420
+            ],
+            "tile_mean": 10.98,
+            "z_score": 2.78
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 5,
+            "bbox": [
+              740,
+              1050,
+              888,
+              1260
+            ],
+            "tile_mean": 10.82,
+            "z_score": 2.73
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 2,
+            "bbox": [
+              740,
+              420,
+              888,
+              630
+            ],
+            "tile_mean": 10.53,
+            "z_score": 2.64
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 3,
+            "bbox": [
+              740,
+              630,
+              888,
+              840
+            ],
+            "tile_mean": 10.53,
+            "z_score": 2.64
+          },
+          {
+            "grid_row": 6,
+            "grid_col": 6,
+            "bbox": [
+              888,
+              1260,
+              1036,
+              1470
+            ],
+            "tile_mean": 10.46,
+            "z_score": 2.62
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 803,
+      "status": 200,
+      "anomalyStdDev": 1.62,
+      "highErrorRatio": 0.000104,
+      "localizedPeakZ": 2.78,
+      "suspiciousTilesCount": 5,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "SAMPLE-05-ALTERED-NAME",
+    "category": "ALTERED_NAME",
+    "filename": "sample_05_splice_name_cgpa_q70_uncompressed.jpg",
+    "fileSizeBytes": 153800,
+    "cryptoVerification": {
+      "executed": false,
+      "durationMs": 0,
+      "status": 0
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 836,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "LOW ANOMALY",
+      "aiConfidenceScore": 0.2013,
+      "heatmapBytes": 164135,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1684,
+          1190
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 0.98,
+        "high_error_pixel_ratio": 0.000255,
+        "localized_tile_peak_zscore": 3.79,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 5,
+            "grid_col": 5,
+            "bbox": [
+              740,
+              1050,
+              888,
+              1260
+            ],
+            "tile_mean": 13.47,
+            "z_score": 3.79
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 2,
+            "bbox": [
+              740,
+              420,
+              888,
+              630
+            ],
+            "tile_mean": 13.26,
+            "z_score": 3.73
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 3,
+            "bbox": [
+              740,
+              630,
+              888,
+              840
+            ],
+            "tile_mean": 12.64,
+            "z_score": 3.55
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 4,
+            "bbox": [
+              740,
+              840,
+              888,
+              1050
+            ],
+            "tile_mean": 12.43,
+            "z_score": 3.49
+          },
+          {
+            "grid_row": 6,
+            "grid_col": 1,
+            "bbox": [
+              888,
+              210,
+              1036,
+              420
+            ],
+            "tile_mean": 9.3,
+            "z_score": 2.59
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 1064,
+      "status": 200,
+      "anomalyStdDev": 0.98,
+      "highErrorRatio": 0.000255,
+      "localizedPeakZ": 3.79,
+      "suspiciousTilesCount": 5,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "SAMPLE-04-ALTERED-CGPA",
+    "category": "ALTERED_CGPA",
+    "filename": "sample_04_splice_cgpa_q75_q98.jpg",
+    "fileSizeBytes": 139574,
+    "cryptoVerification": {
+      "executed": false,
+      "durationMs": 0,
+      "status": 0
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 1047,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "LOW ANOMALY",
+      "aiConfidenceScore": 0.1411,
+      "heatmapBytes": 171775,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1684,
+          1190
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 1.19,
+        "high_error_pixel_ratio": 0.0001,
+        "localized_tile_peak_zscore": 3.18,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 5,
+            "grid_col": 5,
+            "bbox": [
+              740,
+              1050,
+              888,
+              1260
+            ],
+            "tile_mean": 11.25,
+            "z_score": 3.18
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 3,
+            "bbox": [
+              740,
+              630,
+              888,
+              840
+            ],
+            "tile_mean": 11.1,
+            "z_score": 3.13
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 2,
+            "bbox": [
+              740,
+              420,
+              888,
+              630
+            ],
+            "tile_mean": 11.06,
+            "z_score": 3.11
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 4,
+            "bbox": [
+              740,
+              840,
+              888,
+              1050
+            ],
+            "tile_mean": 11.03,
+            "z_score": 3.11
+          },
+          {
+            "grid_row": 6,
+            "grid_col": 1,
+            "bbox": [
+              888,
+              210,
+              1036,
+              420
+            ],
+            "tile_mean": 9.57,
+            "z_score": 2.64
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 811,
+      "status": 200,
+      "anomalyStdDev": 1.19,
+      "highErrorRatio": 0.0001,
+      "localizedPeakZ": 3.18,
+      "suspiciousTilesCount": 5,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "SAMPLE-07-PRN-SPLICED",
+    "category": "PRN_SPLICED",
+    "filename": "sample_07_splice_prn_q75_q95.jpg",
+    "fileSizeBytes": 144213,
+    "cryptoVerification": {
+      "executed": false,
+      "durationMs": 0,
+      "status": 0
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 922,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "LOW ANOMALY",
+      "aiConfidenceScore": 0.1307,
+      "heatmapBytes": 178635,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1684,
+          1190
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 1.11,
+        "high_error_pixel_ratio": 0.000089,
+        "localized_tile_peak_zscore": 3.13,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 3,
+            "grid_col": 3,
+            "bbox": [
+              444,
+              630,
+              592,
+              840
+            ],
+            "tile_mean": 11.48,
+            "z_score": 3.13
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 5,
+            "bbox": [
+              740,
+              1050,
+              888,
+              1260
+            ],
+            "tile_mean": 10.75,
+            "z_score": 2.91
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 2,
+            "bbox": [
+              740,
+              420,
+              888,
+              630
+            ],
+            "tile_mean": 10.39,
+            "z_score": 2.8
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 3,
+            "bbox": [
+              740,
+              630,
+              888,
+              840
+            ],
+            "tile_mean": 10.07,
+            "z_score": 2.69
+          },
+          {
+            "grid_row": 5,
+            "grid_col": 4,
+            "bbox": [
+              740,
+              840,
+              888,
+              1050
+            ],
+            "tile_mean": 9.94,
+            "z_score": 2.65
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 795,
+      "status": 200,
+      "anomalyStdDev": 1.11,
+      "highErrorRatio": 0.000089,
+      "localizedPeakZ": 3.13,
+      "suspiciousTilesCount": 5,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "PDF-01-AUTHENTIC",
+    "category": "REGISTERED_AUTHENTIC_PDF",
+    "filename": "1_Authentic_Degree_Aarav_Sharma.pdf",
+    "fileSizeBytes": 369506,
+    "cryptoVerification": {
+      "executed": true,
+      "durationMs": 2515,
+      "status": 200,
+      "outcome": "AUTHENTIC",
+      "merkleValid": true,
+      "semanticMatch": true
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 1318,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "SUSPICIOUS",
+      "aiConfidenceScore": 0.4173,
+      "heatmapBytes": 146955,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1263,
+          893
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 5.26,
+        "high_error_pixel_ratio": 0.0001,
+        "localized_tile_peak_zscore": 3.27,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 3,
+            "grid_col": 4,
+            "bbox": [
+              333,
+              628,
+              444,
+              785
+            ],
+            "tile_mean": 17.64,
+            "z_score": 3.27
+          },
+          {
+            "grid_row": 3,
+            "grid_col": 3,
+            "bbox": [
+              333,
+              471,
+              444,
+              628
+            ],
+            "tile_mean": 16.81,
+            "z_score": 3.03
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 853,
+      "status": 200,
+      "anomalyStdDev": 5.26,
+      "highErrorRatio": 0.0001,
+      "localizedPeakZ": 3.27,
+      "suspiciousTilesCount": 2,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  },
+  {
+    "sampleId": "PDF-03-TAMPERED-CGPA",
+    "category": "REGISTERED_TAMPERED_PDF",
+    "filename": "3_Tampered_GPA_Degree_Aarav_Sharma.pdf",
+    "fileSizeBytes": 374740,
+    "cryptoVerification": {
+      "executed": true,
+      "durationMs": 151,
+      "status": 200,
+      "outcome": "SEMANTIC_MISMATCH",
+      "merkleValid": false,
+      "semanticMatch": false
+    },
+    "aiProxyVerification": {
+      "executed": true,
+      "durationMs": 877,
+      "status": 200,
+      "hasHeatmap": true,
+      "forensicStatus": "COMPLETED",
+      "verdict": "SUSPICIOUS",
+      "aiConfidenceScore": 0.4767,
+      "heatmapBytes": 154259,
+      "rawMetadata": {
+        "model_architecture": "ELAForgeryCNN",
+        "model_trained": false,
+        "checkpoint_loaded": false,
+        "checkpoint_path": null,
+        "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+        "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED",
+        "compute_device": "cpu",
+        "input_dimensions": [
+          1263,
+          893
+        ],
+        "ela_quality_factor": 90,
+        "authentic_threshold": 0.35,
+        "tampered_threshold": 0.65,
+        "low_anomaly_threshold": 0.35,
+        "high_anomaly_threshold": 0.65,
+        "anomaly_std_dev": 5.42,
+        "high_error_pixel_ratio": 0.000178,
+        "localized_tile_peak_zscore": 3.82,
+        "localized_tile_count": 64,
+        "localized_suspicious_regions": [
+          {
+            "grid_row": 3,
+            "grid_col": 4,
+            "bbox": [
+              333,
+              628,
+              444,
+              785
+            ],
+            "tile_mean": 20.12,
+            "z_score": 3.82
+          },
+          {
+            "grid_row": 3,
+            "grid_col": 3,
+            "bbox": [
+              333,
+              471,
+              444,
+              628
+            ],
+            "tile_mean": 19.54,
+            "z_score": 3.66
+          }
+        ],
+        "raw_neural_tampered_prob": null,
+        "disclaimer": "Visual forensic analysis evaluates JPEG compression anomalies (ELA) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."
+      }
+    },
+    "fastApiDirect": {
+      "executed": true,
+      "durationMs": 875,
+      "status": 200,
+      "anomalyStdDev": 5.42,
+      "highErrorRatio": 0.000178,
+      "localizedPeakZ": 3.82,
+      "suspiciousTilesCount": 2,
+      "forensicMode": "HEURISTIC_BASELINE_UNTRAINED"
+    }
+  }
+]

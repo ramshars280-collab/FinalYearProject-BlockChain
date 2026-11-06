@@ -3,7 +3,7 @@ import io
 import base64
 import math
 import gc
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Optional
 
 import numpy as np
 from PIL import Image, ImageChops, ImageEnhance
@@ -206,6 +206,12 @@ def extract_image_from_bytes(file_bytes: bytes, filename: str) -> Image.Image:
             raise ValueError(f"Failed to decode image file bytes: {str(e)}")
 
 
+def _save_to_jpeg_buffer(pil_img: Image.Image, quality: int = 90) -> bytes:
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG", quality=quality)
+    return buf.getvalue()
+
+
 def compute_ela_residual(
     original_image: Image.Image, quality: int = 90
 ) -> Tuple[Image.Image, np.ndarray, float, float]:
@@ -248,6 +254,131 @@ def compute_ela_residual(
     norm_magnitude = np.clip((magnitude / (max_val + 1e-6)) * 255.0, 0, 255).astype(np.uint8)
 
     return enhanced_ela, norm_magnitude, std_dev, high_error_ratio
+
+
+def estimate_jpeg_quality(pil_img: Image.Image) -> Optional[int]:
+    """
+    Estimates original JPEG encoding quality from Luminance Quantization Table (DQT Table 0).
+    Returns integer quality factor (e.g. 95, 90, 85, 80, 75, 70) or None if uncompressed/lossless.
+    """
+    if hasattr(pil_img, "quantization") and pil_img.quantization:
+        t0 = pil_img.quantization.get(0, None)
+        if t0 is not None and len(t0) > 0:
+            val = t0[0]  # DC luminance scale factor
+            if val <= 1:
+                return 99
+            elif val <= 2:
+                return 95
+            elif val <= 3:
+                return 90
+            elif val <= 5:
+                return 85
+            elif val <= 7:
+                return 80
+            elif val <= 10:
+                return 75
+            else:
+                return 70
+    return None
+
+
+def compute_content_adaptive_spatial_metrics(
+    original_image: Image.Image,
+    norm_diff: np.ndarray,
+    ela_mag: np.ndarray,
+    is_pdf: bool,
+    est_q: Optional[int],
+    grid_size: int = 8,
+) -> Tuple[float, float, float, int, List[Dict[str, Any]]]:
+    """
+    Adaptive typography and edge-gradient compensated spatial decomposition (8x8 = 64 tiles).
+
+    Addresses the core physical cause of false positives on genuine certificates:
+    In clean digital documents, high-contrast typography (university crests, bold headers)
+    naturally produces elevated JPEG DCT high-frequency residuals compared to blank margins.
+
+    This function:
+    1. Computes local Sobel spatial gradient magnitude (edge/typography density).
+    2. Measures Pearson correlation between edge density and ELA error across tiles.
+    3. Fits an expected-residual model: E_expected = alpha * Edge + beta.
+    4. Computes edge-compensated tile residuals: Delta = E_observed - E_expected.
+    5. Flags a tile as an anomaly ONLY if its error significantly exceeds what its typography predicts
+       AND its absolute deviation is physically non-trivial (> 2.5 intensity levels).
+
+    Returns: (peak_z_res, corr, max_tile_mean, total_tiles, suspicious_tiles)
+    """
+    H, W = ela_mag.shape
+    th, tw = max(1, H // grid_size), max(1, W // grid_size)
+
+    # 1. Typography / edge density map via Sobel gradient on grayscale
+    orig_np = np.array(original_image)
+    gray = cv2.cvtColor(orig_np, cv2.COLOR_RGB2GRAY)
+    sobelx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    edge_mag = np.sqrt(sobelx ** 2 + sobely ** 2)
+
+    tile_ela_means = []
+    tile_edge_means = []
+    tile_coords = []
+
+    for r in range(grid_size):
+        for c in range(grid_size):
+            y1, y2 = r * th, min(H, (r + 1) * th)
+            x1, x2 = c * tw, min(W, (c + 1) * tw)
+            t_ela = ela_mag[y1:y2, x1:x2]
+            t_edge = edge_mag[y1:y2, x1:x2]
+            if t_ela.size > 0:
+                tile_ela_means.append(float(np.mean(t_ela)))
+                tile_edge_means.append(float(np.mean(t_edge)))
+                tile_coords.append((r, c, [int(y1), int(x1), int(y2), int(x2)]))
+
+    tile_ela = np.array(tile_ela_means, dtype=np.float32)
+    tile_edge = np.array(tile_edge_means, dtype=np.float32)
+
+    # 2. Pearson correlation between typography density and ELA error
+    std_edge = float(np.std(tile_edge))
+    std_ela = float(np.std(tile_ela))
+    corr = float(np.corrcoef(tile_ela, tile_edge)[0, 1]) if (std_edge > 1e-4 and std_ela > 1e-4) else 0.0
+    if np.isnan(corr):
+        corr = 0.0
+
+    # 3. Model expected ELA residual as a function of edge gradient
+    if std_edge > 1e-3:
+        p = np.polyfit(tile_edge, tile_ela, 1)
+        expected_ela = p[0] * tile_edge + p[1]
+        residuals = tile_ela - expected_ela
+        std_res = float(np.std(residuals))
+        med_res = float(np.median(residuals))
+        z_res = (residuals - med_res) / (std_res + 1e-5) if std_res > 0 else np.zeros_like(residuals)
+    else:
+        residuals = tile_ela - np.median(tile_ela)
+        std_res = float(np.std(residuals))
+        med_res = float(np.median(residuals))
+        z_res = residuals / (std_res + 1e-5) if std_res > 0 else np.zeros_like(residuals)
+
+    peak_z_res = float(np.max(z_res)) if len(z_res) > 0 else 0.0
+    max_tile_mean = float(np.max(tile_ela)) if len(tile_ela) > 0 else 0.0
+
+    # 4. Outlier Tile Detection with Physical Significance Floor:
+    # A tile is flagged as localized anomaly only if:
+    # - Statistical significance: Z-score >= 3.25 above median edge expectation
+    # - Physical significance: Absolute unexplained error difference >= 2.5 intensity levels
+    suspicious_tiles = []
+    for idx, (r, c, bbox) in enumerate(tile_coords):
+        res_diff = float(residuals[idx] - med_res)
+        if z_res[idx] >= 3.25 and res_diff >= 2.5:
+            suspicious_tiles.append({
+                "grid_row": r,
+                "grid_col": c,
+                "bbox": bbox,
+                "tile_mean": round(float(tile_ela[idx]), 2),
+                "edge_mean": round(float(tile_edge[idx]), 2),
+                "residual": round(float(residuals[idx]), 2),
+                "z_score": round(float(z_res[idx]), 2),
+            })
+
+    suspicious_tiles.sort(key=lambda x: x["z_score"], reverse=True)
+    return peak_z_res, corr, max_tile_mean, len(tile_coords), suspicious_tiles
 
 
 def compute_spatial_tile_metrics(
@@ -354,7 +485,18 @@ def run_ai_forgery_detection(
     probabilities = None
 
     try:
-        # 1. Ingest image
+        # 1. Ingest image and identify native format / quality
+        lower_name = filename.lower()
+        is_pdf = lower_name.endswith(".pdf") or file_bytes[:4] == b"%PDF"
+        est_q = None
+        if lower_name.endswith((".jpg", ".jpeg")):
+            try:
+                with Image.open(io.BytesIO(file_bytes)) as raw_im:
+                    est_q = estimate_jpeg_quality(raw_im)
+            except Exception:
+                pass
+        format_label = "PDF_VECTOR_RENDER" if is_pdf else (f"JPEG_Q{est_q}" if est_q else "RASTER_IMAGE")
+
         original_image = extract_image_from_bytes(file_bytes, filename)
         width, height = original_image.size
 
@@ -363,8 +505,15 @@ def run_ai_forgery_detection(
             original_image, quality=90
         )
 
-        # 3. Spatial localized grid metrics
-        z_peak, max_tile, tile_count, suspicious_tiles = compute_spatial_tile_metrics(norm_diff, grid_size=8)
+        # 3. Content-Adaptive Spatial Grid Decomposition (Typography & Edge-Compensated)
+        diff_np = np.array(ImageChops.difference(original_image, Image.open(io.BytesIO(
+            _save_to_jpeg_buffer(original_image, 90)
+        )).convert("RGB")), dtype=np.float32)
+        raw_magnitude = np.sqrt(np.sum(diff_np ** 2, axis=2))
+
+        z_peak, corr, max_tile, tile_count, suspicious_tiles = compute_content_adaptive_spatial_metrics(
+            original_image, norm_diff, raw_magnitude, is_pdf, est_q, grid_size=8
+        )
 
         status_info = get_model_forensic_status()
         is_trained = status_info["is_model_trained"]
@@ -388,37 +537,66 @@ def run_ai_forgery_detection(
             calibrated_score = 0.60 * raw_tampered_prob + 0.40 * min(1.0, statistical_anomaly_factor)
         else:
             # HEURISTIC_BASELINE_UNTRAINED MODE:
-            # Strict Scientific Integrity: Do not evaluate random untrained CNN weights as predictions.
-            # Directly compute calibrated heuristic compression anomaly index from physical signals:
-            # 1. Global residual spread (std_dev / 6.0 calibrated against clean vector baseline ~1.0-2.5)
-            global_comp = min(1.0, std_dev / 6.0)
-            # 2. High error pixel ratio (high_error_ratio * 800.0)
-            her_comp = min(1.0, high_error_ratio * 800.0)
-            # 3. Localized tile disparity (z_peak > 3.5 indicates localized compression anomaly)
-            tile_comp = min(1.0, max(0.0, (z_peak - 2.5) / 5.0))
+            # Content-adaptive physical scoring:
+            # Distinguishes genuine vector anti-aliasing / typography contrast from actual physical tampering
+            if is_pdf or format_label == "PDF_VECTOR_RENDER":
+                # High edge correlation (corr > 0.85) proves high std_dev is vector font anti-aliasing.
+                unexplained_variance = float(min(1.0, max(0.0, (z_peak - 2.0) / 4.0)))
+                peak_anomaly = float(max(0.0, (z_peak - 2.5) / 4.0))
+                corr_discount = max(0.0, min(1.0, (corr - 0.70) / 0.25))
+                suspicious_tile_penalty = min(1.0, len(suspicious_tiles) * 0.25)
+                calibrated_score = 0.30 * unexplained_variance + 0.35 * peak_anomaly + 0.15 * (1.0 - corr_discount) + 0.20 * suspicious_tile_penalty
+            else:
+                norm_std = min(1.0, std_dev / 4.5)
+                peak_anomaly = float(max(0.0, (z_peak - 2.5) / 4.0))
+                suspicious_tile_penalty = min(1.0, len(suspicious_tiles) * 0.20)
+                calibrated_score = 0.30 * norm_std + 0.40 * peak_anomaly + 0.30 * suspicious_tile_penalty
 
-            calibrated_score = 0.40 * global_comp + 0.35 * her_comp + 0.25 * tile_comp
-
-        calibrated_score = float(max(0.0, min(1.0, calibrated_score)))
+        calibrated_score = float(max(0.05, min(0.95, calibrated_score)))
         score_rounded = round(calibrated_score, 4)
 
-        # 6. Verdict mapping based on calibrated threshold constants:
-        if score_rounded < AUTHENTIC_THRESHOLD:
-            verdict = "LOW ANOMALY"
-        elif score_rounded <= TAMPERED_THRESHOLD:
-            verdict = "SUSPICIOUS"
+        # 6. Three-Tier Document Forensic Assessment (P10-T05E Enhanced)
+        if len(suspicious_tiles) == 0 and score_rounded < AUTHENTIC_THRESHOLD:
+            assessment = "NO_SIGNIFICANT_ANOMALIES"
+            verdict = "NO_SIGNIFICANT_ANOMALIES"
+            review_tier = "NO_SIGNIFICANT_ANOMALIES"
+            advisory = "Compression residuals are consistent across document tiles. No significant localized compression discrepancies detected."
+            diagnostic_reason = "Uniform compression history across document elements. Typography gradient density fully accounts for spatial residual variations."
+        elif len(suspicious_tiles) >= 3 or (len(suspicious_tiles) >= 1 and z_peak >= 4.5):
+            assessment = "ANOMALIES_DETECTED"
+            verdict = "ANOMALIES_DETECTED"
+            review_tier = "STRONG_MANIPULATION_EVIDENCE"
+            advisory = "Strong localized compression discrepancies detected. Document integrity requires investigation."
+            diagnostic_reason = f"Multiple localized tiles ({len(suspicious_tiles)} anomalous region(s), Peak Z={z_peak:.2f}) exhibit sharp compression residual discrepancies that contradict surrounding typography and canvas background."
         else:
-            verdict = "HIGH ANOMALY"
+            assessment = "ANOMALIES_DETECTED"
+            verdict = "ANOMALIES_DETECTED"
+            review_tier = "UNCERTAIN_COMPRESSION_VARIANCE"
+            advisory = "Unusual compression patterns detected. Manual document inspection is recommended. These findings alone do not establish forgery."
+            diagnostic_reason = f"Minor localized compression variance detected (Peak Z={z_peak:.2f}, {len(suspicious_tiles)} tile(s)). May reflect legitimate document recompression, scanning acquisition noise, or high-contrast graphics."
 
         # 7. Generate thermal anomaly heatmap
         heatmap_base64 = generate_heatmap_overlay(original_image, norm_diff, alpha=0.40)
 
         return {
             "success": True,
+            "assessment": assessment,
             "ai_confidence_score": score_rounded,
             "verdict": verdict,
+            "review_tier": review_tier,
+            "advisory": advisory,
+            "diagnostic_reason": diagnostic_reason,
             "heatmap_base64": heatmap_base64,
             "metadata": {
+                "assessment": assessment,
+                "verdict": verdict,
+                "review_tier": review_tier,
+                "advisory": advisory,
+                "diagnostic_reason": diagnostic_reason,
+                "format_label": format_label,
+                "estimated_native_quality": est_q,
+                "edge_ela_correlation": round(corr, 3),
+                "edge_compensated_peak_zscore": round(z_peak, 2),
                 "model_architecture": "ELAForgeryCNN",
                 "model_trained": is_trained,
                 "checkpoint_loaded": is_trained,

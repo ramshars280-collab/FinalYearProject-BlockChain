@@ -45,9 +45,11 @@ async function runTests() {
   );
 
   assert(
-    dropzoneContent.includes("<DegreeCertificate") &&
-    dropzoneContent.includes("import DegreeCertificate from \"./DegreeCertificate\";"),
-    "Verified Tab (DropzoneVerifier.tsx): DegreeCertificate viewing component fully integrated"
+    !dropzoneContent.includes("<DegreeCertificate") &&
+    !dropzoneContent.includes("import DegreeCertificate from \"./DegreeCertificate\";") &&
+    dropzoneContent.includes("<CredentialVerificationReport") &&
+    dropzoneContent.includes("import CredentialVerificationReport from \"./CredentialVerificationReport\";"),
+    "Verified Tab (DropzoneVerifier.tsx): Replaced full DegreeCertificate rendering with professional CredentialVerificationReport"
   );
 
   // -------------------------------------------------------------------------

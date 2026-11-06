@@ -22,6 +22,8 @@ import {
   SemanticCheckResult,
   SemanticMismatchItem,
   StandardVerificationOutcome,
+  CredentialAuthenticityStatus,
+  DocumentForensicAssessment,
 } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +47,9 @@ export type DiagnosticCode =
 
 interface ForensicScanResult {
   status: "COMPLETED" | "UNAVAILABLE" | "QUEUED";
+  assessment?: DocumentForensicAssessment;
   ai_confidence_score?: number;
-  verdict?: "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
+  verdict?: "NO_SIGNIFICANT_ANOMALIES" | "ANOMALIES_DETECTED" | "INCONCLUSIVE" | "SERVICE_UNAVAILABLE" | string;
   heatmap_base64?: string;
   metadata?: any;
   reason?: string;
@@ -189,7 +192,7 @@ const MAX_PDF_PAGES = 5;
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
   const startTime = Date.now();
-  const skipAi = request.nextUrl.searchParams.get("skip_ai") === "true";
+  const skipAiQuery = request.nextUrl.searchParams.get("skip_ai");
   try {
     const clientIp = getClientIp(request);
     // Rate limit: 30 requests per minute per IP to protect resource-intensive PDF and AI forensic processing
@@ -223,6 +226,12 @@ export async function POST(request: NextRequest) {
       );
     }
     const formData = await request.formData();
+    const skipAiForm = formData.get("skip_ai");
+    const skipAi =
+      skipAiQuery === "true" ||
+      skipAiQuery === "1" ||
+      skipAiForm === "true" ||
+      skipAiForm === "1";
     const file = formData.get("file") as File | null;
 
     if (!file) {
@@ -377,40 +386,44 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Field Extraction and PRN Normalization
-    const batchMatch = rawText.match(/Batch ID:\s*([A-Za-z0-9_-]+)/i);
-    const leafMatch = rawText.match(/Leaf:\s*#?(\d+)/i);
-    const prnMatch =
-      rawText.match(/Permanent Registration No\.?:\s*([A-Za-z0-9_-]+)/i) ||
-      rawText.match(/Permanent Reg\.?\s*No\.?:\s*([A-Za-z0-9_-]+)/i) ||
-      rawText.match(/Registration No\.?:\s*([A-Za-z0-9_-]+)/i) ||
+    let batchMatch = rawText.match(/Batch ID:\s*([A-Za-z0-9_-]+)/i);
+    let leafMatch = rawText.match(/Leaf:\s*#?(\d+)/i);
+    let prnMatch =
+      rawText.match(/Permanent\s+Registration\s+No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/Permanent\s+Reg\.?\s*No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/Registration\s+No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
       rawText.match(/PRN\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
-      rawText.match(/(PRN\d{8,12})/i);
-    const cgpaMatch =
-      rawText.match(/Cumulative CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
-      rawText.match(/CUMULATIVE CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
-      rawText.match(/CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
-      rawText.match(/GPA\s*(?:[:=]|\s)\s*([\d.]+)/i);
-    const degreeMatch =
-      rawText.match(/Degree Conferred:\s*([A-Za-z\s&()-]+)/i) ||
-      rawText.match(/degree of\s+([A-Za-z\s&()-]+?)(?:\s+in|\s+with|\))/i) ||
-      rawText.match(/Bachelor of Technology/i) ||
-      rawText.match(/Master of Technology/i) ||
-      rawText.match(/Degree of\s+([A-Za-z\s&()-]+)/i);
-    const nameMatch =
-      rawText.match(/conferred upon\s+([A-Za-z\s.'-]+?)\s+for\s+successfully/i) ||
-      rawText.match(/awarded\s+(?:to\s+)?([A-Za-z\s.'-]+?)\s+(?:for|in|with)/i) ||
-      rawText.match(/Candidate Name:\s*([A-Za-z\s.'-]+)/i) ||
-      rawText.match(/Student Name:\s*([A-Za-z\s.'-]+)/i);
-    const branchMatch =
-      rawText.match(/Branch\s*(?:\/\s*Discipline)?:\s*([A-Za-z\s&()-]+)/i) ||
-      rawText.match(/\bin\s+([A-Za-z\s&()-]+?)\s+with Cumulative CGPA/i) ||
-      rawText.match(/Discipline:\s*([A-Za-z\s&()-]+)/i);
-    const yearMatch =
-      rawText.match(/\(Class of\s*(\d{4})\)/i) ||
-      rawText.match(/Class of\s*(\d{4})/i) ||
-      rawText.match(/Graduation Year\s*(?:[:=]|\s)\s*(\d{4})/i) ||
-      rawText.match(/Year of Passing\s*(?:[:=]|\s)\s*(\d{4})/i) ||
-      rawText.match(/Passing Year\s*(?:[:=]|\s)\s*(\d{4})/i);
+      rawText.match(/\b(PRN\d{8,12})\b/i) ||
+      rawText.match(/\b(DEMO-[A-Z0-9_-]+)\b/i);
+
+    // If neither batch ID nor PRN was found in the digital text layer, attempt OCR fallback
+    if (!batchMatch && !prnMatch && !ocrExtracted) {
+      try {
+        const ocrBuffer = Buffer.from(forensicBuffer);
+        const extractedImages = extractImagesFromPdf(ocrBuffer);
+        if (extractedImages.length > 0) {
+          const worker = await getCachedOcrWorker();
+          if (worker) {
+            const { data }: any = await worker.recognize(extractedImages[0]);
+            if (data && data.text && data.text.trim().length > 0) {
+              rawText = `${rawText} ${data.text}`;
+              ocrExtracted = true;
+              batchMatch = rawText.match(/Batch ID:\s*([A-Za-z0-9_-]+)/i);
+              leafMatch = rawText.match(/Leaf:\s*#?(\d+)/i);
+              prnMatch =
+                rawText.match(/Permanent\s+Registration\s+No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+                rawText.match(/Permanent\s+Reg\.?\s*No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+                rawText.match(/Registration\s+No\.?\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+                rawText.match(/PRN\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+                rawText.match(/\b(PRN\d{8,12})\b/i) ||
+                rawText.match(/\b(DEMO-[A-Z0-9_-]+)\b/i);
+            }
+          }
+        }
+      } catch (ocrErr) {
+        console.warn("OCR fallback attempt exception:", ocrErr);
+      }
+    }
 
     // If neither batch ID nor PRN was found in the text
     if (!batchMatch && !prnMatch) {
@@ -428,14 +441,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rawPrn = prnMatch ? prnMatch[1] : "";
+    const cgpaMatch =
+      rawText.match(/Cumulative\s+CGPA\s*(?:[:=]|\s|of)\s*([\d.]+)/i) ||
+      rawText.match(/CUMULATIVE\s+CGPA\s*(?:[:=]|\s|of)\s*([\d.]+)/i) ||
+      rawText.match(/CGPA\s*(?:[:=]|\s|of)\s*([\d.]+)/i) ||
+      rawText.match(/GPA\s*(?:[:=]|\s|of)\s*([\d.]+)/i);
+
+    const degreeMatch =
+      rawText.match(/Degree\s*(?:Conferred)?\s*(?:[:=]|\s)\s*([A-Za-z\s&()-]+?)(?:\s+in|\s+with|\s*\(|$|\n)/i) ||
+      rawText.match(/degree\s+of\s+([A-Za-z\s&()-]+?)(?:\s+in|\s+upon|\s+U\s*P\s*O\s*N|\s+with|\))/i) ||
+      rawText.match(/Bachelor\s+of\s+Technology/i) ||
+      rawText.match(/Master\s+of\s+Technology/i) ||
+      rawText.match(/Bachelor\s+of\s+Engineering/i) ||
+      rawText.match(/Bachelor\s+of\s+Science/i) ||
+      rawText.match(/Degree of\s+([A-Za-z\s&()-]+)/i);
+
+    const nameMatch =
+      rawText.match(/\b(?:U\s*P\s*O\s*N|UPON|conferred\s+upon)\s+([A-Za-z\s.'-]+?)\s+(?:who\s+has|for\s+successfully|who\s+fulfilled|for\s+successful)/i) ||
+      rawText.match(/\b(?:is\s+awarded|awarded\s+to|awarded|presented\s+to)\s+([A-Za-z0-9\s.'-]+?)\s+(?:For\s+successful|for\s+successfully|who\s+has|for\s+outstanding|in\s+recognition)/i) ||
+      rawText.match(/(?:Candidate|Student)\s+Name\s*(?:[:=]|\s)\s*([A-Za-z\s.'-]+?)(?:\s+(?:PRN|Registration|Permanent|Roll|Cumulative|Branch|Discipline|Batch)|$|\n)/i) ||
+      rawText.match(/Name\s*:\s*([A-Za-z\s.'-]+?)(?:\s+(?:PRN|Registration|Permanent|Roll|Cumulative|Branch|Discipline|Batch)|$|\n)/i);
+
+    const branchMatch =
+      rawText.match(/(?:Branch\s*(?:\/\s*Discipline)?|Discipline|Department|Major)\s*(?:[:=]|\s)\s*([A-Za-z\s&()-]+?)(?:\s+(?:Permanent|PRN|Cumulative|CGPA|Graduation|Class|Level)|$|\n)/i) ||
+      rawText.match(/(?:completion\s+of\s+(?:a\s+)?|degree\s+of\s+)[A-Za-z\s&()-]+?\s+in\s+([A-Za-z\s&()-]+?)(?:\.|\s+In\s+recognition|\s+with|\s+U\s*P\s*O\s*N|\s+UPON)/i) ||
+      rawText.match(/\bin\s+([A-Za-z\s&()-]+?)\s+(?:U\s*P\s*O\s*N|UPON|\.|\s*\(|with\s+Cumulative|in\s+recognition|who\s+has|for\s+successfully)/i);
+
+    const yearMatch =
+      rawText.match(/Graduation\s+Year\s*(?:[:=]|\s)\s*(\d{4})/i) ||
+      rawText.match(/\(Class\s+of\s*(\d{4})\)/i) ||
+      rawText.match(/Class\s+of\s*(\d{4})/i) ||
+      rawText.match(/Year\s+of\s+Passing\s*(?:[:=]|\s)\s*(\d{4})/i) ||
+      rawText.match(/Passing\s+Year\s*(?:[:=]|\s)\s*(\d{4})/i);
+
+    const cleanField = (val?: string) => {
+      if (!val) return undefined;
+      const cleaned = val
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^[•,;:\s]+|[•,;:\s]+$/g, "");
+      return cleaned.length > 0 ? cleaned : undefined;
+    };
+
+    const rawPrn = prnMatch ? (prnMatch[1] || prnMatch[0]) : "";
     const normalizedPrn = normalizePRN(rawPrn);
-    const extractedBatchId = batchMatch ? batchMatch[1].trim() : null;
+    const extractedBatchId = batchMatch ? cleanField(batchMatch[1]) || null : null;
     let extractedLeafIndex = leafMatch ? parseInt(leafMatch[1], 10) : null;
     const extractedCgpa = cgpaMatch ? parseFloat(cgpaMatch[1]) : undefined;
-    const extractedDegree = degreeMatch ? (degreeMatch[1] || degreeMatch[0]).trim() : undefined;
-    const extractedStudentName = nameMatch ? nameMatch[1].trim() : undefined;
-    const extractedBranch = branchMatch ? branchMatch[1].trim() : undefined;
+    const extractedDegree = degreeMatch ? cleanField(degreeMatch[1] || degreeMatch[0]) : undefined;
+    const extractedStudentName = nameMatch ? cleanField(nameMatch[1]) : undefined;
+    const extractedBranch = branchMatch ? cleanField(branchMatch[1]) : undefined;
     const extractedPassingYear = yearMatch ? parseInt(yearMatch[1], 10) : undefined;
 
     // 3. Database & Batch Resolution
@@ -482,7 +537,7 @@ export async function POST(request: NextRequest) {
     const forensicPromise: Promise<ForensicScanResult> = skipAi
       ? Promise.resolve({
           status: "QUEUED" as const,
-          reason: "AI forensic analysis deferred to independent forensic runner",
+          reason: "Forensic analysis queued",
         })
       : callAIForensicMicroservice(forensicBuffer, file.name);
 
@@ -649,8 +704,13 @@ export async function POST(request: NextRequest) {
 
     // E. Check Branch
     if (extractedBranch && genuineStudent.branch) {
-      const normExtracted = extractedBranch.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const normGenuine = genuineStudent.branch.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normalizeBranch = (str: string) =>
+        str
+          .toLowerCase()
+          .replace(/\band\b/g, "&")
+          .replace(/[^a-z0-9]/g, "");
+      const normExtracted = normalizeBranch(extractedBranch);
+      const normGenuine = normalizeBranch(genuineStudent.branch);
       if (!normGenuine.includes(normExtracted) && !normExtracted.includes(normGenuine)) {
         fieldMismatches.push({
           field: "Branch / Discipline",
@@ -716,6 +776,7 @@ export async function POST(request: NextRequest) {
         tamperReason: `Document claims do not match certified on-chain records: ${fieldMismatches.map((m) => `${m.field} (${m.claimed} vs ${m.certified})`).join("; ")}.`,
         forensic_scan: forensic,
         semantic_check: semanticCheck,
+        semanticCheck: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
@@ -789,6 +850,7 @@ export async function POST(request: NextRequest) {
         credential,
         forensic_scan: forensic,
         semantic_check: semanticCheck,
+        semanticCheck: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
@@ -829,6 +891,7 @@ export async function POST(request: NextRequest) {
         credential,
         forensic_scan: forensic,
         semantic_check: semanticCheck,
+        semanticCheck: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
@@ -857,29 +920,38 @@ export async function POST(request: NextRequest) {
         ? "Ethereum Sepolia (11155111)"
         : "institutional database registry (off-chain)";
 
-    // Truthfully distinguish forensic states: LOW ANOMALY, SUSPICIOUS, HIGH ANOMALY, UNAVAILABLE
-    const normalizedVerdict =
-      forensic.verdict === "AUTHENTIC"
-        ? "LOW ANOMALY"
-        : forensic.verdict === "TAMPERED"
-        ? "HIGH ANOMALY"
-        : forensic.verdict;
+    // P10-T05E: Separate Credential Authenticity from Document Forensic Assessment
+    // A successful Merkle proof must remain VERIFIED regardless of heuristic ELA output.
+    const isAnomalous =
+      forensic.assessment === "ANOMALIES_DETECTED" ||
+      forensic.verdict === "ANOMALIES_DETECTED" ||
+      forensic.verdict === "SUSPICIOUS" ||
+      forensic.verdict === "HIGH ANOMALY" ||
+      isTamperedByScore;
+
+    const forensicAssessment: DocumentForensicAssessment =
+      forensic.status === "UNAVAILABLE"
+        ? "SERVICE_UNAVAILABLE"
+        : forensic.status === "QUEUED"
+        ? "INCONCLUSIVE"
+        : isAnomalous
+        ? "ANOMALIES_DETECTED"
+        : "NO_SIGNIFICANT_ANOMALIES";
 
     const normalizedForensic: ForensicScanResult = {
       ...forensic,
-      ...(normalizedVerdict ? { verdict: normalizedVerdict } : {}),
+      assessment: forensicAssessment,
+      verdict: forensicAssessment,
     };
 
     let forensicSummary = "";
     if (forensic.status === "COMPLETED") {
-      if (normalizedVerdict === "LOW ANOMALY") {
-        forensicSummary = "ELA forensic scan indicates consistent JPEG compression residuals (LOW ANOMALY).";
-      } else if (normalizedVerdict === "SUSPICIOUS") {
-        forensicSummary = `Note: ELA forensic scan flagged moderate compression variance (SUSPICIOUS, anomaly score: ${forensic.ai_confidence_score}); cryptographic proof remains authoritative.`;
-      } else if (normalizedVerdict === "HIGH ANOMALY" || isTamperedByScore) {
-        forensicSummary = `Advisory: ELA forensic scan flagged elevated compression anomalies (HIGH ANOMALY, anomaly score: ${forensic.ai_confidence_score}); ${onChainResult.onChainVerified ? "on-chain cryptographic anchor" : "institutional record"} remains authoritative.`;
+      if (forensicAssessment === "NO_SIGNIFICANT_ANOMALIES") {
+        forensicSummary = "Document forensic assessment: NO SIGNIFICANT ANOMALIES (consistent compression residuals).";
+      } else if (forensicAssessment === "ANOMALIES_DETECTED") {
+        forensicSummary = `Document forensic assessment: ANOMALIES DETECTED (unusual compression patterns detected; manual document inspection recommended; findings alone do not establish forgery; cryptographic proof remains authoritative).`;
       } else {
-        forensicSummary = `ELA forensic verdict: ${normalizedVerdict}.`;
+        forensicSummary = `Document forensic assessment: ${forensicAssessment}.`;
       }
     } else if (forensic.status === "QUEUED") {
       forensicSummary = onChainResult.onChainVerified
@@ -891,15 +963,9 @@ export async function POST(request: NextRequest) {
         : `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via institutional registry.`;
     }
 
-    const isVisualAnomaly =
-      forensic.status === "COMPLETED" &&
-      (normalizedVerdict === "SUSPICIOUS" ||
-        normalizedVerdict === "HIGH ANOMALY" ||
-        isTamperedByScore);
-
-    const standardOutcome: StandardVerificationOutcome = isVisualAnomaly
-      ? "VISUAL_ANOMALY_REVIEW"
-      : "AUTHENTIC";
+    // Credential Authenticity is strictly AUTHENTIC / VERIFIED based on cryptographic validation.
+    // Visual compression anomalies do not degrade or override cryptographic validity.
+    const standardOutcome: StandardVerificationOutcome = "AUTHENTIC";
 
     const diagnosticMessage = onChainResult.onChainVerified
       ? `Fully Verified: Cryptographic Merkle proof matches ${networkName}, claims certified, and credential active. ${forensicSummary}`
@@ -909,6 +975,8 @@ export async function POST(request: NextRequest) {
       success: true,
       diagnostic_code: "FULLY_VERIFIED" as DiagnosticCode,
       verification_outcome: standardOutcome,
+      credential_authenticity: "VERIFIED" as CredentialAuthenticityStatus,
+      document_forensic_assessment: forensicAssessment,
       diagnostic_message: diagnosticMessage,
       isValid: true,
       isRevoked: false,
@@ -917,6 +985,7 @@ export async function POST(request: NextRequest) {
       visual_analysis_pending: forensic.status === "QUEUED",
       visual_service_offline: forensic.status === "UNAVAILABLE",
       credential,
+      forensic_scan: normalizedForensic,
       on_chain_verification: {
         source: onChainResult.source,
         onChainVerified: onChainResult.onChainVerified,
@@ -927,8 +996,8 @@ export async function POST(request: NextRequest) {
         issuingInstitutionName: onChainResult.issuingInstitutionName,
       },
       onChainCheck: onChainResult,
-      forensic_scan: normalizedForensic,
       semantic_check: semanticCheck,
+      semanticCheck: semanticCheck,
       pdfExtracted: {
         batchId: matchedBatch.batchId,
         leafIndex: extractedLeafIndex,

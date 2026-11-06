@@ -40,7 +40,12 @@ export const CREDENTIAL_REGISTRY_ABI = [
  */
 export function getProviderForChain(chainId: number): ethers.JsonRpcProvider {
   const netConfig = getNetworkConfig(chainId);
-  return new ethers.JsonRpcProvider(netConfig.rpcUrl);
+  try {
+    const staticNet = ethers.Network.from(chainId);
+    return new ethers.JsonRpcProvider(netConfig.rpcUrl, staticNet, { staticNetwork: staticNet });
+  } catch {
+    return new ethers.JsonRpcProvider(netConfig.rpcUrl);
+  }
 }
 
 /**

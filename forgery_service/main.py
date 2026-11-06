@@ -4,9 +4,10 @@ import gc
 import hmac
 import threading
 import concurrent.futures
+from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request, status
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -185,10 +186,46 @@ def get_inference_lock():
     return _InferenceLockAdapter()
 
 
+class ServiceReadinessState:
+    STARTING = "STARTING"
+    WARMING_UP = "WARMING_UP"
+    READY = "READY"
+    BUSY = "BUSY"
+    UNAVAILABLE = "UNAVAILABLE"
+
+_service_readiness: str = ServiceReadinessState.STARTING
+_service_init_error: str | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Service lifecycle manager. Guarantees PyTorch model and transforms are initialized
+    safely on startup before accepting inference traffic, preventing repeated imports
+    or premature traffic admission during cold start.
+    """
+    global _service_readiness, _service_init_error
+    _service_readiness = ServiceReadinessState.WARMING_UP
+    try:
+        checkpoint_env = os.getenv("AI_MODEL_CHECKPOINT_PATH", "")
+        if checkpoint_env:
+            load_ela_checkpoint(checkpoint_env)
+        else:
+            load_ela_checkpoint()
+        _service_readiness = ServiceReadinessState.READY
+    except Exception as err:
+        _service_readiness = ServiceReadinessState.UNAVAILABLE
+        _service_init_error = str(err)
+    yield
+    # Shutdown / cleanup
+    _service_readiness = ServiceReadinessState.UNAVAILABLE
+
+
 app = FastAPI(
     title="PyTorch Deep Learning Academic Document Forgery Detection Service",
     description="Error Level Analysis (ELA) and Convolutional Neural Network forensic microservice.",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Allowed CORS origins (configurable via ALLOWED_ORIGINS env var)
@@ -219,35 +256,66 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
-async def startup_event():
+@app.get("/health/live", status_code=status.HTTP_200_OK)
+async def liveness_check() -> Dict[str, Any]:
     """
-    Loads AI model checkpoint once during service startup rather than reloading per request.
+    Process liveness probe: Returns 200 as long as the Uvicorn/FastAPI process is alive,
+    allowing Kubernetes / container runners to know the container is running.
     """
-    checkpoint_env = os.getenv("AI_MODEL_CHECKPOINT_PATH", "")
-    if checkpoint_env:
-        load_ela_checkpoint(checkpoint_env)
-    else:
-        load_ela_checkpoint()
+    return {"status": "alive", "liveness": "ALIVE"}
+
+
+@app.get("/health/ready", status_code=status.HTTP_200_OK)
+async def readiness_check(response: Response) -> Dict[str, Any]:
+    """
+    Model/Inference readiness probe: Returns 200 ONLY when PyTorch components are initialized
+    and admission controller is accepting requests. Returns 503 during cold-start or errors.
+    """
+    global _service_readiness
+    if inference_controller.is_busy():
+        response.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+        return {"ready": False, "readiness": ServiceReadinessState.BUSY}
+    if _service_readiness == ServiceReadinessState.READY:
+        return {"ready": True, "readiness": ServiceReadinessState.READY}
+
+    response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return {"ready": False, "readiness": _service_readiness}
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check() -> Dict[str, Any]:
     """
-    Health check endpoint returning system status, engine model, training status,
-    active compute device, and physical-thread concurrency admission status.
+    Comprehensive health & readiness diagnostic endpoint.
+    Distinguishes: STARTING, WARMING_UP, READY, BUSY, UNAVAILABLE.
+    Provides complete forensic metadata, compute device, and physical admission controller stats.
     """
-    forensic_status = get_model_forensic_status()
+    global _service_readiness, _service_init_error
+
+    if inference_controller.is_busy():
+        current_readiness = ServiceReadinessState.BUSY
+    elif _service_readiness == ServiceReadinessState.READY:
+        current_readiness = ServiceReadinessState.READY
+    else:
+        current_readiness = _service_readiness
+
+    forensic_status = get_model_forensic_status() if _service_readiness != ServiceReadinessState.STARTING else {}
     concurrency_status = inference_controller.get_status()
+
     return {
-        "status": "healthy",
+        "status": current_readiness,
+        "readiness": current_readiness,
+        "liveness": "ALIVE",
+        "is_healthy": current_readiness in (ServiceReadinessState.READY, ServiceReadinessState.BUSY),
+        "is_ready": current_readiness == ServiceReadinessState.READY,
+        "is_busy": current_readiness == ServiceReadinessState.BUSY,
         "service": "PyTorch ELA Forgery Detection Microservice",
         "engine": "ELAForgeryCNN",
         "device": str(DEVICE),
-        "model_trained": forensic_status["is_model_trained"],
-        "checkpoint_path": forensic_status["checkpoint_path"],
-        "checkpoint_status": forensic_status["checkpoint_status"],
-        "forensic_mode": forensic_status["forensic_mode"],
+        "model_trained": forensic_status.get("is_model_trained", False),
+        "checkpoint_path": forensic_status.get("checkpoint_path"),
+        "checkpoint_status": forensic_status.get("checkpoint_status"),
+        "forensic_mode": forensic_status.get("forensic_mode", "HEURISTIC_BASELINE_UNTRAINED"),
+        "init_error": _service_init_error,
         "max_payload_bytes": MAX_PAYLOAD_BYTES,
         "supported_extensions": list(ALLOWED_EXTENSIONS),
         "concurrency_control": concurrency_status,

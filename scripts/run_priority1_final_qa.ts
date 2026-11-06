@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import net from "net";
 import { spawn, ChildProcess } from "child_process";
 import { getAllBatchesDb } from "../src/lib/db";
@@ -11,7 +12,14 @@ const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
 const TEST_AUTH_SECRET = "soet_veritrust_test_secret_32_characters_minimum_length_key!";
 process.env.AUTH_SECRET = TEST_AUTH_SECRET;
 
-const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const CHROME_PATH =
+  process.platform === "win32"
+    ? fs.existsSync("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe")
+      ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      : "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    : process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : "google-chrome";
 const REQUEST_TIMEOUT_MS = 15000;
 const SERVER_STARTUP_TIMEOUT_MS = 25000;
 
@@ -306,8 +314,8 @@ async function main() {
     );
 
     // Prepare temp credential files for real OS file picker simulation via CDP
-    const tempValidPath = path.resolve("/tmp/soet_valid_degree.json");
-    const tempTamperedPath = path.resolve("/tmp/soet_tampered_degree.json");
+    const tempValidPath = path.join(os.tmpdir(), "soet_valid_degree.json");
+    const tempTamperedPath = path.join(os.tmpdir(), "soet_tampered_degree.json");
     fs.writeFileSync(tempValidPath, JSON.stringify(validCred, null, 2), "utf8");
 
     const tamperedCred = JSON.parse(JSON.stringify(validCred));
@@ -329,40 +337,37 @@ async function main() {
 
     const verifiedText = await browser.evaluate("document.body.innerText");
     const hasVerificationResult =
+      verifiedText.includes("Academic Credential Authenticity Confirmed") ||
       verifiedText.includes("100% Authentic & Tamper-Proof") ||
       verifiedText.includes("Verified On-Chain") ||
+      verifiedText.includes("VERIFIED") ||
       verifiedText.includes("Cryptographically Verified");
 
     assert(hasVerificationResult, "Browser Verification: Valid certificate verified and result card displayed");
 
-    // Verify <DegreeCertificate> rendered in the DOM
-    const hasDegreeCertificate = await browser.evaluate(`
-      Boolean(document.querySelector('#printable-degree') && document.body.innerText.toLowerCase().includes("${student0.fullName.toLowerCase()}"))
+    // Verify CredentialVerificationReport rendered in the DOM, NOT DegreeCertificate document
+    const verificationReportRendered = await browser.evaluate(`
+      Boolean(
+        document.querySelector('[data-testid="credential-verification-report"]') &&
+        document.body.innerText.toLowerCase().includes("${student0.fullName.toLowerCase()}")
+      )
     `);
-    assert(hasDegreeCertificate, "Browser Certificate View: Full DegreeCertificate view component rendered with student details");
+    assert(verificationReportRendered, "Browser Verification Report: CredentialVerificationReport component rendered with student details");
 
-    // Test QR verification modal
-    await browser.evaluate(`
+    // Assert that the full certificate (#printable-degree) is NOT rendered in public verification
+    const fullCertificateAbsent = await browser.evaluate(`
+      document.querySelector('#printable-degree') === null
+    `);
+    assert(fullCertificateAbsent, "Browser Public Verifier: Full certificate document (#printable-degree) correctly removed from public verification");
+
+    // Test Share Report Link button
+    const hasShareBtn = await browser.evaluate(`
       (() => {
-        const qrBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.trim() === 'QR Code');
-        if (qrBtn) qrBtn.click();
+        const shareBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && (b.textContent.includes('Share Verification') || b.textContent.includes('Share Report')));
+        return Boolean(shareBtn);
       })()
     `);
-    await delay(600);
-
-    const hasQrModal = await browser.evaluate(`
-      Boolean(document.body.innerText.includes("Official Verification QR Code") || document.body.innerText.includes("Copy Verification URL"))
-    `);
-    assert(hasQrModal, "Browser QR Modal: Interactive QR scanner modal triggered successfully");
-
-    // Close QR modal
-    await browser.evaluate(`
-      (() => {
-        const closeBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.trim() === 'Close');
-        if (closeBtn) closeBtn.click();
-      })()
-    `);
-    await delay(500);
+    assert(hasShareBtn, "Browser Report Controls: Share Report Link action present on verification dashboard");
 
     // Test responsive viewports for overflow
     // 1. Desktop (1440x900)
@@ -405,14 +410,16 @@ async function main() {
     `);
     await delay(800);
 
-    // Switch to Upload Tab again
+    // Switch to Upload Tab again: return to dropzone if a verification report is active
     await browser.evaluate(`
       (() => {
+        const verifyAnotherBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Verify Another'));
+        if (verifyAnotherBtn) verifyAnotherBtn.click();
         const uploadBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Verify via PDF'));
         if (uploadBtn) uploadBtn.click();
       })()
     `);
-    await delay(500);
+    await delay(1000);
 
     // Upload tampered certificate via CDP
     await browser.uploadFile('input[type="file"]', tempTamperedPath);

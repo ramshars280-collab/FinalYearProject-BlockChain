@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const healthTimeoutMs = parseInt(process.env.AI_HEALTH_TIMEOUT_MS || "8000", 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const timeoutId = setTimeout(() => controller.abort(), healthTimeoutMs);
 
   try {
     const res = await fetch(endpoint, {
@@ -51,17 +52,20 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await res.json();
-    const isPhysicallyBusy = Boolean(data?.concurrency_control?.is_physically_busy);
-    const waitingInQueue = Number(data?.concurrency_control?.waiting_in_queue || 0);
+    const isPhysicallyBusy = Boolean(data?.concurrency_control?.is_physically_busy || data?.is_busy);
+    const waitingInQueue = Number(data?.concurrency_control?.waiting_in_queue || data?.waiting_in_queue || 0);
+    const readiness = data?.readiness || (isPhysicallyBusy ? "BUSY" : "READY");
 
     return jsonResponse(
       {
-        status: "online",
+        status: readiness === "READY" ? "online" : readiness === "BUSY" ? "busy" : readiness === "WARMING_UP" || readiness === "STARTING" ? "warming_up" : "online",
+        readiness,
         service: data.service || "AI Forensic Microservice",
         engine: data.engine || "ELAForgeryCNN",
         device: data.device || "cpu",
         model_trained: Boolean(data.model_trained),
         forensic_mode: data.forensic_mode || "HEURISTIC_BASELINE_UNTRAINED",
+        is_ready: Boolean(data.is_ready ?? true),
         is_busy: isPhysicallyBusy,
         waiting_in_queue: waitingInQueue,
         concurrency_control: data.concurrency_control || null,

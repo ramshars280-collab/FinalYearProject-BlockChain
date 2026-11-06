@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getAIForensicEndpoint, validateAIForensicUrl } from "@/lib/aiConfig";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { getRequestId, jsonResponse, logger } from "@/lib/observability";
+import { DocumentForensicAssessment } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,9 @@ export interface AIScanResponse {
   success: boolean;
   forensic_scan: {
     status: "COMPLETED" | "UNAVAILABLE";
+    assessment?: DocumentForensicAssessment;
     ai_confidence_score?: number;
-    verdict?: "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
+    verdict?: "NO_SIGNIFICANT_ANOMALIES" | "ANOMALIES_DETECTED" | "INCONCLUSIVE" | "SERVICE_UNAVAILABLE" | string;
     heatmap_base64?: string;
     metadata?: any;
     reason?: string;
@@ -175,6 +177,8 @@ export async function POST(request: NextRequest) {
             success: true,
             forensic_scan: {
               status: "UNAVAILABLE",
+              assessment: "SERVICE_UNAVAILABLE" as DocumentForensicAssessment,
+              verdict: "SERVICE_UNAVAILABLE",
               reason: "AI forensic microservice queue is at capacity or busy (HTTP 503). Please retry shortly.",
             },
             requestId,
@@ -190,6 +194,8 @@ export async function POST(request: NextRequest) {
             success: true,
             forensic_scan: {
               status: "UNAVAILABLE",
+              assessment: "SERVICE_UNAVAILABLE" as DocumentForensicAssessment,
+              verdict: "SERVICE_UNAVAILABLE",
               reason: `AI microservice returned HTTP status ${res.status}`,
             },
             requestId,
@@ -217,17 +223,34 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Normalize forensic verdict to standard categories
-      const normalizedVerdict =
-        data.verdict === "AUTHENTIC"
-          ? "LOW ANOMALY"
-          : data.verdict === "TAMPERED"
-          ? "HIGH ANOMALY"
-          : data.verdict || "UNKNOWN";
+      // P10-T05E: Map to separated Document Forensic Assessment
+      // Never label an academic document definitively "SUSPICIOUS" or "FORGED" from heuristic compression anomalies alone.
+      let assessment: DocumentForensicAssessment = "NO_SIGNIFICANT_ANOMALIES";
+      if (
+        data.assessment === "ANOMALIES_DETECTED" ||
+        data.verdict === "ANOMALIES_DETECTED" ||
+        data.verdict === "SUSPICIOUS" ||
+        data.verdict === "HIGH ANOMALY" ||
+        data.verdict === "TAMPERED"
+      ) {
+        assessment = "ANOMALIES_DETECTED";
+      } else if (data.assessment === "INCONCLUSIVE" || data.verdict === "INCONCLUSIVE") {
+        assessment = "INCONCLUSIVE";
+      } else {
+        assessment = "NO_SIGNIFICANT_ANOMALIES";
+      }
 
-      // Ensure metadata includes HEURISTIC_BASELINE_UNTRAINED disclosure
+      // Backward-compatible verdict string
+      const normalizedVerdict = assessment;
+
+      // Ensure metadata includes HEURISTIC_BASELINE_UNTRAINED disclosure & advisory
       const metadata = {
         ...(data.metadata || {}),
+        assessment,
+        advisory:
+          assessment === "ANOMALIES_DETECTED"
+            ? "Unusual compression patterns detected. Manual document inspection is recommended. These findings alone do not establish forgery."
+            : "Compression residuals are consistent across document tiles. No significant localized compression discrepancies detected.",
         forensic_mode: data.metadata?.forensic_mode || "HEURISTIC_BASELINE_UNTRAINED",
         model_trained: Boolean(data.metadata?.model_trained),
       };
@@ -237,10 +260,17 @@ export async function POST(request: NextRequest) {
           success: true,
           forensic_scan: {
             status: "COMPLETED",
+            assessment,
+            review_tier: data.review_tier || (assessment === "NO_SIGNIFICANT_ANOMALIES" ? "NO_SIGNIFICANT_ANOMALIES" : "UNCERTAIN_COMPRESSION_VARIANCE"),
+            diagnostic_reason: data.diagnostic_reason || undefined,
             ai_confidence_score: typeof data.ai_confidence_score === "number" ? data.ai_confidence_score : 0,
             verdict: normalizedVerdict,
             heatmap_base64: data.heatmap_base64 || undefined,
-            metadata,
+            metadata: {
+              ...metadata,
+              review_tier: data.review_tier,
+              diagnostic_reason: data.diagnostic_reason,
+            },
           },
           requestId,
         },
@@ -255,6 +285,8 @@ export async function POST(request: NextRequest) {
           success: true,
           forensic_scan: {
             status: "UNAVAILABLE",
+            assessment: "SERVICE_UNAVAILABLE" as DocumentForensicAssessment,
+            verdict: "SERVICE_UNAVAILABLE",
             reason: isTimeout
               ? `AI forensic microservice timed out (>${AI_INFERENCE_TIMEOUT_MS / 1000}s)`
               : "AI forensic microservice unavailable or connection refused",

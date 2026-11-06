@@ -35,10 +35,14 @@ module.exports = (phase) => {
               key: 'Permissions-Policy',
               value: 'camera=(), microphone=(), geolocation=()',
             },
-            {
-              key: 'Strict-Transport-Security',
-              value: 'max-age=63072000; includeSubDomains; preload',
-            },
+            ...(isDev
+              ? []
+              : [
+                  {
+                    key: 'Strict-Transport-Security',
+                    value: 'max-age=63072000; includeSubDomains; preload',
+                  },
+                ]),
           ],
         },
       ];

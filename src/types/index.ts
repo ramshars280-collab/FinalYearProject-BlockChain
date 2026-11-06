@@ -162,6 +162,18 @@ export interface SemanticCheckResult {
   reason?: string;
 }
 
+export type CredentialAuthenticityStatus =
+  | "VERIFIED"
+  | "INVALID"
+  | "REVOKED"
+  | "INCONCLUSIVE";
+
+export type DocumentForensicAssessment =
+  | "NO_SIGNIFICANT_ANOMALIES"
+  | "ANOMALIES_DETECTED"
+  | "INCONCLUSIVE"
+  | "SERVICE_UNAVAILABLE";
+
 export type StandardVerificationOutcome =
   | "AUTHENTIC"
   | "CRYPTOGRAPHICALLY_INVALID"
@@ -175,6 +187,7 @@ export interface VerificationResult {
   isRevoked: boolean;
   tamperDetected: boolean;
   tamperReason?: string;
+  credentialAuthenticity?: CredentialAuthenticityStatus;
   verificationOutcome?: StandardVerificationOutcome;
   visualAnalysisPending?: boolean;
   visualServiceOffline?: boolean;
@@ -192,9 +205,12 @@ export interface VerificationResult {
   issuingInstitutionAddress?: string;
   diagnosticCode?: string;
   forensicScan?: {
-    status: "COMPLETED" | "UNAVAILABLE" | "QUEUED";
+    status: "COMPLETED" | "UNAVAILABLE" | "QUEUED" | "WARMING_UP" | "ANALYZING" | "FAILED" | string;
+    assessment?: DocumentForensicAssessment;
     ai_confidence_score?: number;
-    verdict?: "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
+    verdict?: "NO_SIGNIFICANT_ANOMALIES" | "ANOMALIES_DETECTED" | "LOW ANOMALY" | "SUSPICIOUS" | "HIGH ANOMALY" | "AUTHENTIC" | "TAMPERED" | string;
+    review_tier?: "NO_SIGNIFICANT_ANOMALIES" | "UNCERTAIN_COMPRESSION_VARIANCE" | "STRONG_MANIPULATION_EVIDENCE" | string;
+    diagnostic_reason?: string;
     heatmap_base64?: string;
     metadata?: any;
     reason?: string;
