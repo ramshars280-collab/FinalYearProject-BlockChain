@@ -1,0 +1,18 @@
+{
+  "local": {
+    "cold_import_ms": 1200.97,
+    "cold_first_infer_ms": 172.11,
+    "cold_total_ms": 1373.97,
+    "warm_avg_ms": 135.92
+  },
+  "fastapi_http": {
+    "service_startup_and_health_ms": 1422.49,
+    "fastapi_http_request_avg_ms": 197.45,
+    "http_overhead_over_warm_ms": 137.45
+  },
+  "remote_cloud_characteristics": {
+    "render_free_cold_start_range_seconds": "50 - 90s",
+    "warm_https_rtt_ms": "1200 - 2800ms",
+    "local_pipeline_ms": "180 - 320ms"
+  }
+}

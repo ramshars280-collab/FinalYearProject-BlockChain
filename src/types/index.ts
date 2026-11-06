@@ -133,11 +133,51 @@ export interface ResumeAuditRecord {
   discrepancyDelta?: number;
 }
 
+export interface SemanticMismatchItem {
+  field: string;
+  claimed: string | number;
+  certified: string | number;
+  discrepancy: string;
+}
+
+export interface SemanticCheckResult {
+  status: "MATCH" | "MISMATCH" | "SKIPPED";
+  field_mismatches?: SemanticMismatchItem[];
+  claimed?: {
+    studentName?: string;
+    prn?: string;
+    cgpa?: number;
+    degree?: string;
+    branch?: string;
+    graduationYear?: number;
+  };
+  certified?: {
+    studentName?: string;
+    prn?: string;
+    cgpa?: number;
+    degree?: string;
+    branch?: string;
+    graduationYear?: number;
+  };
+  reason?: string;
+}
+
+export type StandardVerificationOutcome =
+  | "AUTHENTIC"
+  | "CRYPTOGRAPHICALLY_INVALID"
+  | "REVOKED"
+  | "SEMANTIC_MISMATCH"
+  | "VISUAL_ANOMALY_REVIEW"
+  | "INCONCLUSIVE";
+
 export interface VerificationResult {
   isValid: boolean;
   isRevoked: boolean;
   tamperDetected: boolean;
   tamperReason?: string;
+  verificationOutcome?: StandardVerificationOutcome;
+  visualAnalysisPending?: boolean;
+  visualServiceOffline?: boolean;
   computedLeaf?: string;
   matchedRoot?: string;
   batchId?: string;
@@ -159,6 +199,7 @@ export interface VerificationResult {
     metadata?: any;
     reason?: string;
   };
+  semanticCheck?: SemanticCheckResult;
   verificationSource?: "SEPOLIA_RPC" | "LOCAL_RPC" | "STORAGE_REGISTRY";
   isLocalMerkleValid?: boolean;
   isOnChainAnchored?: boolean;

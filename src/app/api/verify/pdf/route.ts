@@ -15,7 +15,14 @@ import { verifyCredentialOnChain, verifyBatchAnchorEvidence } from "@/lib/contra
 import { getAIForensicEndpoint, validateAIForensicUrl } from "@/lib/aiConfig";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { getRequestId, jsonResponse, logger } from "@/lib/observability";
-import { BatchRecord, StudentDegreeData, W3CCredentialPayload } from "@/types";
+import {
+  BatchRecord,
+  StudentDegreeData,
+  W3CCredentialPayload,
+  SemanticCheckResult,
+  SemanticMismatchItem,
+  StandardVerificationOutcome,
+} from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +33,9 @@ export type DiagnosticCode =
   | "FULLY_VERIFIED"
   | "CLAIM_MISMATCH_CGPA"
   | "CLAIM_MISMATCH_DEGREE"
+  | "CLAIM_MISMATCH_NAME"
+  | "CLAIM_MISMATCH_PRN"
+  | "SEMANTIC_CLAIM_MISMATCH"
   | "MERKLE_PROOF_INVALID"
   | "CREDENTIAL_REVOKED"
   | "RECORD_NOT_IN_DATABASE"
@@ -63,8 +73,9 @@ async function callAIForensicMicroservice(
     };
   }
 
+  const aiTimeoutMs = parseInt(process.env.AI_FORENSIC_TIMEOUT_MS || "12000", 10);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const timeoutId = setTimeout(() => controller.abort(), aiTimeoutMs);
 
   try {
     const formData = new FormData();
@@ -100,7 +111,7 @@ async function callAIForensicMicroservice(
     return {
       status: "UNAVAILABLE",
       reason: isTimeout
-        ? "AI Forensic Service timed out (>3000ms)"
+        ? `AI Forensic Service timed out (>${aiTimeoutMs}ms)`
         : `AI Forensic Service offline (${err?.message || "connection refused"})`,
     };
   }
@@ -318,21 +329,25 @@ export async function POST(request: NextRequest) {
 
         const ocrBuffer = Buffer.from(forensicBuffer);
         const extractedImages = extractImagesFromPdf(ocrBuffer);
-        const targetBuffer = extractedImages.length > 0 ? extractedImages[0] : ocrBuffer;
 
-        const worker = await getCachedOcrWorker();
-        if (worker) {
-          const ocrPromise = worker.recognize(targetBuffer);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("OCR scanning timeout (>5000ms)")), 5000)
-          );
+        if (extractedImages.length > 0) {
+          const targetBuffer = extractedImages[0];
+          const worker = await getCachedOcrWorker();
+          if (worker) {
+            const ocrPromise = worker.recognize(targetBuffer);
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("OCR scanning timeout (>5000ms)")), 5000)
+            );
 
-          const { data }: any = await Promise.race([ocrPromise, timeoutPromise]);
-          if (data && data.text && data.text.trim().length > 0) {
-            rawText = data.text;
-            ocrExtracted = true;
-            console.log(`✅ OCR Engine successfully extracted ${rawText.length} characters from scanned PDF.`);
+            const { data }: any = await Promise.race([ocrPromise, timeoutPromise]);
+            if (data && data.text && data.text.trim().length > 0) {
+              rawText = data.text;
+              ocrExtracted = true;
+              console.log(`✅ OCR Engine successfully extracted ${rawText.length} characters from scanned PDF.`);
+            }
           }
+        } else {
+          console.warn("⚠️ Scanned PDF contains no extractable JPEG image streams for Tesseract OCR.");
         }
       } catch (ocrErr: any) {
         console.warn("⚠️ OCR processing encountered an exception or timeout:", ocrErr?.message || ocrErr);
@@ -344,6 +359,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             diagnostic_code: "SCANNED_DOCUMENT_REQUIRES_OCR" as DiagnosticCode,
+            verification_outcome: "INCONCLUSIVE" as StandardVerificationOutcome,
             error:
               "Scanned Document Detected: This PDF contains flat raster images without an embedded digital text layer. OCR processing did not detect readable text.",
             requestId,
@@ -358,16 +374,37 @@ export async function POST(request: NextRequest) {
     const batchMatch = rawText.match(/Batch ID:\s*([A-Za-z0-9_-]+)/i);
     const leafMatch = rawText.match(/Leaf:\s*#?(\d+)/i);
     const prnMatch =
-      rawText.match(/(PRN\d+)/i) ||
-      rawText.match(/Permanent Reg\. No\.\s*([A-Za-z0-9_-]+)/i) ||
-      rawText.match(/PRN[:\s]+([A-Za-z0-9_-]+)/i);
+      rawText.match(/Permanent Registration No\.?:\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/Permanent Reg\.?\s*No\.?:\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/Registration No\.?:\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/PRN\s*(?:[:=]|\s)\s*([A-Za-z0-9_-]+)/i) ||
+      rawText.match(/(PRN\d{8,12})/i);
     const cgpaMatch =
-      rawText.match(/CUMULATIVE CGPA\s*([\d.]+)/i) ||
-      rawText.match(/CGPA[:\s]+([\d.]+)/i);
+      rawText.match(/Cumulative CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
+      rawText.match(/CUMULATIVE CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
+      rawText.match(/CGPA\s*(?:[:=]|\s)\s*([\d.]+)/i) ||
+      rawText.match(/GPA\s*(?:[:=]|\s)\s*([\d.]+)/i);
     const degreeMatch =
+      rawText.match(/Degree Conferred:\s*([A-Za-z\s&()-]+)/i) ||
+      rawText.match(/degree of\s+([A-Za-z\s&()-]+?)(?:\s+in|\s+with|\))/i) ||
       rawText.match(/Bachelor of Technology/i) ||
       rawText.match(/Master of Technology/i) ||
-      rawText.match(/Degree of\s+([A-Za-z\s&]+)/i);
+      rawText.match(/Degree of\s+([A-Za-z\s&()-]+)/i);
+    const nameMatch =
+      rawText.match(/conferred upon\s+([A-Za-z\s.'-]+?)\s+for\s+successfully/i) ||
+      rawText.match(/awarded\s+(?:to\s+)?([A-Za-z\s.'-]+?)\s+(?:for|in|with)/i) ||
+      rawText.match(/Candidate Name:\s*([A-Za-z\s.'-]+)/i) ||
+      rawText.match(/Student Name:\s*([A-Za-z\s.'-]+)/i);
+    const branchMatch =
+      rawText.match(/Branch\s*(?:\/\s*Discipline)?:\s*([A-Za-z\s&()-]+)/i) ||
+      rawText.match(/\bin\s+([A-Za-z\s&()-]+?)\s+with Cumulative CGPA/i) ||
+      rawText.match(/Discipline:\s*([A-Za-z\s&()-]+)/i);
+    const yearMatch =
+      rawText.match(/\(Class of\s*(\d{4})\)/i) ||
+      rawText.match(/Class of\s*(\d{4})/i) ||
+      rawText.match(/Graduation Year\s*(?:[:=]|\s)\s*(\d{4})/i) ||
+      rawText.match(/Year of Passing\s*(?:[:=]|\s)\s*(\d{4})/i) ||
+      rawText.match(/Passing Year\s*(?:[:=]|\s)\s*(\d{4})/i);
 
     // If neither batch ID nor PRN was found in the text
     if (!batchMatch && !prnMatch) {
@@ -375,6 +412,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           diagnostic_code: "RECORD_NOT_IN_DATABASE" as DiagnosticCode,
+          verification_outcome: "INCONCLUSIVE" as StandardVerificationOutcome,
           error:
             "Unrecognized Academic Document: No verifiable university Permanent Registration Number (PRN) or Batch identifier found in document text.",
           requestId,
@@ -389,7 +427,10 @@ export async function POST(request: NextRequest) {
     const extractedBatchId = batchMatch ? batchMatch[1].trim() : null;
     let extractedLeafIndex = leafMatch ? parseInt(leafMatch[1], 10) : null;
     const extractedCgpa = cgpaMatch ? parseFloat(cgpaMatch[1]) : undefined;
-    const extractedDegree = degreeMatch ? degreeMatch[0].trim() : undefined;
+    const extractedDegree = degreeMatch ? (degreeMatch[1] || degreeMatch[0]).trim() : undefined;
+    const extractedStudentName = nameMatch ? nameMatch[1].trim() : undefined;
+    const extractedBranch = branchMatch ? branchMatch[1].trim() : undefined;
+    const extractedPassingYear = yearMatch ? parseInt(yearMatch[1], 10) : undefined;
 
     // 3. Database & Batch Resolution
     let matchedBatch: BatchRecord | null = null;
@@ -445,6 +486,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse({
         success: true,
         diagnostic_code: "UNREGISTERED_ISSUER" as DiagnosticCode,
+        verification_outcome: "CRYPTOGRAPHICALLY_INVALID" as StandardVerificationOutcome,
         diagnostic_message: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' was never anchored or registered on the Ethereum credential registry.`,
         isValid: false,
         isRevoked: false,
@@ -452,11 +494,18 @@ export async function POST(request: NextRequest) {
         tamperDetected: true,
         tamperReason: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' is not authorized on blockchain registry.`,
         forensic_scan: forensic,
+        semantic_check: {
+          status: "SKIPPED",
+          reason: `Unregistered Authority: Batch '${extractedBatchId || "UNKNOWN"}' was never anchored or registered on Ethereum Sepolia.`,
+        },
         pdfExtracted: {
           batchId: extractedBatchId,
           leafIndex: extractedLeafIndex,
           prn: normalizedPrn,
           cgpa: extractedCgpa,
+          studentName: extractedStudentName,
+          branch: extractedBranch,
+          graduationYear: extractedPassingYear,
         },
         requestId,
       }, { status: 200 }, requestId);
@@ -484,6 +533,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse({
         success: true,
         diagnostic_code: "RECORD_NOT_IN_DATABASE" as DiagnosticCode,
+        verification_outcome: "CRYPTOGRAPHICALLY_INVALID" as StandardVerificationOutcome,
         diagnostic_message: `Record Not Found: Candidate registration (${normalizedPrn || "UNKNOWN"}) does not exist in certified batch '${matchedBatch.batchId}'.`,
         isValid: false,
         isRevoked: false,
@@ -491,11 +541,18 @@ export async function POST(request: NextRequest) {
         tamperDetected: true,
         tamperReason: `Candidate record does not exist in batch '${matchedBatch.batchId}'.`,
         forensic_scan: forensic,
+        semantic_check: {
+          status: "SKIPPED",
+          reason: `Candidate registration (${normalizedPrn || "UNKNOWN"}) does not exist in certified batch '${matchedBatch.batchId}'.`,
+        },
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
           prn: normalizedPrn,
           cgpa: extractedCgpa,
+          studentName: extractedStudentName,
+          branch: extractedBranch,
+          graduationYear: extractedPassingYear,
         },
         requestId,
       }, { status: 200 }, requestId);
@@ -503,55 +560,164 @@ export async function POST(request: NextRequest) {
 
     const genuineStudent: StudentDegreeData = matchedBatch.records[extractedLeafIndex];
 
-    // Rule 4: Claim Mismatch - CGPA
-    if (extractedCgpa !== undefined && genuineStudent.cgpa !== undefined) {
-      const genuineCgpa = parseFloat(String(genuineStudent.cgpa));
-      if (Math.abs(extractedCgpa - genuineCgpa) > 0.01) {
-        const forensic = await forensicPromise;
-        return jsonResponse({
-          success: true,
-          diagnostic_code: "CLAIM_MISMATCH_CGPA" as DiagnosticCode,
-          diagnostic_message: `Cryptographic Claim Mismatch: Document presents CGPA ${extractedCgpa}, but genuine on-chain Merkle tree anchors CGPA ${genuineCgpa}.`,
-          isValid: false,
-          isRevoked: false,
-          isUnregistered: false,
-          tamperDetected: true,
-          tamperReason: `Document displays CGPA ${extractedCgpa}, but certified on-chain record anchors CGPA ${genuineCgpa}.`,
-          forensic_scan: forensic,
-          pdfExtracted: {
-            batchId: matchedBatch.batchId,
-            leafIndex: extractedLeafIndex,
-            prn: normalizedPrn || genuineStudent.prn,
-            cgpa: extractedCgpa,
-          },
-          requestId,
-        }, { status: 200 }, requestId);
+    // 3.5 Semantic Claim Consistency Audit (Mechanism B: Field-by-Field Audit vs On-Chain Anchored Record)
+    const fieldMismatches: SemanticMismatchItem[] = [];
+
+    // A. Check Student Name
+    if (extractedStudentName && genuineStudent.fullName) {
+      const titles = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt"]);
+      const extractedTokens = extractedStudentName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((t) => t.length > 0 && !titles.has(t));
+      const genuineTokens = genuineStudent.fullName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((t) => t.length > 0 && !titles.has(t));
+
+      const normExtracted = extractedTokens.join("");
+      const normGenuine = genuineTokens.join("");
+
+      let nameMatches = normExtracted === normGenuine;
+      if (!nameMatches) {
+        if (extractedTokens.length >= 2 && genuineTokens.length >= 2) {
+          const hasCommonMismatch = extractedTokens.some(
+            (et) => !genuineTokens.some((gt) => gt.includes(et) || et.includes(gt))
+          );
+          nameMatches = !hasCommonMismatch;
+        } else if (normExtracted.length >= 4 && (normGenuine.includes(normExtracted) || normExtracted.includes(normGenuine))) {
+          nameMatches = extractedTokens.length === genuineTokens.length;
+        }
+      }
+
+      if (!nameMatches) {
+        fieldMismatches.push({
+          field: "Candidate Name",
+          claimed: extractedStudentName,
+          certified: genuineStudent.fullName,
+          discrepancy: `Candidate Name mismatch: Document claims '${extractedStudentName}', but certified on-chain record anchors '${genuineStudent.fullName}'.`,
+        });
       }
     }
 
-    // Rule 5: Claim Mismatch - Degree
-    if (
-      extractedDegree &&
-      genuineStudent.degree &&
-      !genuineStudent.degree.toLowerCase().includes(extractedDegree.toLowerCase()) &&
-      !extractedDegree.toLowerCase().includes(genuineStudent.degree.toLowerCase())
-    ) {
+    // B. Check PRN
+    if (normalizedPrn && genuineStudent.prn) {
+      if (normalizePRN(genuineStudent.prn) !== normalizedPrn) {
+        fieldMismatches.push({
+          field: "Permanent Registration Number (PRN)",
+          claimed: normalizedPrn,
+          certified: genuineStudent.prn,
+          discrepancy: `PRN mismatch: Document claims '${normalizedPrn}', but certified record anchors '${genuineStudent.prn}'.`,
+        });
+      }
+    }
+
+    // C. Check CGPA
+    if (extractedCgpa !== undefined && genuineStudent.cgpa !== undefined) {
+      const genuineCgpa = parseFloat(String(genuineStudent.cgpa));
+      if (Math.abs(extractedCgpa - genuineCgpa) > 0.01) {
+        fieldMismatches.push({
+          field: "Cumulative CGPA",
+          claimed: extractedCgpa,
+          certified: genuineCgpa,
+          discrepancy: `Cumulative CGPA mismatch: Document presents CGPA ${extractedCgpa}, but certified record anchors CGPA ${genuineCgpa}.`,
+        });
+      }
+    }
+
+    // D. Check Degree
+    if (extractedDegree && genuineStudent.degree) {
+      const normExtracted = extractedDegree.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normGenuine = genuineStudent.degree.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!normGenuine.includes(normExtracted) && !normExtracted.includes(normGenuine)) {
+        fieldMismatches.push({
+          field: "Degree Conferred",
+          claimed: extractedDegree,
+          certified: genuineStudent.degree,
+          discrepancy: `Degree mismatch: Document claims '${extractedDegree}', but certified record anchors '${genuineStudent.degree}'.`,
+        });
+      }
+    }
+
+    // E. Check Branch
+    if (extractedBranch && genuineStudent.branch) {
+      const normExtracted = extractedBranch.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const normGenuine = genuineStudent.branch.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!normGenuine.includes(normExtracted) && !normExtracted.includes(normGenuine)) {
+        fieldMismatches.push({
+          field: "Branch / Discipline",
+          claimed: extractedBranch,
+          certified: genuineStudent.branch,
+          discrepancy: `Branch mismatch: Document claims '${extractedBranch}', but certified record anchors '${genuineStudent.branch}'.`,
+        });
+      }
+    }
+
+    // F. Check Graduation Year
+    if (extractedPassingYear && genuineStudent.graduationYear) {
+      if (extractedPassingYear !== genuineStudent.graduationYear) {
+        fieldMismatches.push({
+          field: "Graduation Year",
+          claimed: extractedPassingYear,
+          certified: genuineStudent.graduationYear,
+          discrepancy: `Graduation Year mismatch: Document claims Class of ${extractedPassingYear}, but certified record anchors Class of ${genuineStudent.graduationYear}.`,
+        });
+      }
+    }
+
+    const semanticCheck: SemanticCheckResult = {
+      status: fieldMismatches.length > 0 ? "MISMATCH" : "MATCH",
+      field_mismatches: fieldMismatches,
+      claimed: {
+        studentName: extractedStudentName,
+        prn: normalizedPrn || undefined,
+        cgpa: extractedCgpa,
+        degree: extractedDegree,
+        branch: extractedBranch,
+        graduationYear: extractedPassingYear,
+      },
+      certified: {
+        studentName: genuineStudent.fullName,
+        prn: genuineStudent.prn,
+        cgpa: genuineStudent.cgpa,
+        degree: genuineStudent.degree,
+        branch: genuineStudent.branch,
+        graduationYear: genuineStudent.graduationYear,
+      },
+    };
+
+    if (fieldMismatches.length > 0) {
       const forensic = await forensicPromise;
+      let diagCode: DiagnosticCode = "SEMANTIC_CLAIM_MISMATCH";
+      if (fieldMismatches.length === 1) {
+        if (fieldMismatches[0].field === "Cumulative CGPA") diagCode = "CLAIM_MISMATCH_CGPA";
+        else if (fieldMismatches[0].field === "Degree Conferred") diagCode = "CLAIM_MISMATCH_DEGREE";
+        else if (fieldMismatches[0].field === "Candidate Name") diagCode = "CLAIM_MISMATCH_NAME";
+        else if (fieldMismatches[0].field === "Permanent Registration Number (PRN)") diagCode = "CLAIM_MISMATCH_PRN";
+      }
+
       return jsonResponse({
         success: true,
-        diagnostic_code: "CLAIM_MISMATCH_DEGREE" as DiagnosticCode,
-        diagnostic_message: `Cryptographic Claim Mismatch: Document claims '${extractedDegree}', but certified record anchors '${genuineStudent.degree}'.`,
+        diagnostic_code: diagCode,
+        verification_outcome: "SEMANTIC_MISMATCH" as StandardVerificationOutcome,
+        diagnostic_message: `Cryptographic Claim Mismatch: ${fieldMismatches.map((m) => m.discrepancy).join(" ")}`,
         isValid: false,
         isRevoked: false,
         isUnregistered: false,
         tamperDetected: true,
-        tamperReason: `Degree mismatch: Claimed '${extractedDegree}', verified '${genuineStudent.degree}'.`,
+        tamperReason: `Document claims do not match certified on-chain records: ${fieldMismatches.map((m) => `${m.field} (${m.claimed} vs ${m.certified})`).join("; ")}.`,
         forensic_scan: forensic,
+        semantic_check: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
-          prn: normalizedPrn || genuineStudent.prn,
+          prn: normalizedPrn || undefined,
           cgpa: extractedCgpa,
+          studentName: extractedStudentName,
+          branch: extractedBranch,
+          graduationYear: extractedPassingYear,
         },
         requestId,
       }, { status: 200 }, requestId);
@@ -607,6 +773,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse({
         success: true,
         diagnostic_code: "MERKLE_PROOF_INVALID" as DiagnosticCode,
+        verification_outcome: "CRYPTOGRAPHICALLY_INVALID" as StandardVerificationOutcome,
         diagnostic_message: `Cryptographic Merkle Proof Failure: Computed leaf hash does not verify against ${onChainResult.source === "SEPOLIA_RPC" ? "on-chain" : "registered"} root (${onChainResult.rootHash}).`,
         isValid: false,
         isRevoked: false,
@@ -615,11 +782,15 @@ export async function POST(request: NextRequest) {
         tamperReason: "Merkle proof path does not resolve to the anchored root.",
         credential,
         forensic_scan: forensic,
+        semantic_check: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
-          prn: normalizedPrn || genuineStudent.prn,
+          prn: normalizedPrn || undefined,
           cgpa: extractedCgpa,
+          studentName: extractedStudentName,
+          branch: extractedBranch,
+          graduationYear: extractedPassingYear,
         },
         requestId,
       }, { status: 200 }, requestId);
@@ -638,6 +809,7 @@ export async function POST(request: NextRequest) {
       return jsonResponse({
         success: true,
         diagnostic_code: "CREDENTIAL_REVOKED" as DiagnosticCode,
+        verification_outcome: "REVOKED" as StandardVerificationOutcome,
         diagnostic_message:
           onChainResult.source === "SEPOLIA_RPC" || onChainResult.source === "LOCAL_RPC"
             ? `Revocation Alert: This academic credential was officially revoked on ${
@@ -650,11 +822,15 @@ export async function POST(request: NextRequest) {
         tamperDetected: false,
         credential,
         forensic_scan: forensic,
+        semantic_check: semanticCheck,
         pdfExtracted: {
           batchId: matchedBatch.batchId,
           leafIndex: extractedLeafIndex,
-          prn: normalizedPrn || genuineStudent.prn,
+          prn: normalizedPrn || undefined,
           cgpa: extractedCgpa,
+          studentName: extractedStudentName,
+          branch: extractedBranch,
+          graduationYear: extractedPassingYear,
         },
         requestId,
       }, { status: 200 }, requestId);
@@ -705,16 +881,29 @@ export async function POST(request: NextRequest) {
       forensicSummary = `AI forensic scan unavailable (${forensic.reason || "offline"}); verified via on-chain Merkle root.`;
     }
 
+    const isVisualAnomaly =
+      forensic.status === "COMPLETED" &&
+      (normalizedVerdict === "SUSPICIOUS" ||
+        normalizedVerdict === "HIGH ANOMALY" ||
+        isTamperedByScore);
+
+    const standardOutcome: StandardVerificationOutcome = isVisualAnomaly
+      ? "VISUAL_ANOMALY_REVIEW"
+      : "AUTHENTIC";
+
     const diagnosticMessage = `Fully Verified: Cryptographic Merkle proof matches ${networkName}, claims certified, and credential active. ${forensicSummary}`;
 
     return jsonResponse({
       success: true,
       diagnostic_code: "FULLY_VERIFIED" as DiagnosticCode,
+      verification_outcome: standardOutcome,
       diagnostic_message: diagnosticMessage,
       isValid: true,
       isRevoked: false,
       isUnregistered: false,
       tamperDetected: false,
+      visual_analysis_pending: forensic.status === "QUEUED",
+      visual_service_offline: forensic.status === "UNAVAILABLE",
       credential,
       on_chain_verification: {
         source: onChainResult.source,
@@ -726,11 +915,15 @@ export async function POST(request: NextRequest) {
       },
       onChainCheck: onChainResult,
       forensic_scan: normalizedForensic,
+      semantic_check: semanticCheck,
       pdfExtracted: {
         batchId: matchedBatch.batchId,
         leafIndex: extractedLeafIndex,
-        prn: normalizedPrn || genuineStudent.prn,
+        prn: normalizedPrn || undefined,
         cgpa: extractedCgpa,
+        studentName: extractedStudentName,
+        branch: extractedBranch,
+        graduationYear: extractedPassingYear,
       },
       requestId,
     }, { status: 200 }, requestId);

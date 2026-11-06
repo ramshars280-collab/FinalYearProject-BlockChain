@@ -1,11 +1,11 @@
 {
   "evaluation_title": "Controlled Synthetic ELA Forensic Evaluation Results",
-  "timestamp": "2026-11-04T00:43:35+0530",
+  "timestamp": "2026-11-06T09:52:00+0530",
   "model_status": {
     "model_architecture": "ELAForgeryCNN",
     "is_model_trained": false,
     "checkpoint_path": null,
-    "checkpoint_status": "MISSING: No trained checkpoint found at 'C:\\Final-Year-Project-Blockchain\\forgery_service\\models\\ela_forgery_cnn.pth'.",
+    "checkpoint_status": "MISSING: No trained checkpoint found at '/Users/salman/Desktop/FinalYearProject-BlockChain/forgery_service/models/ela_forgery_cnn.pth'.",
     "compute_device": "cpu",
     "forensic_mode": "HEURISTIC_BASELINE_UNTRAINED"
   },
@@ -31,8 +31,8 @@
       "ai_confidence_score": 0.2392,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 2.15,
-      "high_error_pixel_ratio": 0.0003,
-      "latency_ms": 325.13
+      "high_error_pixel_ratio": 0.000261,
+      "latency_ms": 133.65
     },
     {
       "sample_id": "SAMPLE-02",
@@ -47,11 +47,11 @@
       },
       "evaluation_notes": "Standard reference quality baseline. Uniform compression error across document elements. Expected ELA result: LOW ANOMALY / baseline variance.",
       "status": "COMPLETED",
-      "ai_confidence_score": 0.2346,
+      "ai_confidence_score": 0.2354,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 1.09,
-      "high_error_pixel_ratio": 0.0003,
-      "latency_ms": 297.03
+      "high_error_pixel_ratio": 0.000337,
+      "latency_ms": 115.37
     },
     {
       "sample_id": "SAMPLE-03",
@@ -66,11 +66,11 @@
       },
       "evaluation_notes": "Medium-quality single-pass web export baseline. Lower initial quality introduces higher baseline quantization noise, but remains uniform across all regions.",
       "status": "COMPLETED",
-      "ai_confidence_score": 0.236,
+      "ai_confidence_score": 0.2198,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 1.39,
-      "high_error_pixel_ratio": 0.0002,
-      "latency_ms": 261.08
+      "high_error_pixel_ratio": 0.000237,
+      "latency_ms": 119.02
     },
     {
       "sample_id": "SAMPLE-04",
@@ -85,11 +85,11 @@
       },
       "evaluation_notes": "Introduces physical quantization error mismatch between high-frequency patch and coarse background blocks. Expected ELA result: Elevated localized anomaly.",
       "status": "COMPLETED",
-      "ai_confidence_score": 0.2344,
+      "ai_confidence_score": 0.1411,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 1.19,
       "high_error_pixel_ratio": 0.0001,
-      "latency_ms": 206.4
+      "latency_ms": 120.64
     },
     {
       "sample_id": "SAMPLE-05",
@@ -104,11 +104,11 @@
       },
       "evaluation_notes": "Simulates adversary pasting clean text into a downloaded diploma. The uncompressed pixels undergo initial quantization while the surrounding image undergoes secondary recompression.",
       "status": "COMPLETED",
-      "ai_confidence_score": 0.2339,
+      "ai_confidence_score": 0.2013,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 0.98,
-      "high_error_pixel_ratio": 0.0003,
-      "latency_ms": 193.94
+      "high_error_pixel_ratio": 0.000255,
+      "latency_ms": 119.85
     },
     {
       "sample_id": "SAMPLE-06",
@@ -123,11 +123,11 @@
       },
       "evaluation_notes": "Introduces block boundary discontinuity and secondary compression harmonics over the CGPA numeric claim.",
       "status": "COMPLETED",
-      "ai_confidence_score": 0.2353,
+      "ai_confidence_score": 0.1944,
       "verdict": "LOW ANOMALY",
       "anomaly_std_dev": 1.24,
-      "high_error_pixel_ratio": 0.0002,
-      "latency_ms": 176.92
+      "high_error_pixel_ratio": 0.000184,
+      "latency_ms": 121.16
     }
   ]
 }

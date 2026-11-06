@@ -1,15 +1,15 @@
 # SOET VeriTrust – Controlled Synthetic ELA Forensic Evaluation Report
 
-**Evaluation Date:** 2026-11-04 00:43:35  
-**Status:** Complete Controlled Proof-of-Concept Experiment  
-**Operational Mode:** `HEURISTIC_BASELINE_UNTRAINED` (Statistical Error Level Analysis)  
+**Evaluation Date:** 2026-11-06 09:52:00
+**Status:** Complete Controlled Proof-of-Concept Experiment
+**Operational Mode:** `HEURISTIC_BASELINE_UNTRAINED` (Statistical Error Level Analysis)
 
 ---
 
 ## 1. Executive Summary
 
-This controlled evaluation assesses the physical behavior of Error Level Analysis (ELA) when inspecting academic degree credentials. 
-Three clean baseline certificates (single-pass JPEG compression at Q=95, Q=90, and Q=80) were evaluated against three synthetic localized-splicing samples 
+This controlled evaluation assesses the physical behavior of Error Level Analysis (ELA) when inspecting academic degree credentials.
+Three clean baseline certificates (single-pass JPEG compression at Q=95, Q=90, and Q=80) were evaluated against three synthetic localized-splicing samples
 (simulating forged CGPA numbers and student name alterations under controlled compression mismatches).
 
 ## 2. Evaluation Manifest & Sample Catalog
@@ -28,12 +28,12 @@ Three clean baseline certificates (single-pass JPEG compression at Q=95, Q=90, a
 
 | Sample ID | Category | Anomaly Std Dev ($\sigma$) | High-Error Pixel Ratio | Anomaly Score | ELA Verdict | Latency (ms) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SAMPLE-01** | `CLEAN_BASELINE` | 2.15 | 0.0003 | **0.2392** | `LOW ANOMALY` | 325.13 ms |
-| **SAMPLE-02** | `CLEAN_BASELINE` | 1.09 | 0.0003 | **0.2346** | `LOW ANOMALY` | 297.03 ms |
-| **SAMPLE-03** | `CLEAN_BASELINE` | 1.39 | 0.0002 | **0.236** | `LOW ANOMALY` | 261.08 ms |
-| **SAMPLE-04** | `SYNTHETIC_SPLICE` | 1.19 | 0.0001 | **0.2344** | `LOW ANOMALY` | 206.4 ms |
-| **SAMPLE-05** | `SYNTHETIC_SPLICE` | 0.98 | 0.0003 | **0.2339** | `LOW ANOMALY` | 193.94 ms |
-| **SAMPLE-06** | `SYNTHETIC_SPLICE` | 1.24 | 0.0002 | **0.2353** | `LOW ANOMALY` | 176.92 ms |
+| **SAMPLE-01** | `CLEAN_BASELINE` | 2.15 | 0.000261 | **0.2392** | `LOW ANOMALY` | 133.65 ms |
+| **SAMPLE-02** | `CLEAN_BASELINE` | 1.09 | 0.000337 | **0.2354** | `LOW ANOMALY` | 115.37 ms |
+| **SAMPLE-03** | `CLEAN_BASELINE` | 1.39 | 0.000237 | **0.2198** | `LOW ANOMALY` | 119.02 ms |
+| **SAMPLE-04** | `SYNTHETIC_SPLICE` | 1.19 | 0.0001 | **0.1411** | `LOW ANOMALY` | 120.64 ms |
+| **SAMPLE-05** | `SYNTHETIC_SPLICE` | 0.98 | 0.000255 | **0.2013** | `LOW ANOMALY` | 119.85 ms |
+| **SAMPLE-06** | `SYNTHETIC_SPLICE` | 1.24 | 0.000184 | **0.1944** | `LOW ANOMALY` | 121.16 ms |
 
 
 ## 4. Key Scientific Observations

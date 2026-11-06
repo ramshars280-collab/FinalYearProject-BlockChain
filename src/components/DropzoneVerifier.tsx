@@ -331,7 +331,11 @@ export default function DropzoneVerifier() {
         tamperDetected: Boolean(data.tamperDetected),
         tamperReason: data.tamperReason || data.diagnostic_message,
         diagnosticCode: data.diagnostic_code,
+        verificationOutcome: data.verification_outcome,
+        visualAnalysisPending: Boolean(data.visual_analysis_pending || data.forensic_scan?.status === "QUEUED"),
+        visualServiceOffline: Boolean(data.visual_service_offline || data.forensic_scan?.status === "UNAVAILABLE"),
         forensicScan: data.forensic_scan,
+        semanticCheck: data.semantic_check,
         computedLeaf: data.credential?.proof?.merkleProof?.leafHash,
         matchedRoot: data.credential?.proof?.merkleProof?.rootHash,
         batchId: data.pdfExtracted?.batchId,
@@ -1153,28 +1157,99 @@ export default function DropzoneVerifier() {
             </button>
           </div>
 
-          {/* SUCCESS STATE WITH EXPLICIT ISSUING UNIVERSITY BADGE */}
-          {result.isValid && !result.isRevoked && (
-            <div className="bg-emerald-50 border border-emerald-300 rounded-3xl p-6 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-md">
-                    <ShieldCheck className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-lg font-extrabold text-emerald-950">
-                        100% Authentic &amp; Tamper-Proof
-                      </h4>
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
-                        Verified On-Chain
-                      </span>
+          {/* ========================================================================= */}
+          {/* TIER 1 & OVERALL VERIFICATION OUTCOME                                      */}
+          {/* ========================================================================= */}
+
+          {/* SUCCESS / CRYPTOGRAPHICALLY VALID STATE */}
+          {result.isValid && !result.isRevoked && (() => {
+            const isVisualAnomaly =
+              result.forensicScan?.status === "COMPLETED" &&
+              (result.forensicScan?.verdict === "SUSPICIOUS" || result.forensicScan?.verdict === "HIGH ANOMALY");
+            const isVisualPending =
+              result.visualAnalysisPending || result.forensicScan?.status === "QUEUED";
+            const isVisualOffline =
+              result.visualServiceOffline || result.forensicScan?.status === "UNAVAILABLE";
+            const isFullyVerified =
+              result.forensicScan?.status === "COMPLETED" &&
+              (result.forensicScan?.verdict === "LOW ANOMALY" || result.forensicScan?.verdict === "AUTHENTIC");
+
+            let cardBg = "bg-emerald-50 border-emerald-300";
+            let iconBg = "bg-emerald-600";
+            let titleColor = "text-emerald-950";
+            let bannerTitle = "100% Authentic & Tamper-Proof";
+            let subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic Merkle proof, certified academic claims, and visual compression consistency checks all fully verified.`;
+
+            if (isVisualAnomaly) {
+              cardBg = "bg-amber-50/70 border-amber-300";
+              iconBg = "bg-amber-600";
+              titleColor = "text-amber-950";
+              bannerTitle = "Authentic Blockchain Record • Visual Anomaly Advisory";
+              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match an authentic registered credential, but visual analysis detected localized compression discrepancies. Inspect the thermal heatmap below.`;
+            } else if (isVisualPending) {
+              cardBg = "bg-sky-50/70 border-sky-300";
+              iconBg = "bg-sky-600";
+              titleColor = "text-sky-950";
+              bannerTitle = "Cryptographically Verified On-Chain • Visual Analysis Pending";
+              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Visual forensic analysis has been deferred to background runner or is currently queued.`;
+            } else if (isVisualOffline) {
+              cardBg = "bg-slate-50 border-slate-300";
+              iconBg = "bg-slate-600";
+              titleColor = "text-slate-950";
+              bannerTitle = "Cryptographically Verified On-Chain • Advisory Visual Scan Offline";
+              subDescription = `Merkle root verified on Sepolia at ${result.verifiedAt}. Cryptographic claims match the authentic registered student record. Advisory visual forensic scanning was unavailable or timed out.`;
+            }
+
+            return (
+              <div className={`rounded-3xl p-6 shadow-sm space-y-4 border ${cardBg}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 text-white rounded-2xl shadow-md shrink-0 ${iconBg}`}>
+                      {isVisualAnomaly ? (
+                        <AlertCircle className="h-7 w-7" />
+                      ) : (
+                        <ShieldCheck className="h-7 w-7" />
+                      )}
                     </div>
-                    <p className="text-xs text-emerald-800 mt-1">
-                      Merkle root verified on Sepolia at {result.verifiedAt}. Leaf integrity and dynamic bitmap checks passed.
-                    </p>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className={`text-lg font-extrabold ${titleColor}`}>
+                          {bannerTitle}
+                        </h4>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                          Blockchain: Verified On-Chain
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                          Claims: Certified Match
+                        </span>
+                        {isFullyVerified && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                            Visual Forensics: Low Anomaly
+                          </span>
+                        )}
+                        {isVisualAnomaly && (
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                            result.forensicScan?.verdict === "SUSPICIOUS" ? "bg-amber-200 text-amber-900" : "bg-red-200 text-red-900"
+                          }`}>
+                            Visual Forensics: {result.forensicScan?.verdict}
+                          </span>
+                        )}
+                        {isVisualPending && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-sky-200 text-sky-900 px-2.5 py-0.5 rounded-full">
+                            Visual Forensics: Deferred / Pending
+                          </span>
+                        )}
+                        {isVisualOffline && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded-full">
+                            Visual Forensics: Service Offline
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xs mt-1 leading-relaxed ${isVisualAnomaly ? "text-amber-900" : "text-slate-700"}`}>
+                        {subDescription}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -1225,75 +1300,8 @@ export default function DropzoneVerifier() {
                   </div>
                 </div>
               </div>
-
-              {/* Dual-Verification Layer 2: AI Forensic Error Level Analysis */}
-              {result.forensicScan && (
-                <div className="pt-3 border-t border-emerald-200/70 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-blue-600" />
-                      <span className="text-xs font-bold text-slate-900">
-                        AI Layer 2 &bull; PyTorch CNN Forensic Analysis:
-                      </span>
-                    </div>
-                    {result.forensicScan.status === "COMPLETED" ? (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            result.forensicScan.verdict === "AUTHENTIC"
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                              : result.forensicScan.verdict === "SUSPICIOUS"
-                              ? "bg-amber-100 text-amber-800 border border-amber-300"
-                              : "bg-red-100 text-red-800 border border-red-300"
-                          }`}
-                        >
-                          Forensic Verdict: {result.forensicScan.verdict}
-                        </span>
-                        {result.forensicScan.heatmap_base64 && (
-                          <button
-                            type="button"
-                            onClick={() => setShowHeatmap(!showHeatmap)}
-                            className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline ml-1 cursor-pointer"
-                          >
-                            {showHeatmap ? "Hide Thermal ELA Map" : "View Thermal ELA Map"}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        Forensics Standby ({result.forensicScan.reason || "Offline"})
-                      </span>
-                    )}
-                  </div>
-
-                  {result.forensicScan.status === "COMPLETED" && (
-                    <div className="bg-white/80 border border-emerald-200 rounded-xl p-2.5 text-xs text-slate-700 space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 font-mono">
-                        <span>Tampering Anomaly Probability: <strong>{((result.forensicScan.ai_confidence_score || 0) * 100).toFixed(1)}%</strong></span>
-                        <span>Neural Model: <strong>{result.forensicScan.metadata?.model_architecture || "ELAForgeryCNN"}</strong></span>
-                        <span>Engine: <strong>PyTorch ({result.forensicScan.metadata?.compute_device?.toUpperCase() || "CPU"})</strong></span>
-                      </div>
-                      {showHeatmap && result.forensicScan.heatmap_base64 && (
-                        <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
-                          <span className="text-[10px] font-bold text-slate-500 block uppercase">
-                            Error Level Analysis (ELA) Compression Thermal Heatmap (JET Colormap Overlay):
-                          </span>
-                          <div className="rounded-lg overflow-hidden border border-slate-200 max-h-96 flex items-center justify-center bg-slate-900">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={result.forensicScan.heatmap_base64}
-                              alt="ELA Thermal Tampering Heatmap"
-                              className="max-h-96 w-auto object-contain"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          )}
+          ); })()}
 
           {/* REVOKED STATE */}
           {result.isRevoked && (
@@ -1368,6 +1376,305 @@ export default function DropzoneVerifier() {
                 <div className="bg-white p-3 rounded-xl border border-red-200 text-xs font-mono text-red-900 space-y-1">
                   <div>Computed Hash: <span className="font-bold">{result.computedLeaf.slice(0, 10)}••••••••{result.computedLeaf.slice(-8)}</span></div>
                   <div>Status: <span className="text-red-700 font-bold">REJECTED (Does not match certified root)</span></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MECHANISM B: SEMANTIC CLAIM CONSISTENCY (FIELD-LEVEL AUDIT)                */}
+          {/* Compares extracted certificate claims against the on-chain Merkle record  */}
+          {/* ========================================================================= */}
+          {result.semanticCheck && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`p-1.5 rounded-lg ${
+                      result.semanticCheck.status === "MATCH"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : result.semanticCheck.status === "MISMATCH"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <FileCheck2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900">
+                      Mechanism B &bull; Semantic Claim Consistency (Field-Level Audit)
+                    </h5>
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      Cross-verifies document typography against authoritative Sepolia Merkle leaves
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      result.semanticCheck.status === "MATCH"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : result.semanticCheck.status === "MISMATCH"
+                        ? "bg-rose-100 text-rose-800 border border-rose-300"
+                        : "bg-slate-100 text-slate-700 border border-slate-200"
+                    }`}
+                  >
+                    {result.semanticCheck.status === "MATCH"
+                      ? "CLAIMS CONSISTENT (100% MATCH)"
+                      : result.semanticCheck.status === "MISMATCH"
+                      ? "SEMANTIC CLAIM MISMATCH"
+                      : "AUDIT SKIPPED"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mismatch Alert Banner */}
+              {result.semanticCheck.status === "MISMATCH" && result.semanticCheck.field_mismatches && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 text-rose-900 font-bold">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>Discrepancy Warning: {result.semanticCheck.field_mismatches.length} field(s) diverge from certified blockchain record:</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-rose-800 pl-1">
+                    {result.semanticCheck.field_mismatches.map((m, idx) => (
+                      <li key={idx} className="leading-relaxed">
+                        <strong className="font-semibold text-rose-950">{m.field}:</strong> Document claims &ldquo;{String(m.claimed)}&rdquo;, but certified on-chain record anchors &ldquo;{String(m.certified)}&rdquo;.
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Field Comparison Grid */}
+              {(result.semanticCheck.claimed || result.semanticCheck.certified) && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-slate-100 rounded-xl overflow-hidden">
+                    <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase">
+                      <tr>
+                        <th className="py-2 px-3">Field Attribute</th>
+                        <th className="py-2 px-3">Document Claim</th>
+                        <th className="py-2 px-3">Certified On-Chain Anchor</th>
+                        <th className="py-2 px-3 text-right">Integrity Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      {[
+                        {
+                          label: "Candidate Name",
+                          claimed: result.semanticCheck.claimed?.studentName,
+                          certified: result.semanticCheck.certified?.studentName,
+                        },
+                        {
+                          label: "Permanent Reg. No (PRN)",
+                          claimed: result.semanticCheck.claimed?.prn,
+                          certified: result.semanticCheck.certified?.prn,
+                        },
+                        {
+                          label: "Cumulative CGPA",
+                          claimed:
+                            result.semanticCheck.claimed?.cgpa !== undefined
+                              ? Number(result.semanticCheck.claimed.cgpa).toFixed(2)
+                              : undefined,
+                          certified:
+                            result.semanticCheck.certified?.cgpa !== undefined
+                              ? Number(result.semanticCheck.certified.cgpa).toFixed(2)
+                              : undefined,
+                        },
+                        {
+                          label: "Degree Conferred",
+                          claimed: result.semanticCheck.claimed?.degree,
+                          certified: result.semanticCheck.certified?.degree,
+                        },
+                        {
+                          label: "Branch / Discipline",
+                          claimed: result.semanticCheck.claimed?.branch,
+                          certified: result.semanticCheck.certified?.branch,
+                        },
+                        {
+                          label: "Graduation Year",
+                          claimed: result.semanticCheck.claimed?.graduationYear,
+                          certified: result.semanticCheck.certified?.graduationYear,
+                        },
+                      ].map((item, idx) => {
+                        const isMismatch = result.semanticCheck?.field_mismatches?.some((m) =>
+                          m.field.toLowerCase().includes(item.label.toLowerCase().slice(0, 5))
+                        );
+                        return (
+                          <tr
+                            key={idx}
+                            className={
+                              isMismatch
+                                ? "bg-rose-50/60"
+                                : idx % 2 === 0
+                                ? "bg-white"
+                                : "bg-slate-50/40"
+                            }
+                          >
+                            <td className="py-2 px-3 font-sans font-medium text-slate-700">
+                              {item.label}
+                            </td>
+                            <td className="py-2 px-3 text-slate-900 font-semibold">
+                              {item.claimed ?? (
+                                <span className="text-slate-400 font-normal italic">Inconclusive (Not Extracted)</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">{item.certified ?? "N/A"}</td>
+                            <td className="py-2 px-3 text-right">
+                              {isMismatch ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                                  <XCircle className="h-3 w-3" /> Mismatch
+                                </span>
+                              ) : item.claimed && item.certified ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  <CheckCircle2 className="h-3 w-3" /> Verified Match
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                  Inconclusive
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MECHANISM C: DOCUMENT FORENSIC ANALYSIS (ERROR LEVEL ANALYSIS)             */}
+          {/* Rendered in ALL verification states when a forensic scan is attached      */}
+          {/* ========================================================================= */}
+          {result.forensicScan && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-100 text-blue-700 rounded-lg">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900">
+                      Mechanism C &bull; Visual Forensic Analysis (Error Level Analysis)
+                    </h5>
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      {result.forensicScan.metadata?.forensic_mode === "TRAINED_INFERENCE" && result.forensicScan.metadata?.model_trained
+                        ? "Operational Mode: Trained PyTorch ELA CNN Inference"
+                        : "Operational Mode: Heuristic Compression Forensics (Untrained Baseline)"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {result.forensicScan.status === "COMPLETED" ? (
+                    <>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          result.forensicScan.verdict === "LOW ANOMALY" || result.forensicScan.verdict === "AUTHENTIC"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            : result.forensicScan.verdict === "SUSPICIOUS"
+                            ? "bg-amber-100 text-amber-800 border border-amber-300"
+                            : "bg-red-100 text-red-800 border border-red-300"
+                        }`}
+                      >
+                        Forensic Verdict: {result.forensicScan.verdict}
+                      </span>
+                      {result.forensicScan.heatmap_base64 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowHeatmap(!showHeatmap)}
+                          className="text-[10px] font-bold text-blue-700 hover:text-blue-900 underline ml-1 cursor-pointer"
+                        >
+                          {showHeatmap ? "Hide Thermal ELA Map" : "View Thermal ELA Map"}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                      Forensics Standby ({result.forensicScan.reason || "Microservice Offline"})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {result.forensicScan.status === "COMPLETED" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Anomaly Probability:</span>
+                      <strong className="text-slate-900">
+                        {((result.forensicScan.ai_confidence_score || 0) * 100).toFixed(1)}%
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Residual Std Dev (&sigma;):</span>
+                      <strong className="text-slate-900">
+                        {result.forensicScan.metadata?.anomaly_std_dev ?? "N/A"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Localized Peak Z-Score:</span>
+                      <strong className="text-slate-900">
+                        {result.forensicScan.metadata?.localized_tile_peak_zscore ?? "N/A"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Compute / Engine:</span>
+                      <strong className="text-slate-900 truncate block">
+                        {result.forensicScan.metadata?.compute_device?.toUpperCase() || "CPU"} &bull; 64 Tiles
+                      </strong>
+                    </div>
+                  </div>
+
+                  {Array.isArray(result.forensicScan.metadata?.localized_suspicious_regions) &&
+                    result.forensicScan.metadata.localized_suspicious_regions.length > 0 && (
+                      <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-xs space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-amber-900 font-bold text-[11px]">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span>
+                            Localized Compression Anomaly Hotspots (
+                            {result.forensicScan.metadata.localized_suspicious_regions.length} tile(s) detected):
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-0.5 font-mono text-[10px]">
+                          {result.forensicScan.metadata.localized_suspicious_regions.map(
+                            (tile: any, tIdx: number) => (
+                              <span
+                                key={tIdx}
+                                className="bg-white px-2 py-0.5 rounded border border-amber-300 text-amber-900 shadow-2xs"
+                              >
+                                Grid [{tile.grid_row},{tile.grid_col}] &bull; Z: {tile.z_score} &bull; Mean:{" "}
+                                {tile.tile_mean}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {showHeatmap && result.forensicScan.heatmap_base64 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 block uppercase">
+                        Error Level Analysis (ELA) Compression Thermal Heatmap (JET Colormap Overlay):
+                      </span>
+                      <div className="rounded-lg overflow-hidden border border-slate-200 max-h-96 flex items-center justify-center bg-slate-900">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={result.forensicScan.heatmap_base64}
+                          alt="ELA Thermal Tampering Heatmap"
+                          className="max-h-96 w-auto object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-slate-500 leading-normal italic">
+                    {result.forensicScan.metadata?.disclaimer ||
+                      "Visual forensic analysis evaluates JPEG compression anomalies (Error Level Analysis) using localized spatial heuristics. In the absence of a fine-tuned checkpoint, this operates as an untrained heuristic baseline. Cryptographic Merkle tree verification on Ethereum Sepolia remains the authoritative ground truth."}
+                  </p>
                 </div>
               )}
             </div>
