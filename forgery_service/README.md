@@ -1,5 +1,5 @@
 ---
-title: SOET VeriTrust AI Forensic Microservice
+title: TrueCred AI Forensic Microservice
 emoji: 🛡️
 colorFrom: blue
 colorTo: indigo
@@ -8,7 +8,7 @@ app_port: 7860
 pinned: false
 ---
 
-# SOET VeriTrust AI Forensic Microservice
+# TrueCred AI Forensic Microservice
 
 High-performance Python FastAPI microservice providing Error Level Analysis (ELA) and visual tampering detection for academic credential PDFs and images.
 

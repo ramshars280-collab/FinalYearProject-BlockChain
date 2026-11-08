@@ -333,7 +333,7 @@ export function resolveSafeVerificationOrigin(request: NextRequest): string {
   }
 
   return process.env.NODE_ENV === 'production'
-    ? 'https://soet-veritrust.vercel.app'
+    ? 'https://truecred.vercel.app'
     : 'http://localhost:3000';
 }
 

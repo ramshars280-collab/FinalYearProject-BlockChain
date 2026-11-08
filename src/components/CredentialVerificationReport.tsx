@@ -436,7 +436,7 @@ export default function CredentialVerificationReport({
         <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
           <span className="inline-flex items-center gap-1.5 font-bold text-slate-900">
             <ShieldCheck className="h-4 w-4 text-blue-600" />
-            SOET VeriTrust
+            TrueCred
           </span>
           <span>&bull;</span>
           <span>Public Credential Verification</span>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 /**
- * SOET VeriTrust - Request Correlation, Privacy & Structured Logging Utility
+ * TrueCred - Request Correlation, Privacy & Structured Logging Utility
  *
  * ARCHITECTURAL SPECIFICATION:
  * 1. Request Correlation:

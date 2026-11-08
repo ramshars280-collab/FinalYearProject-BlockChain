@@ -1,5 +1,5 @@
 /**
- * Dual-Engine Launcher for SOET VeriTrust System
+ * Dual-Engine Launcher for TrueCred System
  * Launches both the Next.js frontend/API server and the PyTorch AI Forensic microservice.
  * Usage: npm run dev:all
  */
@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 
 console.log('================================================================');
-console.log('🛡️  SOET VeriTrust: Dual-Engine Verification Environment');
+console.log('🛡️  TrueCred: Dual-Engine Verification Environment');
 console.log('   Ethereum Sepolia + PyTorch Deep Learning Forensic System');
 console.log('================================================================\n');
 

@@ -39,11 +39,19 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
+  // Permanent TrueCred navigation entry points - always visible across all user states
   const navLinks = [
     { href: "/", label: "Public Verifier", icon: ShieldCheck },
     { href: "/student", label: "Student Vault", icon: UserCheck },
     { href: "/issuer", label: "University Admin", icon: Layers },
   ];
+
+  const isLinkActive = (href: string) => {
+    if (href === "/") {
+      return pathname === "/" || pathname === "";
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
@@ -101,24 +109,24 @@ export default function Navbar() {
             </div>
             <div>
               <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">
-                SOET VeriTrust
+                TrueCred
               </span>
               <p className="text-[11px] text-slate-500 hidden sm:block leading-none mt-0.5">
-                Academic Credential Verification System
+                Blockchain Credential Verification Platform
               </p>
             </div>
           </Link>
 
-          {/* CENTER: Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1.5">
+          {/* CENTER: Navigation Links (Permanent 3 options) */}
+          <nav className="hidden lg:flex items-center gap-1.5 shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href;
+              const isActive = isLinkActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                     isActive
                       ? "text-white bg-blue-600 shadow-sm border border-blue-700"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
@@ -131,30 +139,37 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* RIGHT: User Session Badge + Dynamic MetaMask Connection Status */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* RIGHT: User Account Indicator + Dynamic MetaMask Connection Status */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isAuthenticated && user && (
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs">
+              <div
+                className="flex items-center gap-2 bg-blue-50/80 border border-blue-200 rounded-xl p-1 pl-2.5 sm:p-1.5 sm:pl-3 text-xs shadow-2xs"
+                title={
+                  user.role === "STUDENT"
+                    ? `${(user as any).fullName || "Student"} (${(user as any).prn})`
+                    : `${(user as any).fullName || "Officer"} (${(user as any).staffId || "Admin"})`
+                }
+              >
                 <div className="flex items-center gap-1.5 font-bold text-blue-950">
                   {user.role === "STUDENT" ? (
-                    <User className="h-3.5 w-3.5 text-blue-600" />
+                    <User className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                   ) : (
-                    <Shield className="h-3.5 w-3.5 text-blue-600" />
+                    <Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                   )}
-                  <span className="hidden sm:inline truncate max-w-[140px]">
+                  <span className="hidden sm:inline font-mono text-[11px] font-semibold text-blue-900 max-w-[140px] truncate">
                     {user.role === "STUDENT"
-                      ? `${(user as any).prn}`
-                      : "University Admin"}
+                      ? (user as any).prn
+                      : (user as any).staffId || "Admin"}
                   </span>
                 </div>
 
                 <button
                   onClick={() => logout()}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg text-xs font-bold transition-all"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
                   title="Sign Out"
                 >
-                  <LogOut className="h-3 w-3" />
-                  <span>Sign Out</span>
+                  <LogOut className="h-3 w-3 text-slate-500 hover:text-red-600" />
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
             )}
@@ -206,7 +221,7 @@ export default function Navbar() {
               <button
                 onClick={connectWallet}
                 disabled={isConnecting}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102 active:scale-98 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all hover:scale-102 active:scale-98 disabled:opacity-50 cursor-pointer"
               >
                 <Wallet className="h-4 w-4" />
                 <span className="hidden sm:inline">{isConnecting ? "Connecting..." : "Wallet Not Connected"}</span>
@@ -220,7 +235,7 @@ export default function Navbar() {
         <div className="flex lg:hidden border-t border-slate-200 py-2.5 gap-2 items-center justify-between overflow-x-auto">
           {navLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            const isActive = isLinkActive(link.href);
             return (
               <Link
                 key={link.href}

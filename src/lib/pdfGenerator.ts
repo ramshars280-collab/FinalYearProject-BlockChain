@@ -65,8 +65,8 @@ export async function generateCertificatePdf(cert: DynamicCertificatePdfData): P
   stream += `${32} ${32} ${cornerSize} ${cornerSize} re f\n`;
   stream += `${W - 32 - cornerSize} ${32} ${cornerSize} ${cornerSize} re f\n`;
 
-  // 4. University Header (Approved Institutional Identity: MGM University)
-  const uniName = cert.universityName || 'MGM University';
+  // 4. University Header (Dynamic Institutional Identity)
+  const uniName = cert.universityName || 'Accredited University';
   stream += 'BT\n';
   stream += '/F2 16 Tf\n'; // Helvetica-Bold
   stream += '0.12 0.16 0.24 rg\n';
@@ -74,8 +74,8 @@ export async function generateCertificatePdf(cert: DynamicCertificatePdfData): P
   stream += `(${escapePdfText(uniName)}) Tj\n`;
   stream += 'ET\n';
 
-  // 5. Institution Sub-Header (Approved Identity: School of Engineering & Technology (SOET))
-  const instName = cert.instituteName || 'School of Engineering & Technology (SOET)';
+  // 5. Institution Sub-Header (Dynamic Faculty / Institute Identity)
+  const instName = cert.instituteName || 'Faculty of Engineering & Technology';
   stream += 'BT\n';
   stream += '/F1 10.5 Tf\n'; // Helvetica
   stream += '0.40 0.45 0.52 rg\n';
@@ -227,8 +227,8 @@ export async function generateCertificatePdf(cert: DynamicCertificatePdfData): P
   stream += 'BT\n';
   stream += '/F1 7.5 Tf\n';
   stream += '0.35 0.35 0.35 rg\n';
-  stream += `1 0 0 1 ${qrX + 8} ${qrY - 14} Tm\n`;
-  stream += '(Scan to Verify Online) Tj\n';
+  stream += `1 0 0 1 ${qrX + 4} ${qrY - 14} Tm\n`;
+  stream += '(Verify via TrueCred) Tj\n';
   stream += 'ET\n';
 
   // 14. Academic Disclaimer in Footer

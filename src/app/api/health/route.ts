@@ -5,7 +5,7 @@ import { getRequestId, jsonResponse, logger } from '@/lib/observability';
 export const dynamic = 'force-dynamic';
 
 /**
- * Health & Readiness Diagnostic Endpoint for SOET VeriTrust
+ * Health & Readiness Diagnostic Endpoint for TrueCred
  *
  * Checks HTTP application responsiveness and SQLite database availability.
  * Returns HTTP 200 with service metadata when healthy.
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       return jsonResponse(
         {
           status: 'UNHEALTHY',
-          service: 'SOET VeriTrust Web & Verification API',
+          service: 'TrueCred Web & Verification API',
           timestamp: new Date().toISOString(),
           requestId,
           database: {
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     return jsonResponse(
       {
         status: 'HEALTHY',
-        service: 'SOET VeriTrust Web & Verification API',
+        service: 'TrueCred Web & Verification API',
         timestamp: new Date().toISOString(),
         requestId,
         database: {
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     return jsonResponse(
       {
         status: 'UNHEALTHY',
-        service: 'SOET VeriTrust Web & Verification API',
+        service: 'TrueCred Web & Verification API',
         timestamp: new Date().toISOString(),
         requestId,
         database: {

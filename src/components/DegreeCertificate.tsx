@@ -105,7 +105,7 @@ export default function DegreeCertificate({
     ? `${toSafeString(subject.cgpa)} / 10.0`
     : "8.76 / 10.0";
   const nheqfLevel = toSafeString(subject?.nheqfLevel, "6.0");
-  const universityName = toSafeString(subject?.university || credential?.issuer?.name, "MGM University");
+  const universityName = toSafeString(subject?.university || credential?.issuer?.name, "Accredited University");
 
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -709,7 +709,7 @@ export default function DegreeCertificate({
                 const isOnChain = Boolean(verification?.isOnChainAnchored && txHash);
                 return isOnChain
                   ? `Scan with any mobile camera to verify this degree on ${networkDisplayName}`
-                  : "Scan with any mobile camera to verify this degree via the Institutional Verification Portal";
+                  : "Scan with any mobile camera to verify this degree via the TrueCred Verification Portal";
               })()}
             </p>
 

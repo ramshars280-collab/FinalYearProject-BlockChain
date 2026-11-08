@@ -145,7 +145,7 @@ export default function IssuerPage() {
                   Examination Authority
                 </span>
                 <span className="text-[10px] text-slate-300 font-medium">
-                  Controller of Examinations &bull; MGM University
+                  Controller of Examinations &bull; TrueCred Institutional Authority
                 </span>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function IssuerPage() {
 
           {/* Bottom Footer Note */}
           <div className="pt-4 border-t border-white/10 text-[11px] text-slate-400 flex items-center justify-between relative z-10">
-            <span>MGM University Trust Network</span>
+            <span>TrueCred Institutional Trust Network</span>
             <span className="font-mono font-bold text-amber-400">COE-AUTH-01</span>
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function IssuerPage() {
                     value={adminId}
                     onChange={(e) => setAdminId(e.target.value.toUpperCase())}
                     required
-                    placeholder="EXAM_ADMIN_MGM"
+                    placeholder="EXAM_ADMIN"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-3 text-xs text-slate-900 font-mono font-bold uppercase focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-hidden transition-all"
                   />
                 </div>
@@ -1197,7 +1197,7 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                 <input
                   type="text"
                   value={batchId}
-                  placeholder="e.g. MGM-2026-BTECH-BATCH01"
+                  placeholder="e.g. BATCH-2026-BTECH-01"
                   onChange={(e) => {
                     setBatchId(e.target.value);
                     setAnchorError(null);
@@ -1281,13 +1281,13 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                       setUploadSuccessNotification({
                         batchId: "MGM-2024-BTECH-BATCH01",
                         count: INITIAL_STUDENTS_MGM.length,
-                        fileName: "Preset Batch: MGM CSE (Batch 01)",
+                        fileName: "Preset Batch: Computer Science (Batch 01)",
                         timestamp: Date.now(),
                       });
                     }}
                     className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-[11px] font-bold"
                   >
-                    MGM CSE (Batch 01)
+                    Computer Science (Batch 01)
                   </button>
                   <button
                     onClick={() => {
@@ -1300,13 +1300,13 @@ function UniversityAdminWorkspace({ logout }: { logout: () => void }) {
                       setUploadSuccessNotification({
                         batchId: "MGM-2024-BTECH-BATCH02",
                         count: INITIAL_STUDENTS_MGM.length,
-                        fileName: "Preset Batch: MGM IT & ECE (Batch 02)",
+                        fileName: "Preset Batch: IT & ECE (Batch 02)",
                         timestamp: Date.now(),
                       });
                     }}
                     className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[11px] font-bold"
                   >
-                    MGM IT &amp; ECE (Batch 02)
+                    IT &amp; ECE (Batch 02)
                   </button>
                 </div>
 

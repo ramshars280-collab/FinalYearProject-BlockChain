@@ -100,8 +100,8 @@ export function getDatabaseAdapter(): IDatabaseAdapter {
 
   const validation = validateDatabaseConfig();
   if (!validation.valid) {
-    console.error('[VeriTrust Database Adapter FATAL]:', validation.error);
-    throw new Error(`[VeriTrust Database Adapter FATAL] ${validation.error}`);
+    console.error('[TrueCred Database Adapter FATAL]:', validation.error);
+    throw new Error(`[TrueCred Database Adapter FATAL] ${validation.error}`);
   }
 
   if (validation.backend === 'turso') {
@@ -164,7 +164,7 @@ export async function closeDatabaseAdapter(): Promise<void> {
     try {
       await globalForAdapter.__veritrust_db_adapter.close();
     } catch (err: any) {
-      console.warn('[VeriTrust Database Adapter] Warning during adapter shutdown:', err.message);
+      console.warn('[TrueCred Database Adapter] Warning during adapter shutdown:', err.message);
     } finally {
       globalForAdapter.__veritrust_db_adapter = undefined;
       globalForAdapter.__veritrust_adapter_backend = undefined;

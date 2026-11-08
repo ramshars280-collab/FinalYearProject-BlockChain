@@ -131,10 +131,10 @@ export default function StudentPortalPage() {
               </div>
               <div>
                 <span className="text-xs uppercase font-extrabold tracking-widest text-blue-300 block">
-                  MGM University
+                  TrueCred Student Vault
                 </span>
                 <span className="text-[10px] text-blue-200/80 font-medium">
-                  Chhatrapati Sambhajinagar, Maharashtra
+                  Decentralized Academic Identity &amp; Credential Management
                 </span>
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function StudentPortalPage() {
 
           {/* Bottom Footer Note */}
           <div className="pt-4 border-t border-white/10 text-[11px] text-blue-200/70 flex items-center justify-between relative z-10">
-            <span>Powered by Ethereum-Compatible Blockchain</span>
+            <span>Powered by TrueCred Blockchain Engine</span>
             <span className="font-mono font-bold text-white/90">EVM v0.8.20</span>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function StudentPortalPage() {
             </form>
 
             <div className="pt-2 text-center text-[11px] text-slate-400">
-              MGM University Official SSO &bull; Direct PRN &amp; Password Access
+              TrueCred Official SSO &bull; Direct PRN &amp; Password Access
             </div>
           </div>
         </div>

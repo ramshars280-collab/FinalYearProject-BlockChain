@@ -5,9 +5,13 @@ import { AuthProvider } from "../context/AuthContext";
 import { Web3Provider } from "../context/Web3Context";
 
 export const metadata: Metadata = {
-  title: "SOET VeriTrust | Blockchain Degree Verification",
+  title: "TrueCred | Blockchain Academic Credential Verification",
   description:
-    "OpenCerts/Blockcerts-compliant academic credential authentication system with EIP-712 identity binding, dynamic revocation bitmaps, and NEP 2020 Academic Bank of Credits.",
+    "Enterprise blockchain academic credential authentication platform with EIP-712 identity binding, dynamic revocation bitmaps, and AI document forensics.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +31,7 @@ export default function RootLayout({
             <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500 shadow-xs">
               <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
                 <p>
-                  &copy; {new Date().getFullYear()} MGM University Examination Authority &bull; Powered by Ethereum-Compatible Blockchain
+                  &copy; {new Date().getFullYear()} TrueCred &bull; Blockchain Credential Verification Platform
                 </p>
                 <p className="font-mono text-[11px] text-blue-800 font-semibold">
                   EIP-712 &bull; O(1) Dynamic Bitmap &bull; NEP 2020 ABC &bull; India DPDP Act

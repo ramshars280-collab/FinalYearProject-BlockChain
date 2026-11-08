@@ -1,4 +1,4 @@
-# Standalone Dockerfile for SOET VeriTrust Python FastAPI AI Forensic Microservice
+# Standalone Dockerfile for TrueCred Python FastAPI AI Forensic Microservice
 # Optimized for zero-budget cloud hosting (Hugging Face Spaces / Render / Railway)
 FROM python:3.11-slim-bookworm
 

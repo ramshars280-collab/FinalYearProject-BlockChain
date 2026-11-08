@@ -137,11 +137,11 @@ export async function POST(request: NextRequest) {
     const pinataPayload = {
       pinataContent,
       pinataMetadata: {
-        name: `SOET_Batch_${batchId}`,
+        name: `TrueCred_Batch_${batchId}`,
         keyvalues: {
           batchId: String(batchId),
           network: 'Ethereum Sepolia',
-          application: 'SOET VeriTrust',
+          application: 'TrueCred',
         },
       },
     };
